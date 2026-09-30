@@ -1,4 +1,4 @@
-import type { AppData, GameSession, Group, Member } from './types';
+import type { AppData, Contact, GameSession, Group } from './types';
 import { settle, type Transfer } from './settle';
 import { formatMoney } from './money';
 
@@ -62,12 +62,23 @@ export function memberHasActivity(g: Group, memberId: string) {
   );
 }
 
-/** One friend across groups: matched by account, then by email, else treated as a separate guest. */
-export function friendKey(m: Member) {
-  if (m.user_id) return `u:${m.user_id}`;
-  if (m.email) return `e:${m.email.toLowerCase()}`;
-  return `m:${m.id}`;
+/** One friend across groups and contacts: matched by account, then by email, else a standalone guest. */
+export function friendKey(x: { id: string; user_id: string | null; email: string | null }) {
+  if (x.user_id) return `u:${x.user_id}`;
+  if (x.email) return `e:${x.email.toLowerCase()}`;
+  return `m:${x.id}`;
 }
+
+export type FriendStatus = 'friend' | 'invited' | 'guest';
+
+/** 'friend' = linked to a real account, 'invited' = has an email but hasn't signed up, 'guest' = name only. */
+export function statusFromKey(key: string): FriendStatus {
+  if (key.startsWith('u:')) return 'friend';
+  if (key.startsWith('e:')) return 'invited';
+  return 'guest';
+}
+
+export const STATUS_LABEL: Record<FriendStatus, string> = { friend: 'Friend', invited: 'Invited', guest: 'Guest' };
 
 export interface FriendGroupBalance { group: Group; memberId: string; myMemberId: string; cents: number }
 export interface Friend { key: string; name: string; email: string | null; net: number; groups: FriendGroupBalance[] }
@@ -101,6 +112,32 @@ export function friendBalances(data: AppData): Friend[] {
     }
   }
   return [...map.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
+}
+
+export interface FriendRow extends Friend {
+  contactId: string | null; // set once this person is in the signed-in user's own friends list
+  status: FriendStatus;
+}
+
+/**
+ * The Friends page: everyone you share a group with, plus everyone in your own address
+ * book (src/api DataApi `contacts`) even if they aren't in a shared group yet. The same
+ * person collapses into one row whether they showed up via a group or via `contacts`.
+ */
+export function friendsList(data: AppData): FriendRow[] {
+  const rows = new Map<string, FriendRow>();
+  for (const f of friendBalances(data)) rows.set(f.key, { ...f, contactId: null, status: statusFromKey(f.key) });
+  for (const c of data.contacts) {
+    const key = friendKey(c);
+    const existing = rows.get(key);
+    if (existing) existing.contactId = c.id;
+    else rows.set(key, { key, name: c.name, email: c.email, net: 0, groups: [], contactId: c.id, status: statusFromKey(key) });
+  }
+  return [...rows.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
+}
+
+export function findContact(data: AppData, id: string): Contact | undefined {
+  return data.contacts.find((c) => c.id === id);
 }
 
 export function totals(data: AppData) {
@@ -232,6 +269,33 @@ export function pokerStats(data: AppData) {
     }
   }
   return { net, games, wins, best, worst, winRate: games ? Math.round((wins / games) * 100) : 0 };
+}
+
+/**
+ * A `mailto:` link with a plain-text balance summary, for the involved parties.
+ * Pass `sessionId` to summarize just one game day (its players only); omit it for the whole group.
+ * Members who opted out (or have no email on file) are left off the recipient list.
+ */
+export function summaryMailto(g: Group, sessionId?: string): string {
+  const session = sessionId ? g.sessions.find((s) => s.id === sessionId) : undefined;
+  const bal = session ? sessionNets(session) : groupBalances(g);
+  const transfers = simplify(bal);
+  const involved = new Set(bal.keys());
+  const recipients = g.members.filter((m) => m.email && !m.email_opt_out && involved.has(m.id)).map((m) => m.email!);
+
+  const subject = session ? `ChipSplit summary — ${g.name}${session.location ? `, ${session.location}` : ''}` : `ChipSplit summary — ${g.name}`;
+  const lines: string[] = [subject, ''];
+  for (const id of involved) {
+    const cents = bal.get(id) ?? 0;
+    if (cents === 0) continue;
+    lines.push(`${memberName(g, id)}: ${cents > 0 ? 'is owed' : 'owes'} ${formatMoney(Math.abs(cents), g.currency)}`);
+  }
+  lines.push('', 'Settle up:');
+  if (transfers.length === 0) lines.push('Everyone is settled up.');
+  else transfers.forEach((t) => lines.push(`${memberName(g, t.from)} → ${memberName(g, t.to)}: ${formatMoney(t.cents, g.currency)}`));
+
+  const to = recipients.map(encodeURIComponent).join(',');
+  return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
 }
 
 export interface SessionTransfer { from: string; to: string; cents: number; settlementId: string | null }

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { ArrowLeft, ArrowRight, Check, Lock, LockOpen, Plus, RotateCcw, Save, Trash2, UserPlus, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Lock, LockOpen, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { memberName, myMemberId, sessionPayments } from '../lib/ledger';
+import { memberName, myMemberId, sessionPayments, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
 import { Amount, Avatar, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Textarea } from '../components/ui';
+import { HistoryList } from '../components/HistoryList';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
 import type { GameSession, Group } from '../lib/types';
 
@@ -93,12 +94,15 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
           {s.location && <span>{s.location}</span>}
           <span>{lines.length} players</span>
         </span>}
-        actions={final ? (
-          <Button onClick={reopen}><LockOpen size={16} aria-hidden="true" />Reopen</Button>
-        ) : (<>
-          <Button disabled={!dirty} loading={busy && dirty} onClick={save}><Save size={16} aria-hidden="true" />Save</Button>
-          <Button variant="primary" onClick={finalize} loading={busy && !dirty}><Check size={16} aria-hidden="true" />Finalize</Button>
-        </>)}
+        actions={<>
+          {final && <Button onClick={() => { window.location.href = summaryMailto(g, s.id); }}><Send size={16} aria-hidden="true" />Send summary</Button>}
+          {final ? (
+            <Button onClick={reopen}><LockOpen size={16} aria-hidden="true" />Reopen</Button>
+          ) : (<>
+            <Button disabled={!dirty} loading={busy && dirty} onClick={save}><Save size={16} aria-hidden="true" />Save</Button>
+            <Button variant="primary" onClick={finalize} loading={busy && !dirty}><Check size={16} aria-hidden="true" />Finalize</Button>
+          </>)}
+        </>}
       />
 
       <section className={clsx('mb-5 rounded-2xl p-5', balanced ? 'felt' : 'border border-line bg-surface')}>
@@ -186,6 +190,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
           )}
           <Details s={s} />
         </div>
+        <HistoryList g={g} entityId={s.id} />
       </div>
       <AddMemberDialog group={g} open={newPerson} onClose={() => setNewPerson(false)} onAdded={(id) => addLine(id)} />
       <div className="mt-8 flex justify-center">

@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { clsx } from 'clsx';
-import { Button, Field, Input, Modal, MoneyInput, Select, Tabs, Avatar } from '../ui';
+import { Minus, Plus, UserPlus } from 'lucide-react';
+import { Button, Field, IconButton, Input, Modal, MoneyInput, Select, Tabs, Avatar } from '../ui';
 import { useAction, useData } from '../../app/data';
 import { centsToInput, formatMoney, parseMoney, splitByWeights, splitEqual, todayISO } from '../../lib/money';
 import { myMemberId } from '../../lib/ledger';
+import { AddMemberDialog } from './AddMemberDialog';
 import type { Expense, Group, Split } from '../../lib/types';
 
 export const CATEGORIES = ['general', 'food', 'drinks', 'lodging', 'transport', 'housing', 'utilities', 'household', 'fun', 'poker'];
-type SplitMode = 'equal' | 'exact' | 'percent';
+type SplitMode = 'equal' | 'shares' | 'exact' | 'percent';
 
 export function ExpenseDialog({ group, expense, open, onClose }: { group: Group; expense: Expense | null; open: boolean; onClose(): void }) {
   const { me } = useData();
@@ -24,6 +26,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
   const [included, setIncluded] = useState<string[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [addingPerson, setAddingPerson] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -57,6 +60,10 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
     if (mode === 'equal') {
       if (included.length === 0) return 'Pick at least one person to split with';
       return splitEqual(total, group.members.map((m) => m.id).filter((id) => included.includes(id)));
+    }
+    if (mode === 'shares') {
+      if (included.length === 0) return 'Pick at least one person to split with';
+      return splitByWeights(total, included.map((id) => ({ id, weight: Number(values[id]) || 1 })));
     }
     if (mode === 'exact') {
       if (exactSum !== total) return `Shares add up to ${formatMoney(exactSum, group.currency)}, not ${formatMoney(total, group.currency)}`;
@@ -135,9 +142,14 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
         )}
 
         <div>
-          <p className="mb-2 text-[13px] font-semibold">Split</p>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[13px] font-semibold">Split</p>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setAddingPerson(true)}>
+              <UserPlus size={14} aria-hidden="true" />Add someone
+            </Button>
+          </div>
           <Tabs value={mode} onChange={(v) => { setMode(v); setError(null); }}
-            tabs={[{ value: 'equal', label: 'Equally' }, { value: 'exact', label: 'Exact amounts' }, { value: 'percent', label: 'Percentages' }]} />
+            tabs={[{ value: 'equal', label: 'Equally' }, { value: 'shares', label: 'Shares' }, { value: 'exact', label: 'Exact amounts' }, { value: 'percent', label: 'Percentages' }]} />
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {group.members.map((m) => {
               const on = included.includes(m.id);
@@ -151,6 +163,29 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
                     <Avatar name={m.name} size={24} /><span className="flex-1 truncate">{m.name}</span>
                     <span className="amount text-[13px]">{on ? formatMoney(each, group.currency) : 'not in'}</span>
                   </button>
+                );
+              }
+              if (mode === 'shares') {
+                const shares = included.map((id) => ({ id, weight: Number(values[id]) || 1 }));
+                const mine = shares.find((x) => x.id === m.id);
+                const totalShares = shares.reduce((a, x) => a + x.weight, 0);
+                const amount = on && totalShares ? Math.floor((total * (mine?.weight ?? 1)) / totalShares) : 0;
+                const setShares = (n: number) => setValues((v) => ({ ...v, [m.id]: String(Math.max(1, n)) }));
+                return (
+                  <div key={m.id} className={clsx('flex items-center gap-2 rounded-lg border px-2.5 py-1.5', on ? 'border-felt bg-felt/10' : 'border-line')}>
+                    <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                      onClick={() => setIncluded((xs) => (on ? xs.filter((x) => x !== m.id) : [...xs, m.id]))}>
+                      <Avatar name={m.name} size={24} /><span className="flex-1 truncate text-sm font-semibold">{m.name}</span>
+                    </button>
+                    {on ? (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <IconButton label={`Fewer shares for ${m.name}`} onClick={() => setShares((mine?.weight ?? 1) - 1)}><Minus size={14} /></IconButton>
+                        <span className="amount w-4 text-center text-sm">{mine?.weight ?? 1}</span>
+                        <IconButton label={`More shares for ${m.name}`} onClick={() => setShares((mine?.weight ?? 1) + 1)}><Plus size={14} /></IconButton>
+                        <span className="amount w-16 text-right text-[13px] text-ink-2">{formatMoney(amount, group.currency)}</span>
+                      </div>
+                    ) : <span className="shrink-0 text-[13px] text-ink-2">not in</span>}
+                  </div>
                 );
               }
               return (
@@ -183,6 +218,8 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
         </div>
         {error && <p className="rounded-lg bg-loss/10 px-3 py-2 text-[13px] text-loss">{error}</p>}
       </div>
+      <AddMemberDialog group={group} open={addingPerson} onClose={() => setAddingPerson(false)}
+        onAdded={(id) => setIncluded((xs) => [...xs, id])} />
     </Modal>
   );
 }

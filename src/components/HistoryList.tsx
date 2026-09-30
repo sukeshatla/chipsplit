@@ -13,7 +13,7 @@ function actorName(g: Group, meId: string, entry: ChangeLogEntry) {
   return m?.name ?? 'Someone';
 }
 
-/** The lightweight activity log for a group, optionally filtered to one entity (e.g. a single game). */
+/** The lightweight activity log for a group, optionally filtered to one entity (e.g. a single game day). */
 export function HistoryList({ g, entityId }: { g: Group; entityId?: string }) {
   const { api } = useAuth();
   const { me } = useData();

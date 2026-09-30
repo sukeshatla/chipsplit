@@ -49,7 +49,7 @@ describe('money', () => {
 describe('groupBalances', () => {
   const g: Group = {
     id: 'g', name: 'Test', kind: 'mixed', currency: 'USD', created_by: null, created_at: '',
-    members: ['a', 'b', 'c'].map((id) => ({ id, group_id: 'g', user_id: null, name: id, email: null, role: 'member' })),
+    members: ['a', 'b', 'c'].map((id) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id, email: null, role: 'member', email_opt_out: false })),
     expenses: [{
       id: 'e', group_id: 'g', description: 'Pizza', category: 'food', amount_cents: 9000, spent_on: '2026-01-01',
       created_by: null, created_at: '', payers: [{ member_id: 'a', amount_cents: 9000 }],
@@ -89,5 +89,69 @@ describe('friendBalances', async () => {
       return a + (groupBalances(g).get(mine) ?? 0);
     }, 0);
     expect(totals(data).net).toBe(sum);
+  });
+});
+
+describe('summaryMailto', async () => {
+  const { summaryMailto } = await import('./ledger');
+  const g: Group = {
+    id: 'g', name: 'Roommates', kind: 'expenses', currency: 'USD', created_by: null, created_at: '',
+    members: [
+      { id: 'a', group_id: 'g', user_id: null, contact_id: null, name: 'Ana', email: 'ana@x.com', role: 'owner', email_opt_out: false },
+      { id: 'b', group_id: 'g', user_id: null, contact_id: null, name: 'Bo', email: 'bo@x.com', role: 'member', email_opt_out: true },
+      { id: 'c', group_id: 'g', user_id: null, contact_id: null, name: 'Cy', email: null, role: 'member', email_opt_out: false },
+    ],
+    expenses: [{
+      id: 'e', group_id: 'g', description: 'Rent', category: 'housing', amount_cents: 3000, spent_on: '2026-01-01',
+      created_by: null, created_at: '', payers: [{ member_id: 'a', amount_cents: 3000 }],
+      shares: splitEqual(3000, ['a', 'b', 'c']),
+    }],
+    sessions: [], settlements: [],
+  };
+  it('only includes recipients with an email who have not opted out', () => {
+    const url = summaryMailto(g);
+    expect(url.startsWith('mailto:ana%40x.com')).toBe(true);
+    expect(url).not.toContain('bo%40x.com');
+    expect(url).not.toContain('cy%40x.com');
+  });
+  it('names everyone with a nonzero balance in the body', () => {
+    const url = summaryMailto(g);
+    const body = decodeURIComponent(url.split('body=')[1]!);
+    expect(body).toContain('Ana');
+    expect(body).toContain('Bo');
+    expect(body).toContain('Cy');
+  });
+});
+
+describe('friendsList', async () => {
+  const { seedDemo } = await import('../api/seed');
+  const { friendsList, friendBalances, friendKey, statusFromKey } = await import('./ledger');
+  it('includes a contact who is not in any shared group yet', () => {
+    const data = seedDemo();
+    const meera = friendsList(data).find((f) => f.name === 'Meera');
+    expect(meera).toMatchObject({ net: 0, groups: [], status: 'guest' });
+  });
+  it('does not duplicate a friend who is both a contact and a group co-member', () => {
+    const data = seedDemo();
+    const rows = friendsList(data);
+    const keys = rows.map((f) => f.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    // Ravi is in two groups and also a seeded contact; he must collapse into one row.
+    const ravi = data.contacts.find((c) => c.name === 'Ravi')!;
+    const row = rows.find((f) => f.key === friendKey(ravi));
+    expect(row?.contactId).toBe(ravi.id);
+    expect(row?.groups.length).toBeGreaterThan(1);
+  });
+  it('every friendBalances entry is present in friendsList with the same balance', () => {
+    const data = seedDemo();
+    const rows = new Map(friendsList(data).map((f) => [f.key, f]));
+    for (const f of friendBalances(data)) {
+      expect(rows.get(f.key)?.net).toBe(f.net);
+    }
+  });
+  it('classifies status from the key prefix', () => {
+    expect(statusFromKey('u:1')).toBe('friend');
+    expect(statusFromKey('e:a@b.com')).toBe('invited');
+    expect(statusFromKey('m:123')).toBe('guest');
   });
 });

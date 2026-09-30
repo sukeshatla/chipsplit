@@ -1,6 +1,6 @@
 import { settle } from '../lib/settle';
 import { splitEqual } from '../lib/money';
-import type { AppData, Expense, GameSession, Group, Member, Profile, Settlement } from '../lib/types';
+import type { AppData, Contact, Expense, GameSession, Group, Member, Profile, Settlement } from '../lib/types';
 
 export const uid = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -21,11 +21,23 @@ export function seedDemo(): AppData {
     avatar_url: null, payment_handle: '@suki-zelle', default_currency: 'USD',
   };
 
+  // One contact per person, reused across every group so they appear once on the Friends page.
+  const contacts = new Map<string, Contact>();
+  const contactId = (n: string): string | null => {
+    if (n === 'Suki') return null;
+    let c = contacts.get(n);
+    if (!c) {
+      c = { id: uid(), owner_id: me.id, user_id: null, name: n, email: `${n.toLowerCase()}@example.com`, created_at: `${daysAgo(160)}T12:00:00Z` };
+      contacts.set(n, c);
+    }
+    return c.id;
+  };
+
   const makeGroup = (name: string, kind: Group['kind'], names: string[], age: number): Group => {
     const id = uid();
     const members: Member[] = names.map((n, i) => ({
-      id: uid(), group_id: id, user_id: n === 'Suki' ? me.id : null, name: n,
-      email: `${n.toLowerCase()}@example.com`, role: i === 0 ? 'owner' : 'member',
+      id: uid(), group_id: id, user_id: n === 'Suki' ? me.id : null, contact_id: contactId(n), name: n,
+      email: `${n.toLowerCase()}@example.com`, role: i === 0 ? 'owner' : 'member', email_opt_out: false,
     }));
     return { id, name, kind, currency: 'USD', created_by: me.id, created_at: `${daysAgo(age)}T12:00:00Z`, members, expenses: [], sessions: [], settlements: [] };
   };
@@ -97,5 +109,8 @@ export function seedDemo(): AppData {
   );
   home.settlements.push(pay(home, 'Kiran', 'Suki', 775, 18), pay(home, 'Teja', 'Suki', 800, 16));
 
-  return { me, groups: [poker, trip, home] };
+  // A friend added straight to the address book, not part of any group yet.
+  contacts.set('Meera', { id: uid(), owner_id: me.id, user_id: null, name: 'Meera', email: null, created_at: `${daysAgo(5)}T12:00:00Z` });
+
+  return { me, groups: [poker, trip, home], contacts: [...contacts.values()] };
 }

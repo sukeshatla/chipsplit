@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Check } from 'lucide-react';
+import { Check, UserPlus } from 'lucide-react';
 import { Avatar, Button, Field, Input, Modal, MoneyInput, Select } from '../ui';
 import { useAction, useData } from '../../app/data';
 import { centsToInput, parseMoney, todayISO } from '../../lib/money';
+import { AddMemberDialog } from './AddMemberDialog';
 
 export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClose(): void; groupId?: string }) {
   const data = useData();
@@ -19,6 +20,7 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
   const [buyIn, setBuyIn] = useState('50');
   const [players, setPlayers] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [addingPerson, setAddingPerson] = useState(false);
 
   useEffect(() => {
     if (!open || !group) return;
@@ -79,9 +81,18 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
                 );
               })}
             </div>
+            {group && (
+              <Button type="button" size="sm" className="mt-2" onClick={() => setAddingPerson(true)}>
+                <UserPlus size={14} aria-hidden="true" />Add someone not in the group
+              </Button>
+            )}
             {error && <p className="mt-2 text-[13px] text-loss">{error}</p>}
           </div>
         </div>
+      )}
+      {group && (
+        <AddMemberDialog group={group} open={addingPerson} onClose={() => setAddingPerson(false)}
+          onAdded={(id) => setPlayers((p) => [...p, id])} />
       )}
     </Modal>
   );

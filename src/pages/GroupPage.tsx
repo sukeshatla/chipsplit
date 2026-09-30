@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight, Mail, MailX, Send } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { groupBalances, memberHasActivity, memberName, myMemberId, pokerLeaderboard, sessionPayments, simplify } from '../lib/ledger';
+import { groupBalances, memberHasActivity, memberName, myMemberId, pokerLeaderboard, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, Badge, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
+import { HistoryList } from '../components/HistoryList';
 import { KIND_LABEL } from './GroupsPage';
 import { ExpenseDialog } from '../components/dialogs/ExpenseDialog';
 import { ImportDialog } from '../components/dialogs/ImportDialog';
@@ -14,7 +15,7 @@ import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
 import { CURRENCIES, KindPicker } from '../components/dialogs/CreateGroupDialog';
 import type { Expense, Group, GroupKind } from '../lib/types';
 
-type Tab = 'games' | 'balances' | 'expenses' | 'members';
+type Tab = 'games' | 'balances' | 'expenses' | 'members' | 'history';
 
 export function GroupPage() {
   const { groupId } = useParams();
@@ -33,6 +34,7 @@ export function GroupPage() {
     { value: 'balances', label: 'Balances' },
     ...(g.kind !== 'poker' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
     { value: 'members', label: 'Members' },
+    { value: 'history', label: 'History' },
   ];
   const requested = params.get('tab') as Tab | null;
   const tab: Tab = tabs.some((t) => t.value === requested) ? requested! : tabs[0]!.value;
@@ -50,6 +52,7 @@ export function GroupPage() {
           <span>{myBal === 0 ? 'You are settled up' : <>You {myBal > 0 ? 'are owed' : 'owe'} <Amount cents={myBal} currency={g.currency} className="text-sm" /></>}</span>
         </span>}
         actions={<>
+          <Button onClick={() => { window.location.href = summaryMailto(g); }}><Send size={16} aria-hidden="true" />Send summary</Button>
           {g.kind !== 'poker' && <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Import</Button>}
           {g.kind !== 'expenses' && <Button variant={g.kind === 'poker' ? 'primary' : 'secondary'} onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />Game day</Button>}
           <Button variant={g.kind === 'poker' ? 'secondary' : 'primary'} onClick={() => setExpense('new')}><Receipt size={16} aria-hidden="true" />Expense</Button>
@@ -61,6 +64,7 @@ export function GroupPage() {
       {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} />}
       {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
+      {tab === 'history' && <HistoryList g={g} />}
 
       <NewGameDialog open={newGame} onClose={() => setNewGame(false)} groupId={g.id} />
       <ExpenseDialog group={g} open={expense !== null} expense={expense === 'new' ? null : expense} onClose={() => setExpense(null)} />
@@ -269,6 +273,13 @@ function MembersTab({ g }: { g: Group }) {
                   <p className="truncate text-[12px] text-ink-2">{m.email ?? 'No email'}</p>
                 </div>
                 {m.role === 'owner' ? <Badge tone="brass">Owner</Badge> : m.user_id ? <Badge tone="gain">Signed up</Badge> : <Badge>Guest</Badge>}
+                {m.email && (
+                  <IconButton label={m.email_opt_out ? `Include ${m.name} in email summaries` : `Exclude ${m.name} from email summaries`}
+                    title={m.email_opt_out ? 'Not included in email summaries' : 'Included in email summaries'}
+                    onClick={() => run((api) => api.setEmailOptOut(m.id, !m.email_opt_out))}>
+                    {m.email_opt_out ? <MailX size={16} className="text-ink-2" /> : <Mail size={16} />}
+                  </IconButton>
+                )}
                 <IconButton label={`Remove ${m.name}`} disabled={active || m.user_id === me.id}
                   title={active ? 'Has games, expenses, or payments in this group' : `Remove ${m.name}`}
                   onClick={() => { if (confirm(`Remove ${m.name} from ${g.name}?`)) run((api) => api.removeMember(m.id), `${m.name} removed`); }}>

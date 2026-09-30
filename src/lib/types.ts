@@ -13,9 +13,21 @@ export interface Member {
   id: string;
   group_id: string;
   user_id: string | null; // null = guest who hasn't signed up yet
+  contact_id: string | null; // links back to the adder's Contact, if added from (or as) a friend
   name: string;
   email: string | null;
   role: 'owner' | 'member';
+  email_opt_out: boolean; // excluded from this group's "email summary" mailto
+}
+
+/** An entry in the signed-in user's own friends list, independent of any group. */
+export interface Contact {
+  id: string;
+  owner_id: string;
+  user_id: string | null; // set once their signed-up email matches
+  name: string;
+  email: string | null;
+  created_at: string;
 }
 
 export interface Split {
@@ -83,6 +95,18 @@ export interface Group {
 export interface AppData {
   me: Profile;
   groups: Group[];
+  contacts: Contact[];
+}
+
+/** One line of a group's lightweight activity log (src/lib/ledger.ts renders these). */
+export interface ChangeLogEntry {
+  id: string;
+  group_id: string;
+  actor_id: string | null;
+  entity_type: 'member' | 'expense' | 'session' | 'settlement' | 'group';
+  entity_id: string | null;
+  summary: string;
+  created_at: string;
 }
 
 export type NewExpense = Omit<Expense, 'id' | 'created_at' | 'created_by'>;
