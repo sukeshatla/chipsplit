@@ -68,6 +68,14 @@ export function splitByWeights(total: number, entries: { id: string; weight: num
   return out.map((o) => ({ member_id: o.id, amount_cents: o.cents }));
 }
 
+/** n percentages that always sum to exactly 100.00 — a sensible starting point instead of 0. */
+export function equalPercents(n: number): string[] {
+  if (n <= 0) return [];
+  const base = Math.floor(10000 / n);
+  const rem = 10000 - base * n;
+  return Array.from({ length: n }, (_, i) => ((i < rem ? base + 1 : base) / 100).toFixed(2));
+}
+
 export function todayISO() {
   const d = new Date();
   const off = d.getTimezoneOffset() * 60000;

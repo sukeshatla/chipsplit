@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { settle } from './settle';
-import { splitByWeights, splitEqual, parseMoney } from './money';
+import { splitByWeights, splitEqual, parseMoney, equalPercents } from './money';
 import { groupBalances, simplify } from './ledger';
 import type { Group } from './types';
 
@@ -43,6 +43,14 @@ describe('money', () => {
   it('parses money strings', () => {
     expect(parseMoney('$1,250.50')).toBe(125050);
     expect(parseMoney('')).toBeNull();
+  });
+  it('defaults percentages to sum to exactly 100', () => {
+    for (const n of [1, 2, 3, 4, 7]) {
+      const pcts = equalPercents(n);
+      expect(pcts).toHaveLength(n);
+      expect(pcts.reduce((a, p) => a + Number(p), 0)).toBeCloseTo(100, 5);
+    }
+    expect(equalPercents(0)).toEqual([]);
   });
 });
 

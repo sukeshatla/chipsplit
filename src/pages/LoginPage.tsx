@@ -52,7 +52,7 @@ export function LoginPage() {
           </ul>
           <p className="mt-6 font-display text-3xl leading-tight">Settled in four payments.</p>
         </div>
-        <p className="text-sm opacity-70">Poker nights and shared expenses, in one ledger.</p>
+        <p className="text-sm opacity-70">Card nights and shared expenses, in one ledger.</p>
       </section>
 
       <section className="flex flex-col justify-center px-6 py-12 md:px-16">

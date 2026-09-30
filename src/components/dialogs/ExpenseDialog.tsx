@@ -1,15 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { clsx } from 'clsx';
-import { Minus, Plus, UserPlus } from 'lucide-react';
+import { Check, Minus, Plus, UserPlus } from 'lucide-react';
 import { Button, Field, IconButton, Input, Modal, MoneyInput, Select, Tabs, Avatar } from '../ui';
 import { useAction, useData } from '../../app/data';
-import { centsToInput, formatMoney, parseMoney, splitByWeights, splitEqual, todayISO } from '../../lib/money';
+import { centsToInput, equalPercents, formatMoney, parseMoney, splitByWeights, splitEqual, todayISO } from '../../lib/money';
 import { myMemberId } from '../../lib/ledger';
 import { AddMemberDialog } from './AddMemberDialog';
 import type { Expense, Group, Split } from '../../lib/types';
 
-export const CATEGORIES = ['general', 'food', 'drinks', 'lodging', 'transport', 'housing', 'utilities', 'household', 'fun', 'poker'];
+export const CATEGORIES = ['general', 'food', 'drinks', 'lodging', 'transport', 'housing', 'utilities', 'household', 'fun', 'cards'];
 type SplitMode = 'equal' | 'shares' | 'exact' | 'percent';
+
+/** One row in the "who's in this split" list: a checkable toggle, plus the mode's own control when included. */
+function SplitRow({ name, on, toggle, children }: { name: string; on: boolean; toggle(): void; children?: ReactNode }) {
+  return (
+    <div className={clsx('flex items-center gap-2 rounded-lg border px-2.5 py-1.5', on ? 'border-felt bg-felt/10' : 'border-line')}>
+      <button type="button" aria-pressed={on} onClick={toggle} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+        <Avatar name={name} size={24} />
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{name}</span>
+        {on && <Check size={15} className="shrink-0 text-felt dark:text-gain" aria-hidden="true" />}
+      </button>
+      {on ? children : <span className="shrink-0 text-[13px] text-ink-2">not in</span>}
+    </div>
+  );
+}
 
 export function ExpenseDialog({ group, expense, open, onClose }: { group: Group; expense: Expense | null; open: boolean; onClose(): void }) {
   const { me } = useData();
@@ -52,25 +66,20 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
   }, [open, expense?.id]);
 
   const total = parseMoney(amount) ?? 0;
-  const exactSum = group.members.reduce((a, m) => a + (parseMoney(values[m.id]) ?? 0), 0);
-  const pctSum = group.members.reduce((a, m) => a + (Number(values[m.id]) || 0), 0);
+  const exactSum = included.reduce((a, id) => a + (parseMoney(values[id]) ?? 0), 0);
+  const pctSum = included.reduce((a, id) => a + (Number(values[id]) || 0), 0);
   const paySum = group.members.reduce((a, m) => a + (parseMoney(payAmounts[m.id]) ?? 0), 0);
 
   function buildShares(): Split[] | string {
-    if (mode === 'equal') {
-      if (included.length === 0) return 'Pick at least one person to split with';
-      return splitEqual(total, group.members.map((m) => m.id).filter((id) => included.includes(id)));
-    }
-    if (mode === 'shares') {
-      if (included.length === 0) return 'Pick at least one person to split with';
-      return splitByWeights(total, included.map((id) => ({ id, weight: Number(values[id]) || 1 })));
-    }
+    if (included.length === 0) return 'Pick at least one person to split with';
+    if (mode === 'equal') return splitEqual(total, included);
+    if (mode === 'shares') return splitByWeights(total, included.map((id) => ({ id, weight: Number(values[id]) || 1 })));
     if (mode === 'exact') {
       if (exactSum !== total) return `Shares add up to ${formatMoney(exactSum, group.currency)}, not ${formatMoney(total, group.currency)}`;
-      return group.members.map((m) => ({ member_id: m.id, amount_cents: parseMoney(values[m.id]) ?? 0 })).filter((s) => s.amount_cents > 0);
+      return included.map((id) => ({ member_id: id, amount_cents: parseMoney(values[id]) ?? 0 })).filter((s) => s.amount_cents > 0);
     }
     if (Math.abs(pctSum - 100) > 0.001) return `Percentages add up to ${Math.round(pctSum * 100) / 100}%, not 100%`;
-    return splitByWeights(total, group.members.map((m) => ({ id: m.id, weight: Number(values[m.id]) || 0 })));
+    return splitByWeights(total, included.map((id) => ({ id, weight: Number(values[id]) || 0 })));
   }
 
   function buildPayers(): Split[] | string {
@@ -148,22 +157,23 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
               <UserPlus size={14} aria-hidden="true" />Add someone
             </Button>
           </div>
-          <Tabs value={mode} onChange={(v) => { setMode(v); setError(null); }}
-            tabs={[{ value: 'equal', label: 'Equally' }, { value: 'shares', label: 'Shares' }, { value: 'exact', label: 'Exact amounts' }, { value: 'percent', label: 'Percentages' }]} />
+          <Tabs value={mode} onChange={(v) => {
+            setMode(v); setError(null);
+            if (v === 'percent') {
+              const pcts = equalPercents(included.length);
+              setValues((old) => { const next = { ...old }; included.forEach((id, i) => { next[id] = pcts[i] ?? '0'; }); return next; });
+            }
+          }} tabs={[{ value: 'equal', label: 'Equally' }, { value: 'shares', label: 'Shares' }, { value: 'exact', label: 'Exact amounts' }, { value: 'percent', label: 'Percentages' }]} />
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {group.members.map((m) => {
               const on = included.includes(m.id);
+              const toggle = () => setIncluded((xs) => (on ? xs.filter((x) => x !== m.id) : [...xs, m.id]));
+
               if (mode === 'equal') {
                 const each = included.length ? Math.floor(total / included.length) : 0;
-                return (
-                  <button key={m.id} type="button" aria-pressed={on}
-                    onClick={() => setIncluded((xs) => (on ? xs.filter((x) => x !== m.id) : [...xs, m.id]))}
-                    className={clsx('flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm',
-                      on ? 'border-felt bg-felt/10 font-semibold' : 'border-line text-ink-2')}>
-                    <Avatar name={m.name} size={24} /><span className="flex-1 truncate">{m.name}</span>
-                    <span className="amount text-[13px]">{on ? formatMoney(each, group.currency) : 'not in'}</span>
-                  </button>
-                );
+                return <SplitRow key={m.id} name={m.name} on={on} toggle={toggle}>
+                  <span className="amount shrink-0 text-[13px] text-ink-2">{formatMoney(each, group.currency)}</span>
+                </SplitRow>;
               }
               if (mode === 'shares') {
                 const shares = included.map((id) => ({ id, weight: Number(values[id]) || 1 }));
@@ -171,38 +181,28 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
                 const totalShares = shares.reduce((a, x) => a + x.weight, 0);
                 const amount = on && totalShares ? Math.floor((total * (mine?.weight ?? 1)) / totalShares) : 0;
                 const setShares = (n: number) => setValues((v) => ({ ...v, [m.id]: String(Math.max(1, n)) }));
-                return (
-                  <div key={m.id} className={clsx('flex items-center gap-2 rounded-lg border px-2.5 py-1.5', on ? 'border-felt bg-felt/10' : 'border-line')}>
-                    <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                      onClick={() => setIncluded((xs) => (on ? xs.filter((x) => x !== m.id) : [...xs, m.id]))}>
-                      <Avatar name={m.name} size={24} /><span className="flex-1 truncate text-sm font-semibold">{m.name}</span>
-                    </button>
-                    {on ? (
-                      <div className="flex shrink-0 items-center gap-1">
-                        <IconButton label={`Fewer shares for ${m.name}`} onClick={() => setShares((mine?.weight ?? 1) - 1)}><Minus size={14} /></IconButton>
-                        <span className="amount w-4 text-center text-sm">{mine?.weight ?? 1}</span>
-                        <IconButton label={`More shares for ${m.name}`} onClick={() => setShares((mine?.weight ?? 1) + 1)}><Plus size={14} /></IconButton>
-                        <span className="amount w-16 text-right text-[13px] text-ink-2">{formatMoney(amount, group.currency)}</span>
-                      </div>
-                    ) : <span className="shrink-0 text-[13px] text-ink-2">not in</span>}
+                return <SplitRow key={m.id} name={m.name} on={on} toggle={toggle}>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <IconButton label={`Fewer shares for ${m.name}`} onClick={() => setShares((mine?.weight ?? 1) - 1)}><Minus size={14} /></IconButton>
+                    <span className="amount w-4 text-center text-sm">{mine?.weight ?? 1}</span>
+                    <IconButton label={`More shares for ${m.name}`} onClick={() => setShares((mine?.weight ?? 1) + 1)}><Plus size={14} /></IconButton>
+                    <span className="amount w-16 text-right text-[13px] text-ink-2">{formatMoney(amount, group.currency)}</span>
                   </div>
-                );
+                </SplitRow>;
               }
-              return (
-                <div key={m.id} className="flex items-center gap-2">
-                  <span className="w-24 truncate text-sm">{m.name}</span>
-                  {mode === 'exact' ? (
-                    <MoneyInput className="flex-1" value={values[m.id] ?? ''} placeholder="0"
-                      onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))} />
-                  ) : (
-                    <div className="relative flex-1">
-                      <Input inputMode="decimal" className="amount pr-7 text-right" value={values[m.id] ?? ''} placeholder="0"
-                        onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))} />
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-2">%</span>
-                    </div>
-                  )}
+              if (mode === 'exact') {
+                return <SplitRow key={m.id} name={m.name} on={on} toggle={toggle}>
+                  <MoneyInput className="w-28 shrink-0" value={values[m.id] ?? ''} placeholder="0"
+                    onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))} />
+                </SplitRow>;
+              }
+              return <SplitRow key={m.id} name={m.name} on={on} toggle={toggle}>
+                <div className="relative w-20 shrink-0">
+                  <Input inputMode="decimal" className="amount pr-6 text-right" value={values[m.id] ?? ''} placeholder="0"
+                    onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))} />
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-sm text-ink-2">%</span>
                 </div>
-              );
+              </SplitRow>;
             })}
           </div>
           {remaining !== null && (

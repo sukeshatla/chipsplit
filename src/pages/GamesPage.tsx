@@ -18,13 +18,13 @@ export function GamesPage() {
 
   return (
     <>
-      <PageHeader title="Game days" subtitle="Every poker night across your groups."
-        actions={<Button variant="primary" onClick={() => setOpen(true)}><Spade size={16} aria-hidden="true" />Start game day</Button>} />
+      <PageHeader title="Game days" subtitle="Every game night across your groups."
+        actions={<Button variant="primary" onClick={() => setOpen(true)}><Spade size={16} aria-hidden="true" />Start game</Button>} />
 
       {stats.games > 0 && (
         <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
-            { label: 'Your poker total', value: <Amount cents={stats.net} currency={currency} sign className="text-2xl" /> },
+            { label: 'Your card game total', value: <Amount cents={stats.net} currency={currency} sign className="text-2xl" /> },
             { label: 'Games played', value: <span className="font-display text-2xl font-medium">{stats.games}</span> },
             { label: 'Winning nights', value: <span className="font-display text-2xl font-medium">{stats.winRate}%</span> },
             { label: 'Best night', value: <Amount cents={stats.best} currency={currency} sign className="text-2xl" /> },
@@ -39,8 +39,8 @@ export function GamesPage() {
 
       <Card>
         {all.length === 0 ? (
-          <EmptyState icon={<Spade size={28} />} title="No game days yet" body="Start one from a poker group and log buy-ins as people sit down."
-            action={<Button variant="primary" onClick={() => setOpen(true)}>Start game day</Button>} />
+          <EmptyState icon={<Spade size={28} />} title="No game days yet" body="Start one from a Cards group and log buy-ins as people sit down."
+            action={<Button variant="primary" onClick={() => setOpen(true)}>Start game</Button>} />
         ) : all.map(({ g, s }) => {
           const mine = myMemberId(g, data.me.id);
           const r = s.results.find((x) => x.member_id === mine);

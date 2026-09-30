@@ -33,7 +33,7 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
   const toggle = (id: string) => setPlayers((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   const submit = async () => {
-    if (!group) { setError('Create a poker group first'); return; }
+    if (!group) { setError('Create a Cards group first'); return; }
     const cents = parseMoney(buyIn) ?? 0;
     if (players.length < 2) { setError('Pick at least two players'); return; }
     const id = await run(async (api) => {
@@ -45,10 +45,10 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Start a game day"
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} onClick={submit}>Start game day</Button></>}>
+    <Modal open={open} onClose={onClose} title="Start a game"
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} onClick={submit}>Start game</Button></>}>
       {pokerGroups.length === 0 ? (
-        <p className="text-sm text-ink-2">Create a group set to Poker or Both first, then start game days from it.</p>
+        <p className="text-sm text-ink-2">Create a Cards group first, then start a game from it.</p>
       ) : (
         <div className="space-y-4">
           {!groupId && (

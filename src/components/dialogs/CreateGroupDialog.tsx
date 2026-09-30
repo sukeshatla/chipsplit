@@ -1,22 +1,23 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Spade, Receipt, Layers } from 'lucide-react';
+import { Spade, Receipt } from 'lucide-react';
 import { Button, Field, Input, Modal, Select } from '../ui';
 import { useAction, useData } from '../../app/data';
 import type { GroupKind } from '../../lib/types';
 
 export const CURRENCIES = ['USD', 'INR', 'EUR', 'GBP', 'CAD', 'AUD'];
 
+// A "Cards" group already supports expenses too (Add expense works from any group kind),
+// so there's no separate "Both" option here — just pick the group's main purpose.
 const KINDS: { value: GroupKind; label: string; body: string; icon: typeof Spade }[] = [
-  { value: 'poker', label: 'Poker', body: 'Game days with buy-ins and cash-outs', icon: Spade },
+  { value: 'poker', label: 'Cards', body: 'Rummy, blackjack, poker — game days with buy-ins and cash-outs', icon: Spade },
   { value: 'expenses', label: 'Expenses', body: 'Trips, rent, dinners', icon: Receipt },
-  { value: 'mixed', label: 'Both', body: 'Games plus shared costs', icon: Layers },
 ];
 
 export function KindPicker({ value, onChange }: { value: GroupKind; onChange(v: GroupKind): void }) {
   return (
-    <div role="radiogroup" className="grid grid-cols-3 gap-2">
+    <div role="radiogroup" className="grid grid-cols-2 gap-2">
       {KINDS.map(({ value: v, label, body, icon: Icon }) => (
         <button key={v} type="button" role="radio" aria-checked={value === v} onClick={() => onChange(v)}
           className={clsx('rounded-xl border p-3 text-left transition-colors',
@@ -50,7 +51,7 @@ export function CreateGroupDialog({ open, onClose }: { open: boolean; onClose():
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} onClick={submit}>Create group</Button></>}>
       <div className="space-y-4">
         <Field label="Name" error={error}>
-          <Input autoFocus value={name} placeholder="Friday poker" onChange={(e) => { setName(e.target.value); setError(null); }}
+          <Input autoFocus value={name} placeholder="Friday cards" onChange={(e) => { setName(e.target.value); setError(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter') submit(); }} />
         </Field>
         <div>

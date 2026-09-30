@@ -147,37 +147,6 @@ export function totals(data: AppData) {
   return { owed, owe, net: owed - owe };
 }
 
-/** Per month: your poker result and your share of group expenses (what you actually consumed). */
-export function monthlyNet(data: AppData, months = 6, now = new Date()) {
-  const buckets: { key: string; label: string; poker: number; spent: number }[] = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    buckets.push({
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      label: d.toLocaleDateString(undefined, { month: 'short' }),
-      poker: 0,
-      spent: 0,
-    });
-  }
-  const find = (date: string) => buckets.find((x) => x.key === date.slice(0, 7));
-  for (const g of data.groups) {
-    const mine = myMemberId(g, data.me.id);
-    if (!mine) continue;
-    for (const e of g.expenses) {
-      const share = e.shares.filter((s) => s.member_id === mine).reduce((a, s) => a + s.amount_cents, 0);
-      const b = find(e.spent_on);
-      if (b) b.spent += share;
-    }
-    for (const s of g.sessions) {
-      if (s.status !== 'final') continue;
-      const r = s.results.find((x) => x.member_id === mine);
-      const b = find(s.played_on);
-      if (r && b) b.poker += r.cash_out_cents - r.buy_in_cents;
-    }
-  }
-  return buckets;
-}
-
 export interface ActivityItem {
   id: string;
   kind: 'expense' | 'game' | 'payment';

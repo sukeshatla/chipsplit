@@ -61,7 +61,7 @@ export function GroupPage() {
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
       {tab === 'games' && <GamesTab g={g} onNew={() => setNewGame(true)} />}
-      {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} />}
+      {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} onAddExpense={() => setExpense('new')} />}
       {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
       {tab === 'history' && <HistoryList g={g} />}
@@ -79,7 +79,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
   const sessions = g.sessions.slice().sort((a, b) => b.played_on.localeCompare(a.played_on));
   if (sessions.length === 0) {
     return <Card><EmptyState icon={<Spade size={28} />} title="Deal the first game" body="Start a game day, log buy-ins as people join, and cash-outs when the table breaks."
-      action={<Button variant="primary" onClick={onNew}>Start game day</Button>} /></Card>;
+      action={<Button variant="primary" onClick={onNew}>Start game</Button>} /></Card>;
   }
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
@@ -131,7 +131,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
   );
 }
 
-function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void }) {
+function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: SettleDraft): void; onAddExpense(): void }) {
   const { run } = useAction();
   const bal = groupBalances(g);
   const transfers = simplify(bal);
@@ -142,7 +142,7 @@ function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void
     <div className="grid gap-5 lg:grid-cols-2">
       <div className="space-y-5">
         <Card>
-          <CardHeader title="Settle up" action={<Button size="sm" onClick={() => onSettle({})}><HandCoins size={14} aria-hidden="true" />Record payment</Button>} />
+          <CardHeader title="Settle up" action={<Button size="sm" onClick={onAddExpense}><Receipt size={14} aria-hidden="true" />Add expense</Button>} />
           <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">The fewest payments that square everyone in this group.</p>
           <div className="mt-2">
             {transfers.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Everyone is settled up.</p> :
