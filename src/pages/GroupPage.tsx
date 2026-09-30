@@ -32,7 +32,7 @@ export function GroupPage() {
   const tabs: { value: Tab; label: string }[] = [
     ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Games' }] : []),
     { value: 'balances', label: 'Balances' },
-    ...(g.kind !== 'poker' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
+    ...(g.kind !== 'club' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
     { value: 'members', label: 'Members' },
     { value: 'history', label: 'History' },
   ];
@@ -47,15 +47,15 @@ export function GroupPage() {
         back={<Link to="/groups" className="mb-2 inline-flex items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-ink"><ArrowLeft size={14} aria-hidden="true" />Groups</Link>}
         title={g.name}
         subtitle={<span className="flex flex-wrap items-center gap-2">
-          <Badge tone={g.kind === 'poker' ? 'felt' : 'neutral'}>{KIND_LABEL[g.kind]}</Badge>
+          <Badge tone={g.kind === 'club' ? 'felt' : 'neutral'}>{KIND_LABEL[g.kind]}</Badge>
           <span>{g.members.length} people</span>
           <span>{myBal === 0 ? 'You are settled up' : <>You {myBal > 0 ? 'are owed' : 'owe'} <Amount cents={myBal} currency={g.currency} className="text-sm" /></>}</span>
         </span>}
         actions={<>
           <Button onClick={() => { window.location.href = summaryMailto(g); }}><Send size={16} aria-hidden="true" />Send summary</Button>
-          {g.kind !== 'poker' && <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Import</Button>}
-          {g.kind !== 'expenses' && <Button variant={g.kind === 'poker' ? 'primary' : 'secondary'} onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />Game</Button>}
-          <Button variant={g.kind === 'poker' ? 'secondary' : 'primary'} onClick={() => setExpense('new')}><Receipt size={16} aria-hidden="true" />Expense</Button>
+          {g.kind !== 'club' && <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Import</Button>}
+          {g.kind !== 'expenses' && <Button variant={g.kind === 'club' ? 'primary' : 'secondary'} onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />Game</Button>}
+          <Button variant={g.kind === 'club' ? 'secondary' : 'primary'} onClick={() => setExpense('new')}><Receipt size={16} aria-hidden="true" />Expense</Button>
         </>}
       />
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>

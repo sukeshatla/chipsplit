@@ -10,15 +10,17 @@ It installs on phones as an app (PWA), and has a **demo mode** that works with n
 
 ## Features
 
-**Card games** (rummy, blackjack, poker — anything with buy-ins and cash-outs)
-- Start a game from any Cards group: pick the players, set the buy-in, add a location.
+**Clubs and card games** (rummy, blackjack, poker — anything with buy-ins and cash-outs)
+- A **Club** is a standing group for people you play with regularly — create it once, then start as many games in it as you want, whenever you want.
+- Starting a new game suggests the club's members as the roster (last game's players if there was one); pick who's actually at the table tonight.
 - Log buy-ins as people sit down. The **+** button adds a rebuy in one tap.
 - Enter cash-outs when the table breaks. A live **table check** shows whether total cash-outs match total buy-ins.
 - Finalize to lock the results and get the **settle-up list**: the fewest payments that clear the table.
 - Tick off each payment as **Paid** (or undo it). The game shows "3 unpaid" until everyone's square.
 - Reopen a game to fix a mistake. Edit date, location, notes, and rebuy amount any time.
-- **Leaderboard** per group: total won or lost, games played, winning nights, best night.
-- A group can run more than one game on the same day — each is its own record, nothing is tied to a calendar day.
+- **Leaderboard** per club: total won or lost, games played, winning nights, best night.
+- A club can run more than one game on the same day — each is its own record, nothing is tied to a calendar day.
+- A club holds expenses too (split the pizza, chip in for the venue) — it isn't games-only.
 
 **Splitwise-style expenses**
 - Add expenses with one payer or **several payers**.
@@ -30,7 +32,7 @@ It installs on phones as an app (PWA), and has a **demo mode** that works with n
 **Friends**
 - A personal friends list, independent of any one group: add someone by name, or by email so they're linked the moment they sign in with a matching Google account.
 - Every friend is tagged **Friend** (linked account), **Invited** (email on file, hasn't signed up), or **Guest** (name only).
-- Pick an existing friend when adding them to a group or an expense — no retyping. Adding someone new anywhere in the app also saves them to your friends list.
+- Pick existing friends right when creating a group or a club, when adding them to an expense, or when adding a player to a game — no retyping. Adding someone new anywhere in the app also saves them to your friends list.
 - Friend detail page: your running balance with that person across every group you share, and a "Settle" button per group.
 
 **Balances and settling up**
@@ -48,6 +50,7 @@ It installs on phones as an app (PWA), and has a **demo mode** that works with n
 - Only admins can change group settings, delete the group, or delete an expense. Everyone can still add expenses. Enforced server-side (Postgres RLS + triggers), so it holds even if someone bypasses the UI.
 
 **Dashboard**
+- Two quick actions: **Add expense** (the quick-add flow above) and **New group**. Starting a game is a club-level action, done from inside that club.
 - Your overall position: owed to you, you owe, and all-time card-game result.
 - Banner for any game currently in progress.
 - Recent activity (capped, with a link to the full **Activity** page) and your groups (capped, with a link to **Groups**).
@@ -55,7 +58,7 @@ It installs on phones as an app (PWA), and has a **demo mode** that works with n
 **Accounts and profile**
 - **Sign in with Google** (Supabase Auth).
 - Profile: display name, currency for totals, light / dark / system theme, card-game stats.
-- Groups are either **Cards** or **Expenses** — a Cards group can hold expenses too, so there's no separate "both" option to pick.
+- Groups are either a **Club** (recurring games, plus expenses) or an **Expenses** group (trips, rent — no games) — no separate "both" option, since a club already covers it.
 
 **Built for low maintenance**
 - No server to run: the browser talks to Supabase directly, and **row-level security** in Postgres makes sure people only ever see groups they belong to.
@@ -74,7 +77,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 and click **Try the demo**. It loads sample groups (a card-game group with seven games, a trip, and a shared apartment) stored only in your browser. **Profile → Reset demo data** restores the samples.
+Open http://localhost:5173 and click **Try the demo**. It loads sample groups (a club with seven games, a trip, and a shared apartment) stored only in your browser. **Profile → Reset demo data** restores the samples.
 
 ---
 
@@ -212,6 +215,7 @@ Run these in order, once each, in the Supabase SQL editor:
 | `0004_admins_and_notifications.sql` | `group_members.is_admin`, `profiles.notifications_seen_at`; admin-only RLS on group settings/delete and expense delete |
 | `0005_fix_group_delete_cascade.sql` | fixes `expense_payers`/`expense_shares`/`session_results`/`settlements` to cascade-delete with their group (they didn't originally), and adds a guard so removing a single active member is still blocked |
 | `0006_require_settled_to_delete_group.sql` | blocks deleting a group until every member's balance is zero |
+| `0007_club_and_expenses_kind.sql` | renames the `poker` group kind to `club` and drops the unused `mixed` kind (`groups.kind` is now `club` \| `expenses`) |
 
 All tables have row-level security: you can read and write a group's data only if you're a member. Groups are created through `create_group()` (which also makes you an admin), and members are added through `add_member()`, which links an existing account by email or copies in an existing friend by `contact_id`.
 

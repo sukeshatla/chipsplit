@@ -8,7 +8,7 @@ import { myMemberId } from '../../lib/ledger';
 import { AddMemberDialog } from './AddMemberDialog';
 import type { Expense, Group, Split } from '../../lib/types';
 
-export const CATEGORIES = ['general', 'food', 'drinks', 'lodging', 'transport', 'housing', 'utilities', 'household', 'fun', 'cards'];
+export const CATEGORIES = ['general', 'food', 'drinks', 'lodging', 'transport', 'housing', 'utilities', 'household', 'fun', 'club'];
 type SplitMode = 'equal' | 'shares' | 'exact' | 'percent';
 
 /** One row in the "who's in this split" list: a checkable toggle, plus the mode's own control when included. */
@@ -46,7 +46,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
     if (!open) return;
     setError(null);
     if (!expense) {
-      setDescription(''); setAmount(''); setDate(todayISO()); setCategory(group.kind === 'poker' ? 'food' : 'general');
+      setDescription(''); setAmount(''); setDate(todayISO()); setCategory(group.kind === 'club' ? 'food' : 'general');
       setMultiPay(false); setPayer(mine); setPayAmounts({});
       setMode('equal'); setIncluded(group.members.map((m) => m.id)); setValues({});
       return;

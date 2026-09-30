@@ -49,8 +49,8 @@ export function seedDemo(): AppData {
     method, note: null, session_id: sessionId, settled_on: daysAgo(ago), created_at: `${daysAgo(ago)}T20:00:00Z`,
   });
 
-  // ---- Poker ----
-  const poker = makeGroup('Friday poker', 'poker', ['Suki', 'Ravi', 'Kiran', 'Ajay', 'Vamsi', 'Teja'], 160);
+  // ---- Club ----
+  const club = makeGroup('Friday club', 'club', ['Suki', 'Ravi', 'Kiran', 'Ajay', 'Vamsi', 'Teja'], 160);
   const nights: [number, string, Record<string, [number, number]>, 'final' | 'open', 'all' | 'some' | 'none'][] = [
     [150, "Ravi's place", { Suki: [100, 60], Ravi: [100, 180], Kiran: [100, 140], Ajay: [100, 20] }, 'final', 'all'],
     [120, "Kiran's place", { Suki: [100, 210], Ravi: [150, 90], Kiran: [100, 100], Ajay: [100, 50], Vamsi: [100, 100] }, 'final', 'all'],
@@ -62,17 +62,17 @@ export function seedDemo(): AppData {
   ];
   for (const [ago, location, table, status, paid] of nights) {
     const s: GameSession = {
-      id: uid(), group_id: poker.id, played_on: daysAgo(ago), location, notes: null, status,
+      id: uid(), group_id: club.id, played_on: daysAgo(ago), location, notes: null, status,
       default_buy_in_cents: 5000, created_at: `${daysAgo(ago)}T19:00:00Z`,
-      results: Object.entries(table).map(([n, [i, o]]) => ({ member_id: mid(poker, n), buy_in_cents: i * 100, cash_out_cents: o * 100 })),
+      results: Object.entries(table).map(([n, [i, o]]) => ({ member_id: mid(club, n), buy_in_cents: i * 100, cash_out_cents: o * 100 })),
     };
-    poker.sessions.push(s);
+    club.sessions.push(s);
     if (paid === 'none') continue;
     const transfers = settle(s.results.map((r) => ({ id: r.member_id, cents: r.cash_out_cents - r.buy_in_cents })));
     const toPay = paid === 'all' ? transfers : transfers.slice(0, 1);
     for (const t of toPay) {
-      poker.settlements.push({
-        id: uid(), group_id: poker.id, from_member: t.from, to_member: t.to, amount_cents: t.cents,
+      club.settlements.push({
+        id: uid(), group_id: club.id, from_member: t.from, to_member: t.to, amount_cents: t.cents,
         method: 'Cash', note: null, session_id: s.id, settled_on: daysAgo(Math.max(ago - 1, 0)),
         created_at: `${daysAgo(Math.max(ago - 1, 0))}T10:00:00Z`,
       });
@@ -113,5 +113,5 @@ export function seedDemo(): AppData {
   // A friend added straight to the address book, not part of any group yet.
   contacts.set('Meera', { id: uid(), owner_id: me.id, user_id: null, name: 'Meera', email: null, created_at: `${daysAgo(5)}T12:00:00Z` });
 
-  return { me, groups: [poker, trip, home], contacts: [...contacts.values()] };
+  return { me, groups: [club, trip, home], contacts: [...contacts.values()] };
 }

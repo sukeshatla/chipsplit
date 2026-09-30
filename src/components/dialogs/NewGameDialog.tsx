@@ -9,10 +9,10 @@ import { AddMemberDialog } from './AddMemberDialog';
 
 export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClose(): void; groupId?: string }) {
   const data = useData();
-  const pokerGroups = data.groups.filter((g) => g.kind !== 'expenses');
+  const clubGroups = data.groups.filter((g) => g.kind === 'club');
   const { run, busy } = useAction();
   const nav = useNavigate();
-  const [gid, setGid] = useState(groupId ?? pokerGroups[0]?.id ?? '');
+  const [gid, setGid] = useState(groupId ?? clubGroups[0]?.id ?? '');
   const group = data.groups.find((g) => g.id === gid);
   const last = useMemo(() => group?.sessions.slice().sort((a, b) => b.played_on.localeCompare(a.played_on))[0], [group]);
   const [date, setDate] = useState(todayISO());
@@ -33,7 +33,7 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
   const toggle = (id: string) => setPlayers((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   const submit = async () => {
-    if (!group) { setError('Create a Cards group first'); return; }
+    if (!group) { setError('Create a Club first'); return; }
     const cents = parseMoney(buyIn) ?? 0;
     if (players.length < 2) { setError('Pick at least two players'); return; }
     const id = await run(async (api) => {
@@ -47,14 +47,14 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
   return (
     <Modal open={open} onClose={onClose} title="Start a game"
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} onClick={submit}>Start game</Button></>}>
-      {pokerGroups.length === 0 ? (
-        <p className="text-sm text-ink-2">Create a Cards group first, then start a game from it.</p>
+      {clubGroups.length === 0 ? (
+        <p className="text-sm text-ink-2">Create a Club first, then start a game from it.</p>
       ) : (
         <div className="space-y-4">
           {!groupId && (
             <Field label="Group">
               <Select value={gid} onChange={(e) => setGid(e.target.value)}>
-                {pokerGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                {clubGroups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
               </Select>
             </Field>
           )}

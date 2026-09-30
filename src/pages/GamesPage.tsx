@@ -35,7 +35,7 @@ export function GamesPage() {
 
       <Card>
         {all.length === 0 ? (
-          <EmptyState icon={<Spade size={28} />} title="No games yet" body="Open a Cards group and start one from its Games tab." />
+          <EmptyState icon={<Spade size={28} />} title="No games yet" body="Open a Club and start one from its Games tab." />
         ) : all.map(({ g, s }) => {
           const mine = myMemberId(g, data.me.id);
           const r = s.results.find((x) => x.member_id === mine);

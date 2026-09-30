@@ -1,22 +1,22 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Spade, Receipt, Layers, Users } from 'lucide-react';
+import { Plus, Spade, Receipt, Users } from 'lucide-react';
 import { useData } from '../app/data';
 import { groupBalances, myMemberId } from '../lib/ledger';
 import { Amount, Avatar, Badge, Button, Card, EmptyState, PageHeader, Tabs } from '../components/ui';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import type { GroupKind } from '../lib/types';
 
-export const KIND_LABEL: Record<GroupKind, string> = { poker: 'Cards', expenses: 'Expenses', mixed: 'Cards and expenses' };
+export const KIND_LABEL: Record<GroupKind, string> = { club: 'Club', expenses: 'Expenses' };
 
 type Filter = 'all' | 'games' | 'expenses';
-const FILTERS: { value: Filter; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'games', label: 'Games' }, { value: 'expenses', label: 'Trips & expenses' }];
+const FILTERS: { value: Filter; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'games', label: 'Clubs' }, { value: 'expenses', label: 'Trips & expenses' }];
 
 export function GroupIcon({ kind, size = 36 }: { kind: GroupKind; size?: number }) {
-  const Icon = kind === 'poker' ? Spade : kind === 'expenses' ? Receipt : Layers;
+  const Icon = kind === 'club' ? Spade : Receipt;
   return (
     <span style={{ width: size, height: size }}
-      className={kind === 'poker' ? 'felt inline-flex shrink-0 items-center justify-center rounded-xl' : 'inline-flex shrink-0 items-center justify-center rounded-xl bg-surface-2 text-ink'}>
+      className={kind === 'club' ? 'felt inline-flex shrink-0 items-center justify-center rounded-xl' : 'inline-flex shrink-0 items-center justify-center rounded-xl bg-surface-2 text-ink'}>
       <Icon size={size * 0.46} aria-hidden="true" />
     </span>
   );
@@ -26,14 +26,14 @@ export function GroupsPage() {
   const { me, groups } = useData();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
-  const shown = groups.filter((g) => filter === 'all' || (filter === 'games' ? g.kind !== 'expenses' : g.kind !== 'poker'));
+  const shown = groups.filter((g) => filter === 'all' || (filter === 'games' ? g.kind === 'club' : g.kind === 'expenses'));
 
   return (
     <>
-      <PageHeader title="Groups" subtitle="Each group keeps its own ledger of games, expenses, and payments."
+      <PageHeader title="Groups" subtitle="Clubs for recurring games, groups for trips and shared expenses."
         actions={<Button variant="primary" onClick={() => setOpen(true)}><Plus size={16} aria-hidden="true" />New group</Button>} />
       {groups.length === 0 ? (
-        <Card><EmptyState icon={<Users size={28} />} title="Start your first group" body="Card night crew, a trip, your apartment. Add the people, then log as you go."
+        <Card><EmptyState icon={<Users size={28} />} title="Start your first group" body="A club for your regular card night, a trip, your apartment. Add the people, then log as you go."
           action={<Button variant="primary" onClick={() => setOpen(true)}>Create group</Button>} /></Card>
       ) : (
         <>
@@ -52,7 +52,7 @@ export function GroupsPage() {
                       <GroupIcon kind={g.kind} size={44} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-display text-lg font-medium">{g.name}</p>
-                        <Badge tone={g.kind === 'poker' ? 'felt' : 'neutral'}>{KIND_LABEL[g.kind]}</Badge>
+                        <Badge tone={g.kind === 'club' ? 'felt' : 'neutral'}>{KIND_LABEL[g.kind]}</Badge>
                       </div>
                       <div className="text-right">
                         <p className="text-[12px] text-ink-2">{bal === 0 ? 'Settled' : bal > 0 ? "You're owed" : 'You owe'}</p>
@@ -65,9 +65,10 @@ export function GroupsPage() {
                         {g.members.length > 6 && <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-surface-2 text-[11px] font-semibold ring-2 ring-surface">+{g.members.length - 6}</span>}
                       </div>
                       <p className="text-[12px] text-ink-2">
-                        {g.kind !== 'expenses' && `${games} game${games === 1 ? '' : 's'}`}
-                        {g.kind === 'mixed' && ', '}
-                        {g.kind !== 'poker' && `${g.expenses.length} expense${g.expenses.length === 1 ? '' : 's'}`}
+                        {[
+                          g.kind === 'club' && `${games} game${games === 1 ? '' : 's'}`,
+                          (g.kind === 'expenses' || g.expenses.length > 0) && `${g.expenses.length} expense${g.expenses.length === 1 ? '' : 's'}`,
+                        ].filter(Boolean).join(', ')}
                       </p>
                     </div>
                   </Link>

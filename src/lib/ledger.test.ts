@@ -56,7 +56,7 @@ describe('money', () => {
 
 describe('groupBalances', () => {
   const g: Group = {
-    id: 'g', name: 'Test', kind: 'mixed', currency: 'USD', created_by: null, created_at: '',
+    id: 'g', name: 'Test', kind: 'club', currency: 'USD', created_by: null, created_at: '',
     members: ['a', 'b', 'c'].map((id) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id, email: null, email_opt_out: false, is_admin: true })),
     expenses: [{
       id: 'e', group_id: 'g', description: 'Pizza', category: 'food', amount_cents: 9000, spent_on: '2026-01-01',

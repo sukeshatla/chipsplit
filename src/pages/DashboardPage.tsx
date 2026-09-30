@@ -6,7 +6,6 @@ import { activity, groupBalances, myMemberId, pokerStats, totals } from '../lib/
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Button, Card, CardHeader, EmptyState, PageHeader, Row } from '../components/ui';
 import { GroupIcon } from './GroupsPage';
-import { NewGameDialog } from '../components/dialogs/NewGameDialog';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import { QuickExpenseDialog } from '../components/dialogs/QuickExpenseDialog';
 
@@ -20,7 +19,6 @@ export function DashboardPage() {
   const feed = activity(data, 8);
   const poker = pokerStats(data);
   const openGames = groups.flatMap((g) => g.sessions.filter((s) => s.status === 'open').map((s) => ({ g, s })));
-  const [newGame, setNewGame] = useState(false);
   const [newGroup, setNewGroup] = useState(false);
   const [quickExpense, setQuickExpense] = useState(false);
   const hour = new Date().getHours();
@@ -31,8 +29,7 @@ export function DashboardPage() {
       <PageHeader title={`${greet}, ${me.display_name.split(' ')[0]}`}
         actions={<>
           <Button onClick={() => setQuickExpense(true)}><Receipt size={16} aria-hidden="true" />Add expense</Button>
-          <Button onClick={() => setNewGroup(true)}><Plus size={16} aria-hidden="true" />New group</Button>
-          <Button variant="primary" onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />Start game</Button>
+          <Button variant="primary" onClick={() => setNewGroup(true)}><Plus size={16} aria-hidden="true" />New group</Button>
         </>} />
 
       <section className="felt mb-5 rounded-2xl p-5 md:p-7">
@@ -42,7 +39,7 @@ export function DashboardPage() {
           <div><p className="opacity-75">Owed to you</p><p className="amount font-display text-xl">{formatMoney(t.owed, currency)}</p></div>
           <div><p className="opacity-75">You owe</p><p className="amount font-display text-xl">{formatMoney(t.owe, currency)}</p></div>
           {poker.games > 0 && (
-            <div className="hidden sm:block"><p className="opacity-75">Cards, all time</p><p className="amount font-display text-xl">{formatMoney(poker.net, currency, { sign: true })}</p></div>
+            <div className="hidden sm:block"><p className="opacity-75">Clubs, all time</p><p className="amount font-display text-xl">{formatMoney(poker.net, currency, { sign: true })}</p></div>
           )}
         </div>
       </section>
@@ -90,7 +87,7 @@ export function DashboardPage() {
         <CardHeader title="Groups" action={groups.length > 0 && <Link to="/groups" className="text-[13px] font-semibold text-felt dark:text-gain">See all</Link>} />
         <div className="mt-2">
           {groups.length === 0 ? (
-            <EmptyState icon={<Spade size={28} />} title="Start your first group" body="A group holds your card games or shared expenses."
+            <EmptyState icon={<Spade size={28} />} title="Start your first group" body="A club holds your card games, or make a group for shared expenses."
               action={<Button variant="primary" onClick={() => setNewGroup(true)}>Create group</Button>} />
           ) : groups.slice(0, 8).map((g) => {
             const mine = myMemberId(g, me.id);
@@ -109,7 +106,6 @@ export function DashboardPage() {
         </div>
       </Card>
 
-      <NewGameDialog open={newGame} onClose={() => setNewGame(false)} />
       <CreateGroupDialog open={newGroup} onClose={() => setNewGroup(false)} />
       <QuickExpenseDialog open={quickExpense} onClose={() => setQuickExpense(false)} />
     </>

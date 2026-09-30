@@ -1,4 +1,5 @@
-export type GroupKind = 'expenses' | 'poker' | 'mixed';
+/** 'club' = a standing group of people you play games with repeatedly; also holds expenses. */
+export type GroupKind = 'expenses' | 'club';
 
 export interface Profile {
   id: string;
