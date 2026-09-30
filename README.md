@@ -1,7 +1,7 @@
-# ChipSplit
+# Chip n Split
 
 Split shared expenses like Splitwise and settle card-game nights with friends, in one ledger.
-Log each player's buy-in and cash-out, add the pizza, and ChipSplit works out the fewest payments that square everyone up.
+Log each player's buy-in and cash-out, add the pizza, and Chip n Split works out the fewest payments that square everyone up.
 
 Runs as a static web app on **GitHub Pages** (free) with **Supabase** (free tier) for the database and Google sign-in.
 It installs on phones as an app (PWA), and has a **demo mode** that works with no setup at all.
@@ -25,7 +25,7 @@ It installs on phones as an app (PWA), and has a **demo mode** that works with n
 **Splitwise-style expenses**
 - Add expenses with one payer or **several payers**.
 - Split **equally**, by **shares** (e.g. one person owes 2 shares, everyone else 1), by **exact amounts**, or by **percentages** (defaults to an even split of 100%, not zero) — always to the exact cent. Every mode uses the same tap-to-include/exclude picker.
-- **Quick add**: from the Dashboard, add a one-off expense with any friends ("we ate out, one person paid") without setting up a group first — ChipSplit finds or creates the right group behind the scenes.
+- **Quick add**: from the Dashboard, add a one-off expense with any friends ("we ate out, one person paid") without setting up a group first — Chip n Split finds or creates the right group behind the scenes.
 - Edit or delete any expense. Expenses list is grouped by month and shows what you lent or borrowed.
 - **Import from Excel or CSV** (`.xlsx`, `.xls`, `.csv`) with a preview that flags bad rows before anything is saved. A template is downloadable from the import dialog.
 
@@ -94,7 +94,7 @@ Open http://localhost:5173 and click **Try the demo**. It loads sample groups (a
 
 ### 2. Create Google sign-in credentials
 
-1. Go to https://console.cloud.google.com, create a project (for example "ChipSplit").
+1. Go to https://console.cloud.google.com, create a project (for example "Chip n Split").
 2. **APIs & Services → OAuth consent screen**: choose **External**, fill in the app name and your email, save.
    While the app is in "Testing", only accounts you add under **Test users** can sign in. Add your friends there, or click **Publish app** so anyone with a Google account can sign in (basic profile and email scopes don't need Google's review).
 3. **APIs & Services → Credentials → Create credentials → OAuth client ID → Web application**.
@@ -168,6 +168,186 @@ Splits always add up exactly: an equal split of $10.00 three ways is $3.34 + $3.
 
 ---
 
+## Architecture
+
+### System overview
+
+There's no custom backend. The browser talks to Supabase directly with the public anon key;
+row-level security (RLS) in Postgres is the only thing standing between one person's data and
+another's. GitHub Actions only builds, tests, and deploys the static site, and pings the
+database every few days so the free Supabase project doesn't pause from inactivity -- it never
+touches user data.
+
+```mermaid
+flowchart LR
+    subgraph Client["Your phone or browser"]
+        SPA["React 18 + TypeScript SPA
+Vite build, Tailwind CSS
+PWA: service worker, installable"]
+    end
+
+    subgraph GH["GitHub (free)"]
+        Pages["GitHub Pages
+static hosting"]
+        Actions["GitHub Actions
+test → build → deploy on push
++ 3-day keep-alive cron"]
+    end
+
+    subgraph SB["Supabase (free tier)"]
+        Auth["Supabase Auth
+Google OAuth + email magic link"]
+        DB[("Postgres
+RLS on every table
+SECURITY DEFINER RPCs + triggers")]
+    end
+
+    SPA -- "static assets" --> Pages
+    Actions -- "build & deploy on push" --> Pages
+    Actions -- "keep-alive ping" --> DB
+    SPA -- "sign in (OAuth / OTP)" --> Auth
+    Auth -- "on new user: create profile,
+link any guest/contact by email" --> DB
+    SPA -- "reads & writes
+anon key, RLS-scoped" --> DB
+```
+
+### Database schema
+
+All tables live in the `public` schema and reference Supabase's built-in `auth.users` for
+identity (never duplicated). `role` still exists on `group_members` from the original schema
+but is unused by the app now that `is_admin` is the actual permission gate.
+
+```mermaid
+erDiagram
+    PROFILES {
+        uuid id PK "= auth.users.id"
+        text display_name
+        text email
+        text avatar_url
+        text default_currency
+        timestamptz notifications_seen_at
+    }
+    GROUPS {
+        uuid id PK
+        text name
+        text kind "club | expenses"
+        text currency
+        uuid created_by FK
+    }
+    GROUP_MEMBERS {
+        uuid id PK
+        uuid group_id FK
+        uuid user_id FK "null = guest until they sign in"
+        uuid contact_id FK "null = not from a friend"
+        text name
+        text email
+        bool email_opt_out
+        bool is_admin
+    }
+    CONTACTS {
+        uuid id PK
+        uuid owner_id FK "whose friends list"
+        uuid user_id FK "null until they sign in"
+        text name
+        text email
+    }
+    EXPENSES {
+        uuid id PK
+        uuid group_id FK
+        text description
+        text category
+        bigint amount_cents
+        date spent_on
+        uuid created_by FK
+    }
+    EXPENSE_PAYERS {
+        uuid expense_id FK
+        uuid member_id FK
+        bigint amount_cents
+    }
+    EXPENSE_SHARES {
+        uuid expense_id FK
+        uuid member_id FK
+        bigint amount_cents
+    }
+    GAME_SESSIONS {
+        uuid id PK
+        uuid group_id FK
+        date played_on
+        text location
+        text status "open | final"
+        bigint default_buy_in_cents
+        uuid created_by FK
+    }
+    SESSION_RESULTS {
+        uuid session_id FK
+        uuid member_id FK
+        bigint buy_in_cents
+        bigint cash_out_cents
+    }
+    SETTLEMENTS {
+        uuid id PK
+        uuid group_id FK
+        uuid from_member FK
+        uuid to_member FK
+        bigint amount_cents
+        text method
+        uuid session_id FK "null = not tied to a game"
+        date settled_on
+    }
+    CHANGE_LOG {
+        uuid id PK
+        uuid group_id FK
+        uuid actor_id FK "null = actor deleted"
+        text entity_type
+        uuid entity_id "null-able"
+        text summary
+        timestamptz created_at
+    }
+
+    GROUPS ||--o{ GROUP_MEMBERS : has
+    GROUPS ||--o{ EXPENSES : has
+    GROUPS ||--o{ GAME_SESSIONS : has
+    GROUPS ||--o{ SETTLEMENTS : has
+    GROUPS ||--o{ CHANGE_LOG : has
+    CONTACTS ||--o{ GROUP_MEMBERS : "linked as"
+    EXPENSES ||--o{ EXPENSE_PAYERS : has
+    EXPENSES ||--o{ EXPENSE_SHARES : has
+    GROUP_MEMBERS ||--o{ EXPENSE_PAYERS : is
+    GROUP_MEMBERS ||--o{ EXPENSE_SHARES : is
+    GAME_SESSIONS ||--o{ SESSION_RESULTS : has
+    GROUP_MEMBERS ||--o{ SESSION_RESULTS : is
+    GROUP_MEMBERS ||--o{ SETTLEMENTS : "from / to"
+    GAME_SESSIONS ||--o{ SETTLEMENTS : "settles up"
+```
+
+Cascade rules: deleting a `group` deletes everything inside it (members, expenses, games,
+payments, history). Deleting a single `group_member` is blocked if they have any expense,
+game, or payment history, and either way never touches other members' data. `contacts` is a
+private per-account address book, independent of any group.
+
+### Security model, in short
+
+- **RLS on every table**: every `select`/`insert`/`update`/`delete` policy checks group
+  membership (`is_group_member()`) or ownership (`owner_id = auth.uid()`), computed with small
+  `SECURITY DEFINER` helper functions (`is_group_member`, `is_group_admin`, `group_is_settled`,
+  `session_is_settled`) so a policy can't be tricked by RLS on the table it's checking.
+- **Admin-gated destructive actions**: deleting a group or an expense, or changing group
+  settings, requires `is_admin` on that group -- enforced in Postgres (RLS + triggers), not
+  just hidden in the UI. Groups and finalized games can't be deleted while still unsettled.
+  A trigger blocks removing the last admin from a group, so one can't lock itself out.
+  A finalized game's results can only be edited or deleted while it's reopened, or by an admin.
+- **No secrets in the client**: the app ships only the Supabase anon/public key, which is safe
+  to expose by design -- RLS is what actually protects data, not key secrecy. The
+  `service_role` key is never used in this app.
+- **Auth**: Google OAuth and email magic links, both via Supabase Auth (PKCE flow) -- no
+  passwords are ever stored or handled by this app's own code.
+- **XSS**: no `dangerouslySetInnerHTML`, no raw HTML injection anywhere -- React escapes all
+  user-entered text (names, notes, descriptions) by default.
+
+---
+
 ## Project structure
 
 ```
@@ -218,6 +398,7 @@ Run these in order, once each, in the Supabase SQL editor:
 | `0006_require_settled_to_delete_group.sql` | blocks deleting a group until every member's balance is zero |
 | `0007_club_and_expenses_kind.sql` | renames the `poker` group kind to `club` and drops the unused `mixed` kind (`groups.kind` is now `club` \| `expenses`) |
 | `0008_admin_settled_delete_session.sql` | deleting a game is admin-only and blocked while a finalized game still has unpaid settle-up (mirrors 0006 at the game level) |
+| `0009_lock_final_session_results.sql` | a finalized game's buy-in/cash-out rows can no longer be edited or deleted directly (only while the game is open, or by an admin) -- closes a gap where that could bypass 0008's protection |
 
 All tables have row-level security: you can read and write a group's data only if you're a member. Groups are created through `create_group()` (which also makes you an admin), and members are added through `add_member()`, which links an existing account by email or copies in an existing friend by `contact_id`.
 

@@ -15,7 +15,7 @@ export function GamesPage() {
 
   return (
     <>
-      <PageHeader title="Games" subtitle="Every game night across your groups." />
+      <PageHeader title="Club Games" subtitle="Every game night across your clubs." />
 
       {stats.games > 0 && (
         <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">

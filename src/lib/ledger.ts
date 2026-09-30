@@ -276,7 +276,7 @@ export function summaryMailto(g: Group, sessionId?: string): string {
   const involved = new Set(bal.keys());
   const recipients = g.members.filter((m) => m.email && !m.email_opt_out && involved.has(m.id)).map((m) => m.email!);
 
-  const subject = session ? `ChipSplit summary — ${g.name}${session.location ? `, ${session.location}` : ''}` : `ChipSplit summary — ${g.name}`;
+  const subject = session ? `Chip n Split summary — ${g.name}${session.location ? `, ${session.location}` : ''}` : `Chip n Split summary — ${g.name}`;
   const lines: string[] = [subject, '-'.repeat(Math.min(subject.length, 42)), ''];
   for (const id of involved) {
     const cents = bal.get(id) ?? 0;
@@ -286,7 +286,7 @@ export function summaryMailto(g: Group, sessionId?: string): string {
   lines.push('', 'Settle up:');
   if (transfers.length === 0) lines.push('  Everyone is settled up.');
   else transfers.forEach((t) => lines.push(`  ${memberName(g, t.from)} → ${memberName(g, t.to)}   ${formatMoney(t.cents, g.currency)}`));
-  lines.push('', '— Sent from ChipSplit');
+  lines.push('', '— Sent from Chip n Split');
 
   const to = recipients.map(encodeURIComponent).join(',');
   return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;

@@ -7,7 +7,7 @@ export function Logo({ size = 28 }: { size?: number }) {
         <circle cx="32" cy="32" r="11" fill="rgb(var(--felt-ink))" />
         <path d="M32 25v14M27.5 29.5h9M27.5 34.5h9" stroke="rgb(var(--felt))" strokeWidth="2.4" strokeLinecap="round" />
       </svg>
-      <span className="font-display text-lg font-medium tracking-tight text-ink">ChipSplit</span>
+      <span className="font-display text-lg font-medium tracking-tight text-ink">Chip n Split</span>
     </span>
   );
 }

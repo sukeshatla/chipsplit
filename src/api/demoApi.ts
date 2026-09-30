@@ -1,11 +1,16 @@
 import type { AppData, ChangeLogEntry, Contact, Group } from '../lib/types';
 import type { DataApi } from './types';
-import { seedDemo, uid } from './seed';
+import { seedChangeLog, seedDemo, uid } from './seed';
 
 const KEY = 'chipsplit_demo_v1';
 
 /** The demo store keeps the activity log alongside AppData; it's not part of the public shape. */
 type DemoStore = AppData & { changeLog: ChangeLogEntry[] };
+
+function freshDemo(): DemoStore {
+  const data = seedDemo();
+  return { ...data, changeLog: seedChangeLog(data) };
+}
 
 function load(): DemoStore {
   try {
@@ -16,7 +21,7 @@ function load(): DemoStore {
       return d;
     }
   } catch { /* fall through to a fresh seed */ }
-  const d: DemoStore = { ...seedDemo(), changeLog: [] };
+  const d = freshDemo();
   save(d);
   return d;
 }
@@ -26,7 +31,7 @@ function save(d: DemoStore) {
 }
 
 export function resetDemo() {
-  save({ ...seedDemo(), changeLog: [] });
+  save(freshDemo());
 }
 
 const now = () => new Date().toISOString();

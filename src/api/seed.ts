@@ -1,6 +1,10 @@
 import { settle } from '../lib/settle';
 import { splitEqual } from '../lib/money';
-import type { AppData, Contact, Expense, GameSession, Group, Member, Profile, Settlement } from '../lib/types';
+import type { AppData, ChangeLogEntry, Contact, Expense, GameSession, Group, Member, Profile, Settlement } from '../lib/types';
+
+/** A stand-in id: Ravi is the one demo friend who's "already signed up", so the demo can show
+ *  a Friend badge (not just Invited/Guest) and a history/notification entry with a real name. */
+const RAVI_USER_ID = 'demo-ravi';
 
 export const uid = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -28,7 +32,7 @@ export function seedDemo(): AppData {
     if (n === 'Suki') return null;
     let c = contacts.get(n);
     if (!c) {
-      c = { id: uid(), owner_id: me.id, user_id: null, name: n, email: `${n.toLowerCase()}@example.com`, created_at: `${daysAgo(160)}T12:00:00Z` };
+      c = { id: uid(), owner_id: me.id, user_id: n === 'Ravi' ? RAVI_USER_ID : null, name: n, email: `${n.toLowerCase()}@example.com`, created_at: `${daysAgo(160)}T12:00:00Z` };
       contacts.set(n, c);
     }
     return c.id;
@@ -37,7 +41,7 @@ export function seedDemo(): AppData {
   const makeGroup = (name: string, kind: Group['kind'], names: string[], age: number): Group => {
     const id = uid();
     const members: Member[] = names.map((n) => ({
-      id: uid(), group_id: id, user_id: n === 'Suki' ? me.id : null, contact_id: contactId(n), name: n,
+      id: uid(), group_id: id, user_id: n === 'Suki' ? me.id : n === 'Ravi' ? RAVI_USER_ID : null, contact_id: contactId(n), name: n,
       email: `${n.toLowerCase()}@example.com`, email_opt_out: false, is_admin: true,
     }));
     return { id, name, kind, currency: 'USD', created_by: me.id, created_at: `${daysAgo(age)}T12:00:00Z`, members, expenses: [], sessions: [], settlements: [] };
@@ -114,4 +118,20 @@ export function seedDemo(): AppData {
   contacts.set('Meera', { id: uid(), owner_id: me.id, user_id: null, name: 'Meera', email: null, created_at: `${daysAgo(5)}T12:00:00Z` });
 
   return { me, groups: [club, trip, home], contacts: [...contacts.values()] };
+}
+
+/** A few recent, plausible history entries -- all from Ravi, the one demo friend who's "signed
+ *  up" -- so the notifications bell and each group's History tab aren't empty on first look. */
+export function seedChangeLog(data: AppData): ChangeLogEntry[] {
+  const club = data.groups.find((g) => g.kind === 'club')!;
+  const trip = data.groups.find((g) => g.name === 'Goa trip')!;
+  const openSession = club.sessions.find((s) => s.status === 'open')!;
+  const entry = (groupId: string, entityType: ChangeLogEntry['entity_type'], entityId: string | null, summary: string, ago: number, hour: string): ChangeLogEntry => ({
+    id: uid(), group_id: groupId, actor_id: RAVI_USER_ID, entity_type: entityType, entity_id: entityId, summary, created_at: `${daysAgo(ago)}T${hour}:00Z`,
+  });
+  return [
+    entry(club.id, 'session', openSession.id, `Started a game at ${openSession.location}`, 1, '19:00'),
+    entry(club.id, 'settlement', null, 'Recorded a payment: Ravi → Suki', 3, '10:05'),
+    entry(trip.id, 'expense', null, 'Added expense "Scooter rentals"', 44, '09:20'),
+  ];
 }

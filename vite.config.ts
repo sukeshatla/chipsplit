@@ -21,9 +21,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       manifest: {
-        name: 'ChipSplit',
-        short_name: 'ChipSplit',
-        description: 'Split expenses and settle poker nights with friends.',
+        name: 'Chip n Split',
+        short_name: 'Chip n Split',
+        description: 'Split expenses and settle card-game nights with friends.',
         theme_color: '#0E4D3A',
         background_color: '#F3F6F4',
         display: 'standalone',

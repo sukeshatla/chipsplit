@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { settle } from './settle';
 import { splitByWeights, splitEqual, parseMoney, equalPercents } from './money';
 import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink } from './ledger';
-import type { Group } from './types';
+import type { AppData, Group } from './types';
 
 describe('settle', () => {
   it('settles the sample game in 4 payments', () => {
@@ -272,5 +272,24 @@ describe('friendsList', async () => {
     expect(statusFromKey('u:1')).toBe('friend');
     expect(statusFromKey('e:a@b.com')).toBe('invited');
     expect(statusFromKey('m:123')).toBe('guest');
+  });
+  it('merges a friend added by email with a same-email guest in a group, before either signs up', () => {
+    // This is the exact "added as a friend by email, also a group guest" case that must not
+    // show up twice on the Friends page.
+    const data: AppData = {
+      me: { id: 'me', display_name: 'Me', email: 'me@x.com', avatar_url: null, default_currency: 'USD', notifications_seen_at: '' },
+      contacts: [{ id: 'c1', owner_id: 'me', user_id: null, name: 'Ravi', email: 'RAVI@x.com', created_at: '' }],
+      groups: [{
+        id: 'g', name: 'Trip', kind: 'expenses', currency: 'USD', created_by: 'me', created_at: '',
+        members: [
+          { id: 'm-me', group_id: 'g', user_id: 'me', contact_id: null, name: 'Me', email: 'me@x.com', email_opt_out: false, is_admin: true },
+          { id: 'm-ravi', group_id: 'g', user_id: null, contact_id: null, name: 'Ravi', email: 'ravi@x.com', email_opt_out: false, is_admin: true },
+        ],
+        expenses: [], sessions: [], settlements: [],
+      }],
+    };
+    const rows = friendsList(data).filter((f) => f.name === 'Ravi');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.contactId).toBe('c1');
   });
 });
