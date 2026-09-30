@@ -59,6 +59,11 @@ export function isGroupAdmin(g: Group, meId: string): boolean {
   return g.members.some((m) => m.user_id === meId && m.is_admin);
 }
 
+/** Whether everyone in the group is at zero. The database also enforces this before a delete. */
+export function isGroupSettled(g: Group): boolean {
+  return [...groupBalances(g).values()].every((v) => v === 0);
+}
+
 export function memberHasActivity(g: Group, memberId: string) {
   return (
     g.expenses.some((e) => e.payers.some((p) => p.member_id === memberId) || e.shares.some((s) => s.member_id === memberId)) ||

@@ -18,7 +18,7 @@ function daysAgo(n: number) {
 export function seedDemo(): AppData {
   const me: Profile = {
     id: 'demo-user', display_name: 'Suki', email: 'suki@example.com',
-    avatar_url: null, payment_handle: '@suki-zelle', default_currency: 'USD',
+    avatar_url: null, default_currency: 'USD',
     notifications_seen_at: `${daysAgo(160)}T12:00:00Z`,
   };
 
@@ -36,9 +36,9 @@ export function seedDemo(): AppData {
 
   const makeGroup = (name: string, kind: Group['kind'], names: string[], age: number): Group => {
     const id = uid();
-    const members: Member[] = names.map((n, i) => ({
+    const members: Member[] = names.map((n) => ({
       id: uid(), group_id: id, user_id: n === 'Suki' ? me.id : null, contact_id: contactId(n), name: n,
-      email: `${n.toLowerCase()}@example.com`, role: i === 0 ? 'owner' : 'member', email_opt_out: false, is_admin: true,
+      email: `${n.toLowerCase()}@example.com`, email_opt_out: false, is_admin: true,
     }));
     return { id, name, kind, currency: 'USD', created_by: me.id, created_at: `${daysAgo(age)}T12:00:00Z`, members, expenses: [], sessions: [], settlements: [] };
   };

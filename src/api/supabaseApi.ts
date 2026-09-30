@@ -31,7 +31,7 @@ async function log(groupId: string, entityType: ChangeLogEntry['entity_type'], e
 
 const GROUP_SELECT = `
   id, name, kind, currency, created_by, created_at,
-  group_members ( id, group_id, user_id, contact_id, name, email, role, email_opt_out, is_admin ),
+  group_members ( id, group_id, user_id, contact_id, name, email, email_opt_out, is_admin ),
   expenses ( id, group_id, description, category, amount_cents, spent_on, created_by, created_at,
     expense_payers ( member_id, amount_cents ), expense_shares ( member_id, amount_cents ) ),
   game_sessions ( id, group_id, played_on, location, notes, status, default_buy_in_cents, created_at,

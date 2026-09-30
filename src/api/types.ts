@@ -4,7 +4,7 @@ import type { AppData, ChangeLogEntry, GameSession, GroupKind, NewExpense, NewSe
 export interface DataApi {
   mode: 'demo' | 'supabase';
   loadAll(): Promise<AppData>;
-  updateProfile(patch: Partial<Pick<Profile, 'display_name' | 'payment_handle' | 'default_currency'>>): Promise<void>;
+  updateProfile(patch: Partial<Pick<Profile, 'display_name' | 'default_currency'>>): Promise<void>;
   createGroup(input: { name: string; kind: GroupKind; currency: string }): Promise<string>;
   updateGroup(id: string, patch: { name?: string; kind?: GroupKind; currency?: string }): Promise<void>;
   deleteGroup(id: string): Promise<void>;

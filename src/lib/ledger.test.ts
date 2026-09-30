@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { settle } from './settle';
 import { splitByWeights, splitEqual, parseMoney, equalPercents } from './money';
-import { groupBalances, simplify, isGroupAdmin, notificationLink } from './ledger';
+import { groupBalances, simplify, isGroupAdmin, isGroupSettled, notificationLink } from './ledger';
 import type { Group } from './types';
 
 describe('settle', () => {
@@ -57,7 +57,7 @@ describe('money', () => {
 describe('groupBalances', () => {
   const g: Group = {
     id: 'g', name: 'Test', kind: 'mixed', currency: 'USD', created_by: null, created_at: '',
-    members: ['a', 'b', 'c'].map((id) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id, email: null, role: 'member', email_opt_out: false, is_admin: true })),
+    members: ['a', 'b', 'c'].map((id) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id, email: null, email_opt_out: false, is_admin: true })),
     expenses: [{
       id: 'e', group_id: 'g', description: 'Pizza', category: 'food', amount_cents: 9000, spent_on: '2026-01-01',
       created_by: null, created_at: '', payers: [{ member_id: 'a', amount_cents: 9000 }],
@@ -104,8 +104,8 @@ describe('isGroupAdmin', () => {
   const g: Group = {
     id: 'g', name: 'Test', kind: 'expenses', currency: 'USD', created_by: null, created_at: '',
     members: [
-      { id: 'a', group_id: 'g', user_id: 'u-a', contact_id: null, name: 'A', email: null, role: 'owner', email_opt_out: false, is_admin: true },
-      { id: 'b', group_id: 'g', user_id: 'u-b', contact_id: null, name: 'B', email: null, role: 'member', email_opt_out: false, is_admin: false },
+      { id: 'a', group_id: 'g', user_id: 'u-a', contact_id: null, name: 'A', email: null, email_opt_out: false, is_admin: true },
+      { id: 'b', group_id: 'g', user_id: 'u-b', contact_id: null, name: 'B', email: null, email_opt_out: false, is_admin: false },
     ],
     expenses: [], sessions: [], settlements: [],
   };
@@ -113,6 +113,37 @@ describe('isGroupAdmin', () => {
     expect(isGroupAdmin(g, 'u-a')).toBe(true);
     expect(isGroupAdmin(g, 'u-b')).toBe(false);
     expect(isGroupAdmin(g, 'u-nobody')).toBe(false);
+  });
+});
+
+describe('isGroupSettled', () => {
+  const member = (id: string) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id, email: null, email_opt_out: false, is_admin: true });
+  it('is false while an expense is unpaid back', () => {
+    const g: Group = {
+      id: 'g', name: 'Test', kind: 'expenses', currency: 'USD', created_by: null, created_at: '',
+      members: ['a', 'b'].map(member),
+      expenses: [{
+        id: 'e', group_id: 'g', description: 'Dinner', category: 'food', amount_cents: 2000, spent_on: '2026-01-01',
+        created_by: null, created_at: '', payers: [{ member_id: 'a', amount_cents: 2000 }],
+        shares: splitEqual(2000, ['a', 'b']),
+      }],
+      sessions: [], settlements: [],
+    };
+    expect(isGroupSettled(g)).toBe(false);
+  });
+  it('is true once a settlement squares it up', () => {
+    const g: Group = {
+      id: 'g', name: 'Test', kind: 'expenses', currency: 'USD', created_by: null, created_at: '',
+      members: ['a', 'b'].map(member),
+      expenses: [{
+        id: 'e', group_id: 'g', description: 'Dinner', category: 'food', amount_cents: 2000, spent_on: '2026-01-01',
+        created_by: null, created_at: '', payers: [{ member_id: 'a', amount_cents: 2000 }],
+        shares: splitEqual(2000, ['a', 'b']),
+      }],
+      sessions: [],
+      settlements: [{ id: 's', group_id: 'g', from_member: 'b', to_member: 'a', amount_cents: 1000, method: null, note: null, session_id: null, settled_on: '2026-01-02', created_at: '' }],
+    };
+    expect(isGroupSettled(g)).toBe(true);
   });
 });
 
@@ -132,9 +163,9 @@ describe('summaryMailto', async () => {
   const g: Group = {
     id: 'g', name: 'Roommates', kind: 'expenses', currency: 'USD', created_by: null, created_at: '',
     members: [
-      { id: 'a', group_id: 'g', user_id: null, contact_id: null, name: 'Ana', email: 'ana@x.com', role: 'owner', email_opt_out: false, is_admin: true },
-      { id: 'b', group_id: 'g', user_id: null, contact_id: null, name: 'Bo', email: 'bo@x.com', role: 'member', email_opt_out: true, is_admin: false },
-      { id: 'c', group_id: 'g', user_id: null, contact_id: null, name: 'Cy', email: null, role: 'member', email_opt_out: false, is_admin: false },
+      { id: 'a', group_id: 'g', user_id: null, contact_id: null, name: 'Ana', email: 'ana@x.com', email_opt_out: false, is_admin: true },
+      { id: 'b', group_id: 'g', user_id: null, contact_id: null, name: 'Bo', email: 'bo@x.com', email_opt_out: true, is_admin: false },
+      { id: 'c', group_id: 'g', user_id: null, contact_id: null, name: 'Cy', email: null, email_opt_out: false, is_admin: false },
     ],
     expenses: [{
       id: 'e', group_id: 'g', description: 'Rent', category: 'housing', amount_cents: 3000, spent_on: '2026-01-01',

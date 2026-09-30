@@ -1,15 +1,12 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Spade, ChevronRight } from 'lucide-react';
 import { useData } from '../app/data';
 import { myMemberId, pokerStats, sessionPayments } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Badge, Button, Card, EmptyState, PageHeader, Row } from '../components/ui';
-import { NewGameDialog } from '../components/dialogs/NewGameDialog';
+import { Amount, Badge, Card, EmptyState, PageHeader, Row } from '../components/ui';
 
 export function GamesPage() {
   const data = useData();
-  const [open, setOpen] = useState(false);
   const stats = pokerStats(data);
   const currency = data.me.default_currency || 'USD';
   const all = data.groups
@@ -18,8 +15,7 @@ export function GamesPage() {
 
   return (
     <>
-      <PageHeader title="Games" subtitle="Every game night across your groups."
-        actions={<Button variant="primary" onClick={() => setOpen(true)}><Spade size={16} aria-hidden="true" />Start game</Button>} />
+      <PageHeader title="Games" subtitle="Every game night across your groups." />
 
       {stats.games > 0 && (
         <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -39,8 +35,7 @@ export function GamesPage() {
 
       <Card>
         {all.length === 0 ? (
-          <EmptyState icon={<Spade size={28} />} title="No games yet" body="Start one from a Cards group and log buy-ins as people sit down."
-            action={<Button variant="primary" onClick={() => setOpen(true)}>Start game</Button>} />
+          <EmptyState icon={<Spade size={28} />} title="No games yet" body="Open a Cards group and start one from its Games tab." />
         ) : all.map(({ g, s }) => {
           const mine = myMemberId(g, data.me.id);
           const r = s.results.find((x) => x.member_id === mine);
@@ -66,7 +61,6 @@ export function GamesPage() {
           );
         })}
       </Card>
-      <NewGameDialog open={open} onClose={() => setOpen(false)} />
     </>
   );
 }

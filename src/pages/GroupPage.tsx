@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { groupBalances, isGroupAdmin, memberHasActivity, memberName, myMemberId, pokerLeaderboard, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
+import { groupBalances, isGroupAdmin, isGroupSettled, memberHasActivity, memberName, myMemberId, pokerLeaderboard, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, Badge, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -259,6 +259,7 @@ function MembersTab({ g }: { g: Group }) {
   const [currency, setCurrency] = useState(g.currency);
   const admin = isGroupAdmin(g, me.id);
   const dirty = name.trim() !== g.name || kind !== g.kind || currency !== g.currency;
+  const settled = isGroupSettled(g);
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -312,13 +313,21 @@ function MembersTab({ g }: { g: Group }) {
             <Select value={currency} disabled={!admin} onChange={(e) => setCurrency(e.target.value)}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</Select>
           </Field>
           {!admin && <p className="text-[13px] text-ink-2">Only a group admin can change these settings.</p>}
-          <div className="flex flex-wrap justify-between gap-2 pt-2">
+          <div className="flex flex-wrap items-start justify-between gap-2 pt-2">
             {admin ? (
-              <Button variant="danger" onClick={async () => {
-                if (!confirm(`Delete ${g.name} and all its games, expenses, and payments? This can't be undone.`)) return;
-                const ok = await run((api) => api.deleteGroup(g.id), 'Group deleted');
-                if (ok !== undefined) nav('/groups');
-              }}><Trash2 size={16} aria-hidden="true" />Delete group</Button>
+              <div>
+                <Button variant="danger" disabled={!settled} title={settled ? undefined : 'Settle up everyone in this group first'}
+                  onClick={async () => {
+                    if (!confirm(`Delete ${g.name} and all its games, expenses, and payments? This can't be undone.`)) return;
+                    const ok = await run((api) => api.deleteGroup(g.id), 'Group deleted');
+                    if (ok !== undefined) nav('/groups');
+                  }}><Trash2 size={16} aria-hidden="true" />Delete group</Button>
+                {!settled && (
+                  <p className="mt-1.5 text-[12px] text-ink-2">
+                    Not settled yet{' — '}<Link to={`/groups/${g.id}?tab=balances`} className="font-semibold text-felt underline dark:text-gain">settle up</Link> first.
+                  </p>
+                )}
+              </div>
             ) : <span />}
             <Button variant="primary" disabled={!admin || !dirty || !name.trim()} loading={busy}
               onClick={() => run((api) => api.updateGroup(g.id, { name: name.trim(), kind, currency }), 'Group saved')}>Save changes</Button>

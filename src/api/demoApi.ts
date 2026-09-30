@@ -92,7 +92,7 @@ export const demoApi: DataApi = {
     const id = uid();
     d.groups.push({
       id, name, kind, currency, created_by: d.me.id, created_at: now(),
-      members: [{ id: uid(), group_id: id, user_id: d.me.id, contact_id: null, name: d.me.display_name, email: d.me.email, role: 'owner', email_opt_out: false, is_admin: true }],
+      members: [{ id: uid(), group_id: id, user_id: d.me.id, contact_id: null, name: d.me.display_name, email: d.me.email, email_opt_out: false, is_admin: true }],
       expenses: [], sessions: [], settlements: [],
     });
     return id;
@@ -115,7 +115,7 @@ export const demoApi: DataApi = {
     const g = group(d, groupId);
     const c = upsertContact(d, name, email);
     const id = uid();
-    g.members.push({ id, group_id: groupId, user_id: c.user_id, contact_id: c.id, name: c.name, email: c.email, role: 'member', email_opt_out: false, is_admin: true });
+    g.members.push({ id, group_id: groupId, user_id: c.user_id, contact_id: c.id, name: c.name, email: c.email, email_opt_out: false, is_admin: true });
     log(d, groupId, 'member', id, `Added ${c.name} to the group`);
     return id;
   }),
@@ -125,7 +125,7 @@ export const demoApi: DataApi = {
     const c = d.contacts.find((x) => x.id === contactId);
     if (!c) throw new Error('That friend is not in your list');
     const id = uid();
-    g.members.push({ id, group_id: groupId, user_id: c.user_id, contact_id: c.id, name: c.name, email: c.email, role: 'member', email_opt_out: false, is_admin: true });
+    g.members.push({ id, group_id: groupId, user_id: c.user_id, contact_id: c.id, name: c.name, email: c.email, email_opt_out: false, is_admin: true });
     log(d, groupId, 'member', id, `Added ${c.name} to the group`);
     return id;
   }),

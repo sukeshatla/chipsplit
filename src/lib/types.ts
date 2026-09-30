@@ -5,7 +5,6 @@ export interface Profile {
   display_name: string;
   email: string;
   avatar_url: string | null;
-  payment_handle: string | null;
   default_currency: string;
   notifications_seen_at: string; // entries after this are "unread" in the notifications bell
 }
@@ -17,7 +16,6 @@ export interface Member {
   contact_id: string | null; // links back to the adder's Contact, if added from (or as) a friend
   name: string;
   email: string | null;
-  role: 'owner' | 'member';
   email_opt_out: boolean; // excluded from this group's "email summary" mailto
   is_admin: boolean; // can change group settings, delete the group, or delete an expense
 }

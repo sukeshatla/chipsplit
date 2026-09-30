@@ -19,11 +19,10 @@ export function ProfilePage() {
   const qc = useQueryClient();
   const toast = useToast();
   const [name, setName] = useState(me.display_name);
-  const [handle, setHandle] = useState(me.payment_handle ?? '');
   const [currency, setCurrency] = useState(me.default_currency || 'USD');
   const [theme, setThemeState] = useState<Theme>(getTheme());
   const stats = pokerStats(data);
-  const dirty = name.trim() !== me.display_name || handle.trim() !== (me.payment_handle ?? '') || currency !== me.default_currency;
+  const dirty = name.trim() !== me.display_name || currency !== me.default_currency;
 
   const themes: { value: Theme; label: string; icon: typeof Sun }[] = [
     { value: 'light', label: 'Light', icon: Sun }, { value: 'dark', label: 'Dark', icon: Moon }, { value: 'system', label: 'System', icon: Monitor },
@@ -45,15 +44,12 @@ export function ProfilePage() {
             <Field label="Display name" hint="New groups you create will use this name for you.">
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
-            <Field label="How friends can pay you" hint="Shown to you as a reminder when you settle up.">
-              <Input value={handle} placeholder="Zelle: suki@example.com" onChange={(e) => setHandle(e.target.value)} />
-            </Field>
             <Field label="Currency for totals">
               <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</Select>
             </Field>
             <div className="flex justify-end">
               <Button variant="primary" disabled={!dirty || !name.trim()} loading={busy}
-                onClick={() => run((api) => api.updateProfile({ display_name: name.trim(), payment_handle: handle.trim() || null, default_currency: currency }), 'Profile saved')}>
+                onClick={() => run((api) => api.updateProfile({ display_name: name.trim(), default_currency: currency }), 'Profile saved')}>
                 Save changes
               </Button>
             </div>
