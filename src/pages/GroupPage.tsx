@@ -16,6 +16,7 @@ import { ImportDialog } from '../components/dialogs/ImportDialog';
 import { SettleDialog, type SettleDraft } from '../components/dialogs/SettleDialog';
 import { NewGameDialog } from '../components/dialogs/NewGameDialog';
 import { NewRummyGameDialog } from '../components/dialogs/NewRummyGameDialog';
+import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
 import { CURRENCIES, KindPicker } from '../components/dialogs/CreateGroupDialog';
 import type { Expense, Group, GroupKind, Member, Settlement } from '../lib/types';
@@ -84,6 +85,7 @@ export function GroupPage() {
 function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
   const board = pokerLeaderboard(g);
   const sessions = g.sessions.slice().sort((a, b) => b.played_on.localeCompare(a.played_on));
+  const [cardMember, setCardMember] = useState<Member | null>(null);
   if (sessions.length === 0) {
     return <Card><EmptyState icon={<Spade size={28} />} title="Deal the first game" body="Start a game, log buy-ins as people join, and cash-outs when the table breaks."
       action={<Button variant="primary" onClick={onNew}>Start game</Button>} /></Card>;
@@ -97,11 +99,14 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
             board.map((r, i) => (
               <Row key={r.memberId}>
                 <span className="amount w-5 text-center font-display text-sm text-ink-2">{i + 1}</span>
-                <Avatar name={r.name} src={r.avatar_url} size={32} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{r.name}</p>
-                  <p className="text-[12px] text-ink-2">{r.games} games, won {r.wins}, best {formatMoney(r.best, g.currency)}</p>
-                </div>
+                <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  onClick={() => setCardMember(g.members.find((m) => m.id === r.memberId) ?? null)}>
+                  <Avatar name={r.name} src={r.avatar_url} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{r.name}</p>
+                    <p className="text-[12px] text-ink-2">{r.games} games, won {r.wins}, best {formatMoney(r.best, g.currency)}</p>
+                  </div>
+                </button>
                 <Amount cents={r.net} currency={g.currency} sign className="text-base" />
               </Row>
             ))}
@@ -134,6 +139,8 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
           })}
         </div>
       </Card>
+      <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)}
+        extra={cardMember ? { label: 'All-time at the table', node: <Amount cents={board.find((b) => b.memberId === cardMember.id)?.net ?? 0} currency={g.currency} sign className="text-base" /> } : undefined} />
     </div>
   );
 }
@@ -181,6 +188,8 @@ function RummyTab({ g }: { g: Group }) {
 function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: SettleDraft): void; onAddExpense(): void }) {
   const { run, busy } = useAction();
   const [confirmingPayment, setConfirmingPayment] = useState<Settlement | null>(null);
+  const [cardMember, setCardMember] = useState<Member | null>(null);
+  const memberById = (id: string) => g.members.find((m) => m.id === id) ?? null;
   const bal = groupBalances(g);
   const transfers = simplify(bal);
   const history = g.settlements.slice().sort((a, b) => b.settled_on.localeCompare(a.settled_on) || b.created_at.localeCompare(a.created_at));
@@ -200,9 +209,9 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
                   <div className="flex min-w-0 items-center gap-3 sm:flex-1">
                     <Avatar name={memberName(g, t.from)} src={memberAvatar(g, t.from)} size={28} />
                     <span className="min-w-0 flex-1 truncate text-sm">
-                      <b className="font-semibold text-loss">{memberName(g, t.from)}</b>
+                      <button type="button" className="font-semibold text-loss hover:underline" onClick={() => setCardMember(memberById(t.from))}>{memberName(g, t.from)}</button>
                       <ArrowRight size={14} className="mx-1.5 inline text-ink-2" aria-label="pays" />
-                      <b className="font-semibold text-gain">{memberName(g, t.to)}</b>
+                      <button type="button" className="font-semibold text-gain hover:underline" onClick={() => setCardMember(memberById(t.to))}>{memberName(g, t.to)}</button>
                     </span>
                   </div>
                   <div className="flex shrink-0 items-center justify-end gap-2">
@@ -222,8 +231,10 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
           <div className="mt-2">
             {members.map((m) => (
               <Row key={m.id}>
-                <Avatar name={m.name} src={m.avatar_url} size={32} />
-                <span className="flex-1 truncate text-sm font-semibold">{m.name}</span>
+                <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setCardMember(m)}>
+                  <Avatar name={m.name} src={m.avatar_url} size={32} />
+                  <span className="flex-1 truncate text-sm font-semibold">{m.name}</span>
+                </button>
                 <BalanceText cents={bal.get(m.id) ?? 0} currency={g.currency} perspective="them" />
               </Row>
             ))}
@@ -252,6 +263,8 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
       <ConfirmDialog open={!!confirmingPayment} onClose={() => setConfirmingPayment(null)} title="Delete this payment?" icon={Trash2} busy={busy}
         body={confirmingPayment && <>This removes the record of <b>{memberName(g, confirmingPayment.from_member)}</b> paying <b>{memberName(g, confirmingPayment.to_member)}</b> <b>{formatMoney(confirmingPayment.amount_cents, g.currency)}</b>. Their balances go back to what they owed before.</>}
         onConfirm={async () => { const id = confirmingPayment!.id; setConfirmingPayment(null); await run((api) => api.deleteSettlement(id), 'Payment deleted'); }} />
+      <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)}
+        extra={cardMember ? { label: 'In this group', node: <BalanceText cents={bal.get(cardMember.id) ?? 0} currency={g.currency} perspective="them" /> } : undefined} />
     </div>
   );
 }
