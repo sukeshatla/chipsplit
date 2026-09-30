@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: 243 246 244;
+    --surface: 255 255 255;
+    --surface-2: 234 239 236;
+    --ink: 20 33 29;
+    --ink-2: 84 102 95;
+    --line: 218 226 222;
+    --felt: 14 77 58;
+    --felt-ink: 230 243 236;
+    --gain: 21 122 80;
+    --loss: 190 58 40;
+    --brass: 150 112 20;
+    color-scheme: light;
+  }
+  .dark {
+    --bg: 10 20 17;
+    --surface: 17 30 26;
+    --surface-2: 25 41 36;
+    --ink: 229 238 234;
+    --ink-2: 148 168 160;
+    --line: 38 58 51;
+    --felt: 22 98 74;
+    --felt-ink: 229 243 236;
+    --gain: 88 204 146;
+    --loss: 242 118 98;
+    --brass: 222 184 92;
+    color-scheme: dark;
+  }
+  html { -webkit-tap-highlight-color: transparent; }
+  body { @apply bg-bg font-sans text-ink antialiased; }
+  :focus-visible { outline: 2px solid rgb(var(--felt)); outline-offset: 2px; }
+  .dark :focus-visible { outline-color: rgb(var(--gain)); }
+}
+
+.amount { font-variant-numeric: tabular-nums; }
+
+/* The felt: the one bold surface in the app, used for your overall standing and the table check. */
+.felt {
+  background-color: rgb(var(--felt));
+  color: rgb(var(--felt-ink));
+  background-image: radial-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 6px 6px;
+}
+
+@keyframes sheet-in { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+.sheet-in { animation: sheet-in 180ms ease-out; }
+.toast-in { animation: toast-in 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .sheet-in, .toast-in { animation: none; } }
