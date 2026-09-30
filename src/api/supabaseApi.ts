@@ -31,7 +31,7 @@ async function log(groupId: string, entityType: ChangeLogEntry['entity_type'], e
 
 const GROUP_SELECT = `
   id, name, kind, currency, created_by, created_at,
-  group_members ( id, group_id, user_id, contact_id, name, email, role, email_opt_out ),
+  group_members ( id, group_id, user_id, contact_id, name, email, role, email_opt_out, is_admin ),
   expenses ( id, group_id, description, category, amount_cents, spent_on, created_by, created_at,
     expense_payers ( member_id, amount_cents ), expense_shares ( member_id, amount_cents ) ),
   game_sessions ( id, group_id, played_on, location, notes, status, default_buy_in_cents, created_at,
@@ -129,6 +129,12 @@ export const supabaseApi: DataApi = {
     check(await db().from('group_members').update({ email_opt_out: optOut }).eq('id', memberId));
   },
 
+  async setGroupAdmin(memberId, isAdmin) {
+    const before = check(await db().from('group_members').select('group_id, name').eq('id', memberId).maybeSingle()) as { group_id: string; name: string } | null;
+    check(await db().from('group_members').update({ is_admin: isAdmin }).eq('id', memberId));
+    if (before) await log(before.group_id, 'member', memberId, `${isAdmin ? 'Made' : 'Removed'} ${before.name} ${isAdmin ? 'an admin' : 'as admin'}`);
+  },
+
   async addContact(name, email) {
     return check(await db().rpc('upsert_contact', { p_name: name, p_email: email })) as string;
   },
@@ -176,7 +182,7 @@ export const supabaseApi: DataApi = {
   async createSession(s) {
     const user = await currentUser();
     const row = check(await db().from('game_sessions').insert({ ...s, created_by: user.id }).select('id').single()) as { id: string };
-    await log(s.group_id, 'session', row.id, `Started a game day${s.location ? ` at ${s.location}` : ''}`);
+    await log(s.group_id, 'session', row.id, `Started a game${s.location ? ` at ${s.location}` : ''}`);
     return row.id;
   },
 
@@ -184,9 +190,9 @@ export const supabaseApi: DataApi = {
     const before = check(await db().from('game_sessions').select('group_id, status').eq('id', id).maybeSingle()) as { group_id: string; status: string } | null;
     check(await db().from('game_sessions').update(patch).eq('id', id));
     if (!before) return;
-    if (patch.status === 'final' && before.status !== 'final') await log(before.group_id, 'session', id, 'Finalized the game day');
-    else if (patch.status === 'open' && before.status === 'final') await log(before.group_id, 'session', id, 'Reopened the game day');
-    else if (patch.status === undefined) await log(before.group_id, 'session', id, 'Updated game day details');
+    if (patch.status === 'final' && before.status !== 'final') await log(before.group_id, 'session', id, 'Finalized the game');
+    else if (patch.status === 'open' && before.status === 'final') await log(before.group_id, 'session', id, 'Reopened the game');
+    else if (patch.status === undefined) await log(before.group_id, 'session', id, 'Updated game details');
   },
 
   async saveSessionResults(id, results) {
@@ -202,7 +208,7 @@ export const supabaseApi: DataApi = {
   async deleteSession(id) {
     const before = check(await db().from('game_sessions').select('group_id, location').eq('id', id).maybeSingle()) as { group_id: string; location: string | null } | null;
     check(await db().from('game_sessions').delete().eq('id', id));
-    if (before) await log(before.group_id, 'session', id, `Deleted the game day${before.location ? ` at ${before.location}` : ''}`);
+    if (before) await log(before.group_id, 'session', id, `Deleted the game${before.location ? ` at ${before.location}` : ''}`);
   },
 
   async addSettlement(s) {
@@ -225,5 +231,15 @@ export const supabaseApi: DataApi = {
 
   async loadHistory(groupId) {
     return check(await db().from('change_log').select('*').eq('group_id', groupId).order('created_at', { ascending: false }).limit(200)) as ChangeLogEntry[];
+  },
+
+  async loadNotifications() {
+    // RLS already scopes this to groups the caller belongs to, across all of them.
+    return check(await db().from('change_log').select('*').order('created_at', { ascending: false }).limit(50)) as ChangeLogEntry[];
+  },
+
+  async markNotificationsSeen() {
+    const user = await currentUser();
+    check(await db().from('profiles').update({ notifications_seen_at: new Date().toISOString() }).eq('id', user.id));
   },
 };

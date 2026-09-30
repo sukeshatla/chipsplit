@@ -64,33 +64,10 @@ export function DashboardPage() {
       )}
 
       <Card>
-        <CardHeader title="Groups" action={<Link to="/groups" className="text-[13px] font-semibold text-felt dark:text-gain">See all</Link>} />
-        <div className="mt-2">
-          {groups.length === 0 ? (
-            <EmptyState icon={<Spade size={28} />} title="Start your first group" body="A group holds your card games or shared expenses."
-              action={<Button variant="primary" onClick={() => setNewGroup(true)}>Create group</Button>} />
-          ) : groups.map((g) => {
-            const mine = myMemberId(g, me.id);
-            const bal = mine ? groupBalances(g).get(mine) ?? 0 : 0;
-            return (
-              <Link key={g.id} to={`/groups/${g.id}`} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0 hover:bg-surface-2/60 md:px-5">
-                <GroupIcon kind={g.kind} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{g.name}</p>
-                  <p className="text-[12px] text-ink-2">{g.members.length} people</p>
-                </div>
-                <Amount cents={bal} currency={g.currency} sign />
-              </Link>
-            );
-          })}
-        </div>
-      </Card>
-
-      <Card className="mt-5">
-        <CardHeader title="Recent activity" />
+        <CardHeader title="Recent activity" action={feed.length > 0 && <Link to="/activity" className="text-[13px] font-semibold text-felt dark:text-gain">See more</Link>} />
         <div className="mt-2">
           {feed.length === 0 ? (
-            <EmptyState icon={<Receipt size={28} />} title="Nothing logged yet" body="Game days, expenses, and payments show up here." />
+            <EmptyState icon={<Receipt size={28} />} title="Nothing logged yet" body="Games, expenses, and payments show up here." />
           ) : feed.map((a) => {
             const Icon = ACTIVITY_ICON[a.kind];
             return (
@@ -103,6 +80,29 @@ export function DashboardPage() {
                   </div>
                   {a.impact !== null ? <Amount cents={a.impact} currency={a.group.currency} sign /> : <span className="text-right text-[12px] text-ink-2">{a.note ?? 'not involved'}</span>}
                 </Row>
+              </Link>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card className="mt-5">
+        <CardHeader title="Groups" action={groups.length > 0 && <Link to="/groups" className="text-[13px] font-semibold text-felt dark:text-gain">See all</Link>} />
+        <div className="mt-2">
+          {groups.length === 0 ? (
+            <EmptyState icon={<Spade size={28} />} title="Start your first group" body="A group holds your card games or shared expenses."
+              action={<Button variant="primary" onClick={() => setNewGroup(true)}>Create group</Button>} />
+          ) : groups.slice(0, 8).map((g) => {
+            const mine = myMemberId(g, me.id);
+            const bal = mine ? groupBalances(g).get(mine) ?? 0 : 0;
+            return (
+              <Link key={g.id} to={`/groups/${g.id}`} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0 hover:bg-surface-2/60 md:px-5">
+                <GroupIcon kind={g.kind} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{g.name}</p>
+                  <p className="text-[12px] text-ink-2">{g.members.length} people</p>
+                </div>
+                <Amount cents={bal} currency={g.currency} sign />
               </Link>
             );
           })}

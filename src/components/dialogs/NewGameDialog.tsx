@@ -40,7 +40,7 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
       const sid = await api.createSession({ group_id: group.id, played_on: date, location: location.trim() || null, notes: null, default_buy_in_cents: cents });
       await api.saveSessionResults(sid, players.map((m) => ({ member_id: m, buy_in_cents: cents, cash_out_cents: 0 })));
       return sid;
-    }, 'Game day started');
+    }, 'Game started');
     if (id) { onClose(); nav(`/groups/${group.id}/games/${id}`); }
   };
 

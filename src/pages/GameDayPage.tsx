@@ -66,7 +66,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const save = async () => {
     const v = validate();
     if (v) { setError(v); return; }
-    await run((api) => api.saveSessionResults(s.id, parsed), 'Game day saved');
+    await run((api) => api.saveSessionResults(s.id, parsed), 'Game saved');
   };
   const finalize = async () => {
     const v = validate();
@@ -76,12 +76,12 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
     await run(async (api) => {
       await api.saveSessionResults(s.id, parsed);
       await api.updateSession(s.id, { status: 'final' });
-    }, 'Game day finalized');
+    }, 'Game finalized');
   };
   const reopen = () => {
     const paid = g.settlements.some((x) => x.session_id === s.id);
     if (paid && !confirm('Payments already recorded for this game will stay. Reopen anyway?')) return;
-    run((api) => api.updateSession(s.id, { status: 'open' }), 'Game day reopened');
+    run((api) => api.updateSession(s.id, { status: 'open' }), 'Game reopened');
   };
 
   return (
@@ -195,10 +195,10 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
       <AddMemberDialog group={g} open={newPerson} onClose={() => setNewPerson(false)} onAdded={(id) => addLine(id)} />
       <div className="mt-8 flex justify-center">
         <Button variant="danger" size="sm" onClick={async () => {
-          if (!confirm('Delete this game day and its results?')) return;
-          const ok = await run((api) => api.deleteSession(s.id), 'Game day deleted');
+          if (!confirm('Delete this game and its results?')) return;
+          const ok = await run((api) => api.deleteSession(s.id), 'Game deleted');
           if (ok !== undefined) nav(`/groups/${g.id}?tab=games`);
-        }}><Trash2 size={14} aria-hidden="true" />Delete game day</Button>
+        }}><Trash2 size={14} aria-hidden="true" />Delete game</Button>
       </div>
     </>
   );
@@ -229,7 +229,7 @@ function Payments({ g, s }: { g: Group; s: GameSession }) {
             ) : (
               <Button size="sm" disabled={busy} onClick={() => run((api) => api.addSettlement({
                 group_id: g.id, from_member: p.from, to_member: p.to, amount_cents: p.cents, method: 'Cash',
-                note: `Game day ${formatDate(s.played_on, { month: 'short', day: 'numeric' })}`, session_id: s.id, settled_on: todayISO(),
+                note: `Game ${formatDate(s.played_on, { month: 'short', day: 'numeric' })}`, session_id: s.id, settled_on: todayISO(),
               }), 'Marked paid')}>
                 <Check size={14} aria-hidden="true" />Paid
               </Button>

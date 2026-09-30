@@ -25,4 +25,7 @@ export interface DataApi {
   deleteSettlement(id: string): Promise<void>;
   loadHistory(groupId: string): Promise<ChangeLogEntry[]>;
   setEmailOptOut(memberId: string, optOut: boolean): Promise<void>;
+  setGroupAdmin(memberId: string, isAdmin: boolean): Promise<void>;
+  loadNotifications(): Promise<ChangeLogEntry[]>;
+  markNotificationsSeen(): Promise<void>;
 }

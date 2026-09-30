@@ -7,6 +7,7 @@ export interface Profile {
   avatar_url: string | null;
   payment_handle: string | null;
   default_currency: string;
+  notifications_seen_at: string; // entries after this are "unread" in the notifications bell
 }
 
 export interface Member {
@@ -18,6 +19,7 @@ export interface Member {
   email: string | null;
   role: 'owner' | 'member';
   email_opt_out: boolean; // excluded from this group's "email summary" mailto
+  is_admin: boolean; // can change group settings, delete the group, or delete an expense
 }
 
 /** An entry in the signed-in user's own friends list, independent of any group. */

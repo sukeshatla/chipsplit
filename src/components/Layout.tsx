@@ -5,11 +5,12 @@ import { DataProvider, useAppQuery } from '../app/data';
 import { useAuth } from '../app/auth';
 import { Avatar, Button, Spinner } from './ui';
 import { Logo } from './Logo';
+import { NotificationsBell } from './NotificationsBell';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/groups', label: 'Groups', icon: Users },
-  { to: '/games', label: 'Game days', icon: Spade },
+  { to: '/games', label: 'Games', icon: Spade },
   { to: '/friends', label: 'Friends', icon: HeartHandshake },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ];
@@ -37,7 +38,10 @@ export function Layout() {
     <DataProvider data={q.data}>
       <div className="min-h-dvh md:flex">
         <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface px-3 py-5 md:flex">
-          <Link to="/" className="mb-6 px-2"><Logo /></Link>
+          <div className="mb-6 flex items-center justify-between px-2">
+            <Link to="/"><Logo /></Link>
+            <NotificationsBell />
+          </div>
           <nav className="flex flex-col gap-0.5">
             {NAV.map(({ to, label, icon: Icon, end }) => (
               <NavLink key={to} to={to} end={end}
@@ -65,7 +69,10 @@ export function Layout() {
           )}
           <header className="flex items-center justify-between px-4 pb-1 pt-4 md:hidden">
             <Link to="/"><Logo /></Link>
-            <Link to="/profile" aria-label="Profile"><Avatar name={me.display_name} size={32} /></Link>
+            <div className="flex items-center gap-1">
+              <NotificationsBell />
+              <Link to="/profile" aria-label="Profile"><Avatar name={me.display_name} size={32} /></Link>
+            </div>
           </header>
           <main className="mx-auto w-full max-w-5xl px-4 pb-28 pt-4 md:px-8 md:pb-12 md:pt-8">
             <Outlet />
@@ -77,7 +84,7 @@ export function Layout() {
             <NavLink key={to} to={to} end={end}
               className={({ isActive }) => clsx('flex h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold',
                 isActive ? 'text-felt dark:text-gain' : 'text-ink-2')}>
-              <Icon size={20} aria-hidden="true" />{label.replace('Game days', 'Games')}
+              <Icon size={20} aria-hidden="true" />{label}
             </NavLink>
           ))}
         </nav>

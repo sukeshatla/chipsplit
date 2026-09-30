@@ -11,17 +11,17 @@ export const CURRENCIES = ['USD', 'INR', 'EUR', 'GBP', 'CAD', 'AUD'];
 // A "Cards" group already supports expenses too (Add expense works from any group kind),
 // so there's no separate "Both" option here — just pick the group's main purpose.
 const KINDS: { value: GroupKind; label: string; body: string; icon: typeof Spade }[] = [
-  { value: 'poker', label: 'Cards', body: 'Rummy, blackjack, poker — game days with buy-ins and cash-outs', icon: Spade },
+  { value: 'poker', label: 'Cards', body: 'Rummy, blackjack, poker — games with buy-ins and cash-outs', icon: Spade },
   { value: 'expenses', label: 'Expenses', body: 'Trips, rent, dinners', icon: Receipt },
 ];
 
-export function KindPicker({ value, onChange }: { value: GroupKind; onChange(v: GroupKind): void }) {
+export function KindPicker({ value, onChange, disabled }: { value: GroupKind; onChange(v: GroupKind): void; disabled?: boolean }) {
   return (
     <div role="radiogroup" className="grid grid-cols-2 gap-2">
       {KINDS.map(({ value: v, label, body, icon: Icon }) => (
-        <button key={v} type="button" role="radio" aria-checked={value === v} onClick={() => onChange(v)}
-          className={clsx('rounded-xl border p-3 text-left transition-colors',
-            value === v ? 'border-felt bg-felt/10' : 'border-line hover:bg-surface-2')}>
+        <button key={v} type="button" role="radio" aria-checked={value === v} disabled={disabled} onClick={() => onChange(v)}
+          className={clsx('rounded-xl border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+            value === v ? 'border-felt bg-felt/10' : 'border-line hover:enabled:bg-surface-2')}>
           <Icon size={18} className={value === v ? 'text-felt dark:text-gain' : 'text-ink-2'} aria-hidden="true" />
           <span className="mt-2 block text-sm font-semibold">{label}</span>
           <span className="mt-0.5 block text-[12px] leading-snug text-ink-2">{body}</span>

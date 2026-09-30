@@ -1,4 +1,4 @@
-import type { AppData, Contact, GameSession, Group } from './types';
+import type { AppData, ChangeLogEntry, Contact, GameSession, Group } from './types';
 import { settle, type Transfer } from './settle';
 import { formatMoney } from './money';
 
@@ -9,7 +9,7 @@ function add(map: Map<string, number>, id: string, v: number) {
 /**
  * Net balance per member for one group, in cents.
  * Positive = the group owes them. Negative = they owe the group.
- * Expenses: payers +, shares −. Finalized game days: cash-out − buy-in.
+ * Expenses: payers +, shares −. Finalized games: cash-out − buy-in.
  * Settlements: the payer's debt shrinks (+), the receiver's credit shrinks (−).
  */
 export function groupBalances(g: Group): Map<string, number> {
@@ -52,6 +52,11 @@ export function myMemberId(g: Group, meId: string) {
 
 export function memberName(g: Group, id: string) {
   return g.members.find((m) => m.id === id)?.name ?? 'Unknown';
+}
+
+/** Whether the signed-in user can change group settings, delete the group, or delete an expense. */
+export function isGroupAdmin(g: Group, meId: string): boolean {
+  return g.members.some((m) => m.user_id === meId && m.is_admin);
 }
 
 export function memberHasActivity(g: Group, memberId: string) {
@@ -179,7 +184,7 @@ export function activity(data: AppData, limit = 20, onlyGroupId?: string): Activ
       const r = s.results.find((x) => x.member_id === mine);
       items.push({
         id: s.id, kind: 'game', date: s.played_on, createdAt: s.created_at,
-        title: s.location ? `Game day at ${s.location}` : 'Game day',
+        title: s.location ? `Game at ${s.location}` : 'Game',
         detail: s.status === 'final' ? `${s.results.length} players` : 'In progress',
         group: g, impact: r && s.status === 'final' ? r.cash_out_cents - r.buy_in_cents : null,
         note: r && s.status === 'open' ? 'playing' : undefined,
@@ -242,7 +247,7 @@ export function pokerStats(data: AppData) {
 
 /**
  * A `mailto:` link with a plain-text balance summary, for the involved parties.
- * Pass `sessionId` to summarize just one game day (its players only); omit it for the whole group.
+ * Pass `sessionId` to summarize just one game (its players only); omit it for the whole group.
  * Members who opted out (or have no email on file) are left off the recipient list.
  */
 export function summaryMailto(g: Group, sessionId?: string): string {
@@ -269,7 +274,7 @@ export function summaryMailto(g: Group, sessionId?: string): string {
 
 export interface SessionTransfer { from: string; to: string; cents: number; settlementId: string | null }
 
-/** Who pays whom for one game day, and which of those payments are already recorded. */
+/** Who pays whom for one game, and which of those payments are already recorded. */
 export function sessionPayments(g: Group, s: GameSession): SessionTransfer[] {
   const used = new Set<string>();
   const recorded = g.settlements.filter((x) => x.session_id === s.id);
@@ -278,4 +283,15 @@ export function sessionPayments(g: Group, s: GameSession): SessionTransfer[] {
     if (hit) used.add(hit.id);
     return { ...t, settlementId: hit?.id ?? null };
   });
+}
+
+/** Where a notification should take you when clicked. */
+export function notificationLink(e: ChangeLogEntry): string {
+  switch (e.entity_type) {
+    case 'expense': return `/groups/${e.group_id}?tab=expenses`;
+    case 'session': return e.entity_id ? `/groups/${e.group_id}/games/${e.entity_id}` : `/groups/${e.group_id}?tab=games`;
+    case 'settlement': return `/groups/${e.group_id}?tab=balances`;
+    case 'member': return `/groups/${e.group_id}?tab=members`;
+    default: return `/groups/${e.group_id}`;
+  }
 }

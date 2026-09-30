@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight, Mail, MailX, Send } from 'lucide-react';
+import { ArrowLeft, Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { groupBalances, memberHasActivity, memberName, myMemberId, pokerLeaderboard, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
+import { groupBalances, isGroupAdmin, memberHasActivity, memberName, myMemberId, pokerLeaderboard, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, Badge, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -30,7 +30,7 @@ export function GroupPage() {
   if (!g) return <Navigate to="/groups" replace />;
 
   const tabs: { value: Tab; label: string }[] = [
-    ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Game days' }] : []),
+    ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Games' }] : []),
     { value: 'balances', label: 'Balances' },
     ...(g.kind !== 'poker' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
     { value: 'members', label: 'Members' },
@@ -54,7 +54,7 @@ export function GroupPage() {
         actions={<>
           <Button onClick={() => { window.location.href = summaryMailto(g); }}><Send size={16} aria-hidden="true" />Send summary</Button>
           {g.kind !== 'poker' && <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Import</Button>}
-          {g.kind !== 'expenses' && <Button variant={g.kind === 'poker' ? 'primary' : 'secondary'} onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />Game day</Button>}
+          {g.kind !== 'expenses' && <Button variant={g.kind === 'poker' ? 'primary' : 'secondary'} onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />Game</Button>}
           <Button variant={g.kind === 'poker' ? 'secondary' : 'primary'} onClick={() => setExpense('new')}><Receipt size={16} aria-hidden="true" />Expense</Button>
         </>}
       />
@@ -62,7 +62,7 @@ export function GroupPage() {
 
       {tab === 'games' && <GamesTab g={g} onNew={() => setNewGame(true)} />}
       {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} onAddExpense={() => setExpense('new')} />}
-      {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
+      {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} admin={isGroupAdmin(g, me.id)} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
       {tab === 'history' && <HistoryList g={g} />}
 
@@ -78,7 +78,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
   const board = pokerLeaderboard(g);
   const sessions = g.sessions.slice().sort((a, b) => b.played_on.localeCompare(a.played_on));
   if (sessions.length === 0) {
-    return <Card><EmptyState icon={<Spade size={28} />} title="Deal the first game" body="Start a game day, log buy-ins as people join, and cash-outs when the table breaks."
+    return <Card><EmptyState icon={<Spade size={28} />} title="Deal the first game" body="Start a game, log buy-ins as people join, and cash-outs when the table breaks."
       action={<Button variant="primary" onClick={onNew}>Start game</Button>} /></Card>;
   }
   return (
@@ -86,7 +86,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
       <Card>
         <CardHeader title={<span className="inline-flex items-center gap-2"><Trophy size={16} className="text-brass" aria-hidden="true" />Leaderboard</span>} />
         <div className="mt-2">
-          {board.length === 0 ? <p className="px-5 pb-5 text-sm text-ink-2">Finish a game day to start the leaderboard.</p> :
+          {board.length === 0 ? <p className="px-5 pb-5 text-sm text-ink-2">Finish a game to start the leaderboard.</p> :
             board.map((r, i) => (
               <Row key={r.memberId}>
                 <span className="amount w-5 text-center font-display text-sm text-ink-2">{i + 1}</span>
@@ -101,7 +101,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
         </div>
       </Card>
       <Card>
-        <CardHeader title="Game days" action={<Button size="sm" onClick={onNew}><Plus size={14} aria-hidden="true" />New</Button>} />
+        <CardHeader title="Games" action={<Button size="sm" onClick={onNew}><Plus size={14} aria-hidden="true" />New</Button>} />
         <div className="mt-2">
           {sessions.map((s) => {
             const pays = s.status === 'final' ? sessionPayments(g, s) : [];
@@ -115,7 +115,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
                     <p className="font-display text-xl font-medium leading-none">{formatDate(s.played_on, { day: 'numeric' })}</p>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{s.location ?? 'Game day'}</p>
+                    <p className="truncate text-sm font-semibold">{s.location ?? 'Game'}</p>
                     <p className="text-[12px] text-ink-2">{s.results.length} players, {formatMoney(pot, g.currency)} in play</p>
                   </div>
                   {s.status === 'open' ? <Badge tone="brass">In progress</Badge>
@@ -181,7 +181,7 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gain/10 text-gain"><HandCoins size={16} aria-hidden="true" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{memberName(g, s.from_member)} paid {memberName(g, s.to_member)}</p>
-                  <p className="truncate text-[12px] text-ink-2">{formatDate(s.settled_on)}{s.method ? `, ${s.method}` : ''}{s.session_id ? ', game day' : ''}{s.note ? `, ${s.note}` : ''}</p>
+                  <p className="truncate text-[12px] text-ink-2">{formatDate(s.settled_on)}{s.method ? `, ${s.method}` : ''}{s.session_id ? ', game' : ''}{s.note ? `, ${s.note}` : ''}</p>
                 </div>
                 <span className="amount font-display font-medium">{formatMoney(s.amount_cents, g.currency)}</span>
                 <IconButton label="Delete payment" onClick={() => { if (confirm('Delete this payment?')) run((api) => api.deleteSettlement(s.id), 'Payment deleted'); }}>
@@ -195,7 +195,7 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
   );
 }
 
-function ExpensesTab({ g, meMember, onEdit, onImport }: { g: Group; meMember?: string; onEdit(e: Expense | 'new'): void; onImport(): void }) {
+function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMember?: string; admin: boolean; onEdit(e: Expense | 'new'): void; onImport(): void }) {
   const { run } = useAction();
   const list = g.expenses.slice().sort((a, b) => b.spent_on.localeCompare(a.spent_on) || b.created_at.localeCompare(a.created_at));
   if (list.length === 0) {
@@ -234,9 +234,11 @@ function ExpensesTab({ g, meMember, onEdit, onImport }: { g: Group; meMember?: s
                       {impact !== 0 && <Amount cents={Math.abs(impact) * Math.sign(impact)} currency={g.currency} className="text-sm" />}
                     </div>
                   </button>
-                  <IconButton label={`Delete ${e.description}`} onClick={() => { if (confirm(`Delete "${e.description}"?`)) run((api) => api.deleteExpense(e.id), 'Expense deleted'); }}>
-                    <Trash2 size={16} />
-                  </IconButton>
+                  {admin && (
+                    <IconButton label={`Delete ${e.description}`} onClick={() => { if (confirm(`Delete "${e.description}"?`)) run((api) => api.deleteExpense(e.id), 'Expense deleted'); }}>
+                      <Trash2 size={16} />
+                    </IconButton>
+                  )}
                 </Row>
               );
             })}
@@ -255,7 +257,7 @@ function MembersTab({ g }: { g: Group }) {
   const [name, setName] = useState(g.name);
   const [kind, setKind] = useState<GroupKind>(g.kind);
   const [currency, setCurrency] = useState(g.currency);
-  const iAmOwner = g.members.some((m) => m.user_id === me.id && m.role === 'owner');
+  const admin = isGroupAdmin(g, me.id);
   const dirty = name.trim() !== g.name || kind !== g.kind || currency !== g.currency;
 
   return (
@@ -272,7 +274,14 @@ function MembersTab({ g }: { g: Group }) {
                   <p className="truncate text-sm font-semibold">{m.name}{m.user_id === me.id && <span className="font-normal text-ink-2"> (you)</span>}</p>
                   <p className="truncate text-[12px] text-ink-2">{m.email ?? 'No email'}</p>
                 </div>
-                {m.role === 'owner' ? <Badge tone="brass">Owner</Badge> : m.user_id ? <Badge tone="gain">Signed up</Badge> : <Badge>Guest</Badge>}
+                {m.is_admin ? <Badge tone="brass">Admin</Badge> : m.user_id ? <Badge tone="gain">Signed up</Badge> : <Badge>Guest</Badge>}
+                {admin && (
+                  <IconButton label={m.is_admin ? `Remove ${m.name} as admin` : `Make ${m.name} an admin`}
+                    title={m.is_admin ? 'Admin — can change settings, delete the group or expenses' : 'Not an admin'}
+                    onClick={() => run((api) => api.setGroupAdmin(m.id, !m.is_admin))}>
+                    {m.is_admin ? <ShieldCheck size={16} className="text-brass" /> : <ShieldOff size={16} className="text-ink-2" />}
+                  </IconButton>
+                )}
                 {m.email && (
                   <IconButton label={m.email_opt_out ? `Include ${m.name} in email summaries` : `Exclude ${m.name} from email summaries`}
                     title={m.email_opt_out ? 'Not included in email summaries' : 'Included in email summaries'}
@@ -289,26 +298,29 @@ function MembersTab({ g }: { g: Group }) {
             );
           })}
         </div>
-        <p className="px-4 pb-4 pt-3 text-[12px] text-ink-2 md:px-5">People with history in the group can't be removed, so balances stay correct.</p>
+        <p className="px-4 pb-4 pt-3 text-[12px] text-ink-2 md:px-5">
+          People with history in the group can't be removed, so balances stay correct. Only admins can change group settings, or delete the group or an expense — everyone can still add expenses.
+        </p>
       </Card>
 
       <Card className="p-4 md:p-5">
         <h2 className="mb-4 font-display text-base font-medium">Group settings</h2>
         <div className="space-y-4">
-          <Field label="Name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <div><span className="mb-1.5 block text-[13px] font-semibold">What's it for</span><KindPicker value={kind} onChange={setKind} /></div>
+          <Field label="Name"><Input value={name} disabled={!admin} onChange={(e) => setName(e.target.value)} /></Field>
+          <div><span className="mb-1.5 block text-[13px] font-semibold">What's it for</span><KindPicker value={kind} onChange={setKind} disabled={!admin} /></div>
           <Field label="Currency">
-            <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</Select>
+            <Select value={currency} disabled={!admin} onChange={(e) => setCurrency(e.target.value)}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</Select>
           </Field>
+          {!admin && <p className="text-[13px] text-ink-2">Only a group admin can change these settings.</p>}
           <div className="flex flex-wrap justify-between gap-2 pt-2">
-            {iAmOwner ? (
+            {admin ? (
               <Button variant="danger" onClick={async () => {
                 if (!confirm(`Delete ${g.name} and all its games, expenses, and payments? This can't be undone.`)) return;
                 const ok = await run((api) => api.deleteGroup(g.id), 'Group deleted');
                 if (ok !== undefined) nav('/groups');
               }}><Trash2 size={16} aria-hidden="true" />Delete group</Button>
             ) : <span />}
-            <Button variant="primary" disabled={!dirty || !name.trim()} loading={busy}
+            <Button variant="primary" disabled={!admin || !dirty || !name.trim()} loading={busy}
               onClick={() => run((api) => api.updateGroup(g.id, { name: name.trim(), kind, currency }), 'Group saved')}>Save changes</Button>
           </div>
         </div>

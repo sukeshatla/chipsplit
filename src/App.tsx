@@ -12,6 +12,7 @@ import { GamesPage } from './pages/GamesPage';
 import { FriendsPage } from './pages/FriendsPage';
 import { FriendDetailPage } from './pages/FriendDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { ActivityPage } from './pages/ActivityPage';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="groups/:groupId" element={<GroupPage />} />
           <Route path="groups/:groupId/games/:gameId" element={<GameDayPage />} />
           <Route path="games" element={<GamesPage />} />
+          <Route path="activity" element={<ActivityPage />} />
           <Route path="friends" element={<FriendsPage />} />
           <Route path="friends/:key" element={<FriendDetailPage />} />
           <Route path="profile" element={<ProfilePage />} />

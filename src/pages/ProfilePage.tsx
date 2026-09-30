@@ -63,7 +63,7 @@ export function ProfilePage() {
         <div className="space-y-5">
           <Card className="p-5">
             <h2 className="mb-3 font-display text-base font-medium">Your card games</h2>
-            {stats.games === 0 ? <p className="text-sm text-ink-2">Play a finalized game day to see your numbers.</p> : (
+            {stats.games === 0 ? <p className="text-sm text-ink-2">Play a finalized game to see your numbers.</p> : (
               <dl className="grid grid-cols-2 gap-y-4">
                 <div><dt className="text-[13px] text-ink-2">All-time</dt><dd><Amount cents={stats.net} currency={currency} sign className="text-xl" /></dd></div>
                 <div><dt className="text-[13px] text-ink-2">Winning nights</dt><dd className="font-display text-xl font-medium">{stats.wins} of {stats.games}</dd></div>

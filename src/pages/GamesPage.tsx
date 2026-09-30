@@ -18,7 +18,7 @@ export function GamesPage() {
 
   return (
     <>
-      <PageHeader title="Game days" subtitle="Every game night across your groups."
+      <PageHeader title="Games" subtitle="Every game night across your groups."
         actions={<Button variant="primary" onClick={() => setOpen(true)}><Spade size={16} aria-hidden="true" />Start game</Button>} />
 
       {stats.games > 0 && (
@@ -39,7 +39,7 @@ export function GamesPage() {
 
       <Card>
         {all.length === 0 ? (
-          <EmptyState icon={<Spade size={28} />} title="No game days yet" body="Start one from a Cards group and log buy-ins as people sit down."
+          <EmptyState icon={<Spade size={28} />} title="No games yet" body="Start one from a Cards group and log buy-ins as people sit down."
             action={<Button variant="primary" onClick={() => setOpen(true)}>Start game</Button>} />
         ) : all.map(({ g, s }) => {
           const mine = myMemberId(g, data.me.id);
