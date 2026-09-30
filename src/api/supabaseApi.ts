@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../lib/supabase';
-import type { AppData, ChangeLogEntry, Contact, Group, Profile } from '../lib/types';
+import type { AppData, ChangeLogEntry, Contact, Group, Profile, RummyGame } from '../lib/types';
 import type { AdminDailyActivity, AdminOverview, AdminSignup, DataApi } from './types';
 
 function db() {
@@ -40,6 +40,36 @@ const GROUP_SELECT = `
 `;
 
 const num = (v: any) => Number(v ?? 0);
+
+const RUMMY_SELECT = `
+  id, group_id, name, point_limit, status, scorer_id, winner_player_id, created_at, finished_at,
+  rummy_players ( id, rummy_game_id, user_id, name ),
+  rummy_rounds ( id, round_no, created_at, rummy_round_scores ( player_id, points ) )
+`;
+
+function mapRummyGame(r: any): RummyGame {
+  return {
+    id: r.id, group_id: r.group_id, name: r.name, point_limit: r.point_limit, status: r.status,
+    scorer_id: r.scorer_id, winner_player_id: r.winner_player_id, created_at: r.created_at, finished_at: r.finished_at,
+    players: (r.rummy_players ?? []).map((p: any) => ({ ...p })),
+    rounds: (r.rummy_rounds ?? [])
+      .map((rr: any) => ({
+        id: rr.id, round_no: rr.round_no, created_at: rr.created_at,
+        scores: (rr.rummy_round_scores ?? []).map((s: any) => ({ player_id: s.player_id, points: num(s.points) })),
+      }))
+      .sort((a: any, b: any) => a.round_no - b.round_no),
+  };
+}
+
+/** Same live-avatar lookup as loadAll, scoped to this batch of rummy games. */
+async function attachRummyAvatars(games: RummyGame[]) {
+  const userIds = new Set<string>();
+  games.forEach((g) => g.players.forEach((p) => { if (p.user_id) userIds.add(p.user_id); }));
+  if (!userIds.size) return;
+  const avatars = check(await db().rpc('linked_avatars', { p_user_ids: [...userIds] })) as { id: string; avatar_url: string | null }[];
+  const map = new Map(avatars.map((a) => [a.id, a.avatar_url]));
+  games.forEach((g) => g.players.forEach((p) => { if (p.user_id) p.avatar_url = map.get(p.user_id) ?? null; }));
+}
 
 function mapGroup(r: any): Group {
   return {
@@ -290,5 +320,44 @@ export const supabaseApi: DataApi = {
 
   async loadAdminRecentSignups(limit = 20) {
     return check(await db().rpc('admin_recent_signups', { p_limit: limit })) as AdminSignup[];
+  },
+
+  async loadRummyGames(groupId) {
+    let q = db().from('rummy_games').select(RUMMY_SELECT).order('created_at', { ascending: false });
+    q = groupId === null ? q.is('group_id', null) : q.eq('group_id', groupId);
+    const rows = check(await q) as any[];
+    const games = rows.map(mapRummyGame);
+    await attachRummyAvatars(games);
+    return games;
+  },
+
+  async loadRummyGame(id) {
+    const row = check(await db().from('rummy_games').select(RUMMY_SELECT).eq('id', id).maybeSingle()) as any;
+    if (!row) return null;
+    const game = mapRummyGame(row);
+    await attachRummyAvatars([game]);
+    return game;
+  },
+
+  async createRummyGame({ groupId, name, pointLimit, players }) {
+    return check(await db().rpc('create_rummy_game', {
+      p_group_id: groupId, p_name: name, p_point_limit: pointLimit,
+      p_players: players.map((p) => ({ name: p.name, user_id: p.userId })),
+    })) as string;
+  },
+
+  async addRummyRound(gameId, scores) {
+    check(await db().rpc('add_rummy_round', {
+      p_game_id: gameId,
+      p_scores: scores.map((s) => ({ player_id: s.playerId, points: s.points })),
+    }));
+  },
+
+  async closeRummyGame(gameId) {
+    check(await db().rpc('close_rummy_game', { p_game_id: gameId }));
+  },
+
+  async deleteRummyGame(gameId) {
+    check(await db().from('rummy_games').delete().eq('id', gameId));
   },
 };

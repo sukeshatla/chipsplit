@@ -1,4 +1,6 @@
-import type { AppData, ChangeLogEntry, GameSession, GroupKind, NewExpense, NewSession, NewSettlement, Profile, SessionResult } from '../lib/types';
+import type { AppData, ChangeLogEntry, GameSession, GroupKind, NewExpense, NewSession, NewSettlement, Profile, RummyGame, SessionResult } from '../lib/types';
+
+export interface NewRummyPlayer { name: string; userId: string | null }
 
 export interface AdminOverview {
   total_users: number;
@@ -46,4 +48,12 @@ export interface DataApi {
   loadAdminOverview(): Promise<AdminOverview | null>;
   loadAdminDailyActivity(days?: number): Promise<AdminDailyActivity[]>;
   loadAdminRecentSignups(limit?: number): Promise<AdminSignup[]>;
+  /** `groupId: null` lists standalone games (not attached to any group). */
+  loadRummyGames(groupId: string | null): Promise<RummyGame[]>;
+  loadRummyGame(id: string): Promise<RummyGame | null>;
+  createRummyGame(input: { groupId: string | null; name: string; pointLimit: 100 | 150 | 200; players: NewRummyPlayer[] }): Promise<string>;
+  /** `scores` must cover exactly the currently-active (non-eliminated) players. */
+  addRummyRound(gameId: string, scores: { playerId: string; points: number }[]): Promise<void>;
+  closeRummyGame(gameId: string): Promise<void>;
+  deleteRummyGame(gameId: string): Promise<void>;
 }

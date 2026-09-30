@@ -1,15 +1,16 @@
-import type { AppData, ChangeLogEntry, Contact, Group } from '../lib/types';
+import type { AppData, ChangeLogEntry, Contact, Group, RummyGame, RummyPlayer } from '../lib/types';
 import type { DataApi } from './types';
+import { rummyStandings } from '../lib/rummy';
 import { seedChangeLog, seedDemo, uid } from './seed';
 
 const KEY = 'chipsplit_demo_v1';
 
-/** The demo store keeps the activity log alongside AppData; it's not part of the public shape. */
-type DemoStore = AppData & { changeLog: ChangeLogEntry[] };
+/** The demo store keeps the activity log and rummy games alongside AppData; neither is part of the public shape. */
+type DemoStore = AppData & { changeLog: ChangeLogEntry[]; rummyGames: RummyGame[] };
 
 function freshDemo(): DemoStore {
   const data = seedDemo();
-  return { ...data, changeLog: seedChangeLog(data) };
+  return { ...data, changeLog: seedChangeLog(data), rummyGames: [] };
 }
 
 function load(): DemoStore {
@@ -18,6 +19,7 @@ function load(): DemoStore {
     if (raw) {
       const d = JSON.parse(raw) as DemoStore;
       d.changeLog ??= [];
+      d.rummyGames ??= [];
       return d;
     }
   } catch { /* fall through to a fresh seed */ }
@@ -79,6 +81,17 @@ function log(d: DemoStore, groupId: string, entityType: ChangeLogEntry['entity_t
 /** Mirrors the server-side admin check, so demo mode shows the same gating as the real backend. */
 function assertAdmin(d: DemoStore, g: Group, message: string) {
   if (!g.members.some((m) => m.user_id === d.me.id && m.is_admin)) throw new Error(message);
+}
+
+function rummyGame(d: DemoStore, id: string): RummyGame {
+  const g = d.rummyGames.find((x) => x.id === id);
+  if (!g) throw new Error('That rummy game no longer exists');
+  return g;
+}
+
+/** Only "me" has a real, editable avatar in demo mode; every other player is a fixed sample identity. */
+function withRummyAvatars(d: DemoStore, g: RummyGame): RummyGame {
+  return { ...g, players: g.players.map((p) => ({ ...p, avatar_url: p.user_id === d.me.id ? d.me.avatar_url : null })) };
 }
 
 export const demoApi: DataApi = {
@@ -277,4 +290,54 @@ export const demoApi: DataApi = {
   loadAdminOverview: () => Promise.resolve(null),
   loadAdminDailyActivity: () => Promise.resolve([]),
   loadAdminRecentSignups: () => Promise.resolve([]),
+
+  loadRummyGames: (groupId) => mutate((d) =>
+    d.rummyGames.filter((g) => g.group_id === groupId).map((g) => withRummyAvatars(d, g)).sort((a, b) => b.created_at.localeCompare(a.created_at))),
+
+  loadRummyGame: (id) => mutate((d) => {
+    const g = d.rummyGames.find((x) => x.id === id);
+    return g ? withRummyAvatars(d, g) : null;
+  }),
+
+  createRummyGame: ({ groupId, name, pointLimit, players }) => mutate((d) => {
+    if (players.length < 2) throw new Error('Add at least two players');
+    const id = uid();
+    const rummyPlayers: RummyPlayer[] = players.map((p) => ({ id: uid(), rummy_game_id: id, user_id: p.userId, name: p.name }));
+    d.rummyGames.push({
+      id, group_id: groupId, name: name.trim() || null, point_limit: pointLimit, status: 'active',
+      scorer_id: d.me.id, winner_player_id: null, created_at: now(), finished_at: null,
+      players: rummyPlayers, rounds: [],
+    });
+    return id;
+  }),
+
+  addRummyRound: (gameId, scores) => mutate((d) => {
+    const g = rummyGame(d, gameId);
+    if (g.scorer_id !== d.me.id) throw new Error('Only the scorer can add rounds');
+    if (g.status !== 'active') throw new Error('This game is already finished');
+    const roundNo = (g.rounds[g.rounds.length - 1]?.round_no ?? 0) + 1;
+    g.rounds.push({ id: uid(), round_no: roundNo, created_at: now(), scores: scores.map((s) => ({ player_id: s.playerId, points: s.points })) });
+    const remaining = rummyStandings(g).filter((s) => !s.eliminated);
+    if (remaining.length <= 1) {
+      g.status = 'finished';
+      g.finished_at = now();
+      g.winner_player_id = remaining[0]?.player.id ?? null;
+    }
+  }),
+
+  closeRummyGame: (gameId) => mutate((d) => {
+    const g = rummyGame(d, gameId);
+    if (g.scorer_id !== d.me.id) throw new Error('Only the scorer can close this game');
+    if (g.status !== 'active') throw new Error('This game is already finished');
+    const remaining = rummyStandings(g).filter((s) => !s.eliminated);
+    g.status = 'finished';
+    g.finished_at = now();
+    g.winner_player_id = remaining.length === 1 ? remaining[0]!.player.id : null;
+  }),
+
+  deleteRummyGame: (gameId) => mutate((d) => {
+    const g = rummyGame(d, gameId);
+    if (g.scorer_id !== d.me.id) throw new Error('Only the scorer can delete this game');
+    d.rummyGames = d.rummyGames.filter((x) => x.id !== gameId);
+  }),
 };

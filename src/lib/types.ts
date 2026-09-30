@@ -121,3 +121,32 @@ export interface NewSession {
   notes: string | null;
   default_buy_in_cents: number;
 }
+
+export interface RummyPlayer {
+  id: string;
+  rummy_game_id: string;
+  user_id: string | null;
+  name: string;
+  avatar_url?: string | null; // filled in at load time, same as Member/Contact
+}
+
+export interface RummyRound {
+  id: string;
+  round_no: number;
+  created_at: string;
+  scores: { player_id: string; points: number }[];
+}
+
+export interface RummyGame {
+  id: string;
+  group_id: string | null;
+  name: string | null;
+  point_limit: 100 | 150 | 200;
+  status: 'active' | 'finished';
+  scorer_id: string;
+  winner_player_id: string | null;
+  created_at: string;
+  finished_at: string | null;
+  players: RummyPlayer[];
+  rounds: RummyRound[];
+}

@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
+import { useAuth } from '../app/auth';
 import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
+import { rummyStandings } from '../lib/rummy';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Avatar, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
+import { Amount, Avatar, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Spinner, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KIND_LABEL } from './GroupsPage';
@@ -12,11 +15,12 @@ import { ExpenseDialog } from '../components/dialogs/ExpenseDialog';
 import { ImportDialog } from '../components/dialogs/ImportDialog';
 import { SettleDialog, type SettleDraft } from '../components/dialogs/SettleDialog';
 import { NewGameDialog } from '../components/dialogs/NewGameDialog';
+import { NewRummyGameDialog } from '../components/dialogs/NewRummyGameDialog';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
 import { CURRENCIES, KindPicker } from '../components/dialogs/CreateGroupDialog';
 import type { Expense, Group, GroupKind, Member, Settlement } from '../lib/types';
 
-type Tab = 'games' | 'balances' | 'expenses' | 'members' | 'history';
+type Tab = 'games' | 'rummy' | 'balances' | 'expenses' | 'members' | 'history';
 
 export function GroupPage() {
   const { groupId } = useParams();
@@ -32,6 +36,7 @@ export function GroupPage() {
 
   const tabs: { value: Tab; label: string }[] = [
     ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Games' }] : []),
+    ...(g.kind === 'club' ? [{ value: 'rummy' as Tab, label: 'Rummy' }] : []),
     { value: 'balances', label: 'Balances' },
     ...(g.kind !== 'club' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
     { value: 'members', label: 'Members' },
@@ -62,6 +67,7 @@ export function GroupPage() {
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
       {tab === 'games' && <GamesTab g={g} onNew={() => setNewGame(true)} />}
+      {tab === 'rummy' && <RummyTab g={g} />}
       {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} onAddExpense={() => setExpense('new')} />}
       {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} admin={isGroupAdmin(g, me.id)} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
@@ -129,6 +135,46 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
         </div>
       </Card>
     </div>
+  );
+}
+
+function RummyTab({ g }: { g: Group }) {
+  const { api } = useAuth();
+  const [newGame, setNewGame] = useState(false);
+  const q = useQuery({ queryKey: ['rummy-list', g.id], queryFn: () => api.loadRummyGames(g.id) });
+
+  if (q.isLoading) return <Spinner />;
+  const games = q.data ?? [];
+
+  return (
+    <Card>
+      <CardHeader title="Rummy" action={<Button size="sm" onClick={() => setNewGame(true)}><Plus size={14} aria-hidden="true" />New rummy game</Button>} />
+      {games.length === 0 ? (
+        <EmptyState icon={<Spade size={28} />} title="No rummy games yet" body="Start one and track points hand by hand, with anyone crossing the point limit marked out."
+          action={<Button variant="primary" onClick={() => setNewGame(true)}>Start a rummy game</Button>} />
+      ) : (
+        <div className="mt-2">
+          {games.map((rg) => {
+            const leader = rummyStandings(rg)[0];
+            return (
+              <Link key={rg.id} to={`/rummy/${rg.id}`} className="block">
+                <Row className="hover:bg-surface-2/60">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2"><Spade size={16} aria-hidden="true" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{rg.name || 'Rummy'}</p>
+                    <p className="truncate text-[12px] text-ink-2">{rg.players.length} players, out at {rg.point_limit}, {formatDate(rg.created_at)}</p>
+                  </div>
+                  <Badge tone={rg.status === 'active' ? 'felt' : 'neutral'}>{rg.status === 'active' ? 'Active' : 'Finished'}</Badge>
+                  {leader && <span className="hidden text-[12px] text-ink-2 sm:inline">{leader.player.name} leads</span>}
+                  <ChevronRight size={16} className="text-ink-2" aria-hidden="true" />
+                </Row>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+      <NewRummyGameDialog open={newGame} onClose={() => setNewGame(false)} group={g} />
+    </Card>
   );
 }
 

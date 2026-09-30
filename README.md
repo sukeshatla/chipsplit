@@ -238,6 +238,8 @@ Run these in order, once each, in the Supabase SQL editor:
 | `0008_admin_settled_delete_session.sql` | Deleting a game requires being a group admin, and the game must be settled first |
 | `0009_lock_final_session_results.sql` | A finalized game's buy-in/cash-out rows can only change while the game is reopened, or by an admin |
 | `0010_avatars.sql` | A public `avatars` storage bucket (own-folder-only writes) and `linked_avatars()`, a scoped read of avatar photos for people you actually share a group or contact with |
+| `0011_admin_analytics.sql` | Usage analytics (signup counts, daily activity) visible only to the app's operator, exposed through security-definer RPCs that check `is_app_admin()` themselves |
+| `0012_rummy.sql` | Elimination-style rummy score tracking — `rummy_games`/`rummy_players`/`rummy_rounds`/`rummy_round_scores` — standalone or attached to a club, scored only by whoever started the game |
 
 All tables have row-level security: you can read and write a group's data only if you're a member. Groups are created through `create_group()` (which also makes you an admin), and members are added through `add_member()`, which links an existing account by email or copies in an existing friend by `contact_id`.
 
