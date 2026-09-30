@@ -61,7 +61,7 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
           <div className="grid grid-cols-2 gap-3">
             <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
             <Field label="Buy-in per player"><MoneyInput value={buyIn} onChange={(e) => setBuyIn(e.target.value)} /></Field>
-            <Field label="Where (optional)" className="col-span-2">
+            <Field label="Where you're playing (optional)" className="col-span-2">
               <Input value={location} placeholder="Ravi's place" onChange={(e) => setLocation(e.target.value)} />
             </Field>
           </div>

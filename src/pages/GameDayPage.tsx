@@ -3,10 +3,11 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ArrowLeft, ArrowRight, Check, Lock, LockOpen, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { memberName, myMemberId, sessionPayments, summaryMailto } from '../lib/ledger';
+import { isGroupAdmin, isSessionSettled, memberName, myMemberId, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
 import { Amount, Avatar, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Textarea } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
 import type { GameSession, Group } from '../lib/types';
 
@@ -35,7 +36,11 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const [adding, setAdding] = useState('');
   const [newPerson, setNewPerson] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmReopen, setConfirmReopen] = useState(false);
   const rebuy = s.default_buy_in_cents || 5000;
+  const admin = isGroupAdmin(g, me.id);
+  const settled = isSessionSettled(g, s);
 
   const parsed = useMemo(() => lines.map((l) => ({
     member_id: l.member_id, buy_in_cents: parseMoney(l.buyIn) ?? 0, cash_out_cents: parseMoney(l.cashOut) ?? 0,
@@ -78,11 +83,12 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
       await api.updateSession(s.id, { status: 'final' });
     }, 'Game finalized');
   };
+  const paidSettlements = g.settlements.some((x) => x.session_id === s.id);
   const reopen = () => {
-    const paid = g.settlements.some((x) => x.session_id === s.id);
-    if (paid && !confirm('Payments already recorded for this game will stay. Reopen anyway?')) return;
+    if (paidSettlements) { setConfirmReopen(true); return; }
     run((api) => api.updateSession(s.id, { status: 'open' }), 'Game reopened');
   };
+  const pot = sessionTotals(s).buyIn;
 
   return (
     <>
@@ -193,13 +199,25 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         <HistoryList g={g} entityId={s.id} />
       </div>
       <AddMemberDialog group={g} open={newPerson} onClose={() => setNewPerson(false)} onAdded={(id) => addLine(id)} />
-      <div className="mt-8 flex justify-center">
-        <Button variant="danger" size="sm" onClick={async () => {
-          if (!confirm('Delete this game and its results?')) return;
+      {admin && (
+        <div className="mt-8 flex justify-center">
+          <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}><Trash2 size={14} aria-hidden="true" />Delete game</Button>
+        </div>
+      )}
+
+      <ConfirmDialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete this game?" icon={Trash2}
+        confirmLabel="Delete game" busy={busy}
+        blocked={final && !settled ? 'Settle up everyone at this table first — open Settle up below to record the remaining payments.' : undefined}
+        body={<>This removes <b>{lines.length} player{lines.length === 1 ? '' : 's'}</b>{final ? <> and <b>{formatMoney(pot, g.currency)}</b> in recorded buy-ins</> : ''} for good. This can't be undone.</>}
+        onConfirm={async () => {
           const ok = await run((api) => api.deleteSession(s.id), 'Game deleted');
           if (ok !== undefined) nav(`/groups/${g.id}?tab=games`);
-        }}><Trash2 size={14} aria-hidden="true" />Delete game</Button>
-      </div>
+        }} />
+
+      <ConfirmDialog open={confirmReopen} onClose={() => setConfirmReopen(false)} title="Reopen this game?" tone="primary" icon={LockOpen}
+        confirmLabel="Reopen" busy={busy}
+        body="Payments already recorded for this game will stay recorded, even if the numbers change once you edit results again."
+        onConfirm={() => { setConfirmReopen(false); run((api) => api.updateSession(s.id, { status: 'open' }), 'Game reopened'); }} />
     </>
   );
 }
@@ -254,7 +272,7 @@ function Details({ s }: { s: GameSession }) {
       <div className="grid grid-cols-2 gap-3">
         <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
         <Field label="Rebuy amount"><MoneyInput value={buyIn} onChange={(e) => setBuyIn(e.target.value)} /></Field>
-        <Field label="Where" className="col-span-2"><Input value={location} placeholder="Ravi's place" onChange={(e) => setLocation(e.target.value)} /></Field>
+        <Field label="Where you're playing (optional)" className="col-span-2"><Input value={location} placeholder="Ravi's place" onChange={(e) => setLocation(e.target.value)} /></Field>
         <Field label="Notes" className="col-span-2"><Textarea value={notes} placeholder="Blinds, house rules, who brought snacks" onChange={(e) => setNotes(e.target.value)} /></Field>
       </div>
       <div className="mt-3 flex justify-end">

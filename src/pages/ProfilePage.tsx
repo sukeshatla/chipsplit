@@ -9,6 +9,7 @@ import { pokerStats } from '../lib/ledger';
 import { getTheme, setTheme, type Theme } from '../lib/theme';
 import { resetDemo } from '../api/demoApi';
 import { Amount, Avatar, Button, Card, Field, Input, PageHeader, Select } from '../components/ui';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CURRENCIES } from '../components/dialogs/CreateGroupDialog';
 
 export function ProfilePage() {
@@ -21,6 +22,7 @@ export function ProfilePage() {
   const [name, setName] = useState(me.display_name);
   const [currency, setCurrency] = useState(me.default_currency || 'USD');
   const [theme, setThemeState] = useState<Theme>(getTheme());
+  const [confirmingReset, setConfirmingReset] = useState(false);
   const stats = pokerStats(data);
   const dirty = name.trim() !== me.display_name || currency !== me.default_currency;
 
@@ -84,10 +86,7 @@ export function ProfilePage() {
 
           <Card className="space-y-2 p-5">
             {mode === 'demo' && (
-              <Button className="w-full" onClick={() => {
-                if (!confirm('Reset the demo to its sample data?')) return;
-                resetDemo(); qc.invalidateQueries({ queryKey: ['all'] }); toast.push('Demo data reset');
-              }}><RotateCcw size={16} aria-hidden="true" />Reset demo data</Button>
+              <Button className="w-full" onClick={() => setConfirmingReset(true)}><RotateCcw size={16} aria-hidden="true" />Reset demo data</Button>
             )}
             <Button variant="danger" className="w-full" onClick={() => signOut()}>
               <LogOut size={16} aria-hidden="true" />{mode === 'demo' ? 'Leave demo' : 'Sign out'}
@@ -95,6 +94,12 @@ export function ProfilePage() {
           </Card>
         </div>
       </div>
+      <ConfirmDialog open={confirmingReset} onClose={() => setConfirmingReset(false)} title="Reset demo data?" tone="primary" icon={RotateCcw}
+        confirmLabel="Reset" body="This replaces everything in the demo with the original sample groups, games, and expenses. Anything you've added or changed in demo mode is lost."
+        onConfirm={() => {
+          setConfirmingReset(false);
+          resetDemo(); qc.invalidateQueries({ queryKey: ['all'] }); toast.push('Demo data reset');
+        }} />
     </>
   );
 }

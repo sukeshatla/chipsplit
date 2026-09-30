@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { settle } from './settle';
 import { splitByWeights, splitEqual, parseMoney, equalPercents } from './money';
-import { groupBalances, simplify, isGroupAdmin, isGroupSettled, notificationLink } from './ledger';
+import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink } from './ledger';
 import type { Group } from './types';
 
 describe('settle', () => {
@@ -144,6 +144,35 @@ describe('isGroupSettled', () => {
       settlements: [{ id: 's', group_id: 'g', from_member: 'b', to_member: 'a', amount_cents: 1000, method: null, note: null, session_id: null, settled_on: '2026-01-02', created_at: '' }],
     };
     expect(isGroupSettled(g)).toBe(true);
+  });
+});
+
+describe('isSessionSettled', () => {
+  const member = (id: string) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id, email: null, email_opt_out: false, is_admin: true });
+  const baseGroup: Omit<Group, 'members' | 'sessions' | 'settlements'> = { id: 'g', name: 'Test', kind: 'club', currency: 'USD', created_by: null, created_at: '', expenses: [] };
+  const session = { id: 's', group_id: 'g', played_on: '2026-01-01', location: null, notes: null, status: 'final' as const, default_buy_in_cents: 5000, created_at: '',
+    results: [{ member_id: 'a', buy_in_cents: 5000, cash_out_cents: 8000 }, { member_id: 'b', buy_in_cents: 5000, cash_out_cents: 2000 }] };
+  it('is always settled while the game is still open, regardless of balances', () => {
+    const g: Group = { ...baseGroup, members: ['a', 'b'].map(member), sessions: [{ ...session, status: 'open' }], settlements: [] };
+    expect(isSessionSettled(g, g.sessions[0]!)).toBe(true);
+  });
+  it('is false for a finalized game with no settlement recorded', () => {
+    const g: Group = { ...baseGroup, members: ['a', 'b'].map(member), sessions: [session], settlements: [] };
+    expect(isSessionSettled(g, session)).toBe(false);
+  });
+  it('is true once a settlement tied to that session squares it up', () => {
+    const g: Group = {
+      ...baseGroup, members: ['a', 'b'].map(member), sessions: [session],
+      settlements: [{ id: 'p', group_id: 'g', from_member: 'b', to_member: 'a', amount_cents: 3000, method: null, note: null, session_id: 's', settled_on: '2026-01-02', created_at: '' }],
+    };
+    expect(isSessionSettled(g, session)).toBe(true);
+  });
+  it('ignores a settlement recorded for a different session', () => {
+    const g: Group = {
+      ...baseGroup, members: ['a', 'b'].map(member), sessions: [session],
+      settlements: [{ id: 'p', group_id: 'g', from_member: 'b', to_member: 'a', amount_cents: 3000, method: null, note: null, session_id: 'other', settled_on: '2026-01-02', created_at: '' }],
+    };
+    expect(isSessionSettled(g, session)).toBe(false);
   });
 });
 

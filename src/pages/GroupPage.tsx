@@ -6,6 +6,7 @@ import { groupBalances, isGroupAdmin, isGroupSettled, memberHasActivity, memberN
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, Badge, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KIND_LABEL } from './GroupsPage';
 import { ExpenseDialog } from '../components/dialogs/ExpenseDialog';
 import { ImportDialog } from '../components/dialogs/ImportDialog';
@@ -13,7 +14,7 @@ import { SettleDialog, type SettleDraft } from '../components/dialogs/SettleDial
 import { NewGameDialog } from '../components/dialogs/NewGameDialog';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
 import { CURRENCIES, KindPicker } from '../components/dialogs/CreateGroupDialog';
-import type { Expense, Group, GroupKind } from '../lib/types';
+import type { Expense, Group, GroupKind, Member, Settlement } from '../lib/types';
 
 type Tab = 'games' | 'balances' | 'expenses' | 'members' | 'history';
 
@@ -54,7 +55,7 @@ export function GroupPage() {
         actions={<>
           <Button onClick={() => { window.location.href = summaryMailto(g); }}><Send size={16} aria-hidden="true" />Send summary</Button>
           {g.kind !== 'club' && <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Import</Button>}
-          {g.kind !== 'expenses' && <Button variant={g.kind === 'club' ? 'primary' : 'secondary'} onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />Game</Button>}
+          {g.kind !== 'expenses' && <Button variant={g.kind === 'club' ? 'primary' : 'secondary'} onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />New game</Button>}
           <Button variant={g.kind === 'club' ? 'secondary' : 'primary'} onClick={() => setExpense('new')}><Receipt size={16} aria-hidden="true" />Expense</Button>
         </>}
       />
@@ -132,7 +133,8 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
 }
 
 function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: SettleDraft): void; onAddExpense(): void }) {
-  const { run } = useAction();
+  const { run, busy } = useAction();
+  const [confirmingPayment, setConfirmingPayment] = useState<Settlement | null>(null);
   const bal = groupBalances(g);
   const transfers = simplify(bal);
   const history = g.settlements.slice().sort((a, b) => b.settled_on.localeCompare(a.settled_on) || b.created_at.localeCompare(a.created_at));
@@ -184,19 +186,23 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
                   <p className="truncate text-[12px] text-ink-2">{formatDate(s.settled_on)}{s.method ? `, ${s.method}` : ''}{s.session_id ? ', game' : ''}{s.note ? `, ${s.note}` : ''}</p>
                 </div>
                 <span className="amount font-display font-medium">{formatMoney(s.amount_cents, g.currency)}</span>
-                <IconButton label="Delete payment" onClick={() => { if (confirm('Delete this payment?')) run((api) => api.deleteSettlement(s.id), 'Payment deleted'); }}>
+                <IconButton label="Delete payment" onClick={() => setConfirmingPayment(s)}>
                   <Trash2 size={16} />
                 </IconButton>
               </Row>
             ))}
         </div>
       </Card>
+      <ConfirmDialog open={!!confirmingPayment} onClose={() => setConfirmingPayment(null)} title="Delete this payment?" icon={Trash2} busy={busy}
+        body={confirmingPayment && <>This removes the record of <b>{memberName(g, confirmingPayment.from_member)}</b> paying <b>{memberName(g, confirmingPayment.to_member)}</b> <b>{formatMoney(confirmingPayment.amount_cents, g.currency)}</b>. Their balances go back to what they owed before.</>}
+        onConfirm={async () => { const id = confirmingPayment!.id; setConfirmingPayment(null); await run((api) => api.deleteSettlement(id), 'Payment deleted'); }} />
     </div>
   );
 }
 
 function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMember?: string; admin: boolean; onEdit(e: Expense | 'new'): void; onImport(): void }) {
-  const { run } = useAction();
+  const { run, busy } = useAction();
+  const [confirmingExpense, setConfirmingExpense] = useState<Expense | null>(null);
   const list = g.expenses.slice().sort((a, b) => b.spent_on.localeCompare(a.spent_on) || b.created_at.localeCompare(a.created_at));
   if (list.length === 0) {
     return <Card><EmptyState icon={<Receipt size={28} />} title="Log the first expense" body="Add costs as they happen, or bring in a spreadsheet you already keep."
@@ -235,7 +241,7 @@ function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMem
                     </div>
                   </button>
                   {admin && (
-                    <IconButton label={`Delete ${e.description}`} onClick={() => { if (confirm(`Delete "${e.description}"?`)) run((api) => api.deleteExpense(e.id), 'Expense deleted'); }}>
+                    <IconButton label={`Delete ${e.description}`} onClick={() => setConfirmingExpense(e)}>
                       <Trash2 size={16} />
                     </IconButton>
                   )}
@@ -245,6 +251,9 @@ function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMem
           </div>
         ))}
       </div>
+      <ConfirmDialog open={!!confirmingExpense} onClose={() => setConfirmingExpense(null)} title="Delete this expense?" icon={Trash2} busy={busy}
+        body={confirmingExpense && <>This removes <b>&ldquo;{confirmingExpense.description}&rdquo;</b> ({formatMoney(confirmingExpense.amount_cents, g.currency)}) and everyone's share of it. This can't be undone.</>}
+        onConfirm={async () => { const id = confirmingExpense!.id; setConfirmingExpense(null); await run((api) => api.deleteExpense(id), 'Expense deleted'); }} />
     </Card>
   );
 }
@@ -257,9 +266,12 @@ function MembersTab({ g }: { g: Group }) {
   const [name, setName] = useState(g.name);
   const [kind, setKind] = useState<GroupKind>(g.kind);
   const [currency, setCurrency] = useState(g.currency);
+  const [confirmingRemove, setConfirmingRemove] = useState<Member | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const admin = isGroupAdmin(g, me.id);
   const dirty = name.trim() !== g.name || kind !== g.kind || currency !== g.currency;
   const settled = isGroupSettled(g);
+  const finalGames = g.sessions.filter((s) => s.status === 'final').length;
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -292,7 +304,7 @@ function MembersTab({ g }: { g: Group }) {
                 )}
                 <IconButton label={`Remove ${m.name}`} disabled={active || m.user_id === me.id}
                   title={active ? 'Has games, expenses, or payments in this group' : `Remove ${m.name}`}
-                  onClick={() => { if (confirm(`Remove ${m.name} from ${g.name}?`)) run((api) => api.removeMember(m.id), `${m.name} removed`); }}>
+                  onClick={() => setConfirmingRemove(m)}>
                   <Trash2 size={16} />
                 </IconButton>
               </Row>
@@ -317,11 +329,7 @@ function MembersTab({ g }: { g: Group }) {
             {admin ? (
               <div>
                 <Button variant="danger" disabled={!settled} title={settled ? undefined : 'Settle up everyone in this group first'}
-                  onClick={async () => {
-                    if (!confirm(`Delete ${g.name} and all its games, expenses, and payments? This can't be undone.`)) return;
-                    const ok = await run((api) => api.deleteGroup(g.id), 'Group deleted');
-                    if (ok !== undefined) nav('/groups');
-                  }}><Trash2 size={16} aria-hidden="true" />Delete group</Button>
+                  onClick={() => setConfirmingDelete(true)}><Trash2 size={16} aria-hidden="true" />Delete group</Button>
                 {!settled && (
                   <p className="mt-1.5 text-[12px] text-ink-2">
                     Not settled yet{' — '}<Link to={`/groups/${g.id}?tab=balances`} className="font-semibold text-felt underline dark:text-gain">settle up</Link> first.
@@ -335,6 +343,21 @@ function MembersTab({ g }: { g: Group }) {
         </div>
       </Card>
       <AddMemberDialog group={g} open={adding} onClose={() => setAdding(false)} />
+
+      <ConfirmDialog open={!!confirmingRemove} onClose={() => setConfirmingRemove(null)} title="Remove this person?" icon={Trash2} busy={busy}
+        body={confirmingRemove && <>This removes <b>{confirmingRemove.name}</b> from {g.name}. They can be added back any time.</>}
+        onConfirm={async () => { const id = confirmingRemove!.id, mname = confirmingRemove!.name; setConfirmingRemove(null); await run((api) => api.removeMember(id), `${mname} removed`); }} />
+
+      <ConfirmDialog open={confirmingDelete} onClose={() => setConfirmingDelete(false)} title={`Delete ${g.name}?`} icon={Trash2} busy={busy}
+        body={<>This permanently deletes <b>{g.members.length} member{g.members.length === 1 ? '' : 's'}</b>
+          {finalGames > 0 && <>, <b>{finalGames} game{finalGames === 1 ? '' : 's'}</b></>}
+          {g.expenses.length > 0 && <>, <b>{g.expenses.length} expense{g.expenses.length === 1 ? '' : 's'}</b></>}
+          {g.settlements.length > 0 && <>, and <b>{g.settlements.length} payment{g.settlements.length === 1 ? '' : 's'}</b></>}. This can't be undone.</>}
+        onConfirm={async () => {
+          setConfirmingDelete(false);
+          const ok = await run((api) => api.deleteGroup(g.id), 'Group deleted');
+          if (ok !== undefined) nav('/groups');
+        }} />
     </div>
   );
 }

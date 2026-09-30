@@ -42,6 +42,20 @@ export function sessionTotals(s: GameSession) {
   return { buyIn, cashOut, diff: cashOut - buyIn };
 }
 
+/** Whether every player's net for this game is zero once settlements tied to it are applied.
+ *  Open games are always "settled" (nothing to owe until finalized). The database also
+ *  enforces this before a delete. */
+export function isSessionSettled(g: Group, s: GameSession): boolean {
+  if (s.status !== 'final') return true;
+  const m = sessionNets(s);
+  for (const st of g.settlements) {
+    if (st.session_id !== s.id) continue;
+    add(m, st.from_member, st.amount_cents);
+    add(m, st.to_member, -st.amount_cents);
+  }
+  return [...m.values()].every((v) => v === 0);
+}
+
 export function simplify(balances: Map<string, number>): Transfer[] {
   return settle([...balances].map(([id, cents]) => ({ id, cents })));
 }
