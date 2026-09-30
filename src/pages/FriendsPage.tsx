@@ -37,7 +37,7 @@ export function FriendsPage() {
         ) : friends.map((f) => (
           <Link key={f.key} to={`/friends/${encodeURIComponent(f.key)}`}
             className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0 hover:bg-surface-2/60 md:px-5">
-            <Avatar name={f.name} size={38} />
+            <Avatar name={f.name} src={f.avatar_url} size={38} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{f.name}</p>
               <div className="mt-0.5 flex items-center gap-1.5">

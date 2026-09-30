@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { groupBalances, isGroupAdmin, isGroupSettled, memberHasActivity, memberName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
+import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Avatar, Badge, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
+import { Amount, Avatar, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KIND_LABEL } from './GroupsPage';
@@ -91,7 +91,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
             board.map((r, i) => (
               <Row key={r.memberId}>
                 <span className="amount w-5 text-center font-display text-sm text-ink-2">{i + 1}</span>
-                <Avatar name={r.name} size={32} />
+                <Avatar name={r.name} src={r.avatar_url} size={32} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{r.name}</p>
                   <p className="text-[12px] text-ink-2">{r.games} games, won {r.wins}, best {formatMoney(r.best, g.currency)}</p>
@@ -150,10 +150,11 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
             {transfers.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Everyone is settled up.</p> :
               transfers.map((t) => (
                 <Row key={`${t.from}-${t.to}`}>
+                  <Avatar name={memberName(g, t.from)} src={memberAvatar(g, t.from)} size={28} />
                   <span className="min-w-0 flex-1 truncate text-sm">
-                    <b className="font-semibold">{memberName(g, t.from)}</b>
+                    <b className="font-semibold text-loss">{memberName(g, t.from)}</b>
                     <ArrowRight size={14} className="mx-1.5 inline text-ink-2" aria-label="pays" />
-                    <b className="font-semibold">{memberName(g, t.to)}</b>
+                    <b className="font-semibold text-gain">{memberName(g, t.to)}</b>
                   </span>
                   <span className="amount font-display font-medium">{formatMoney(t.cents, g.currency)}</span>
                   {reminderMailto(g, t) && (
@@ -170,9 +171,9 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
           <div className="mt-2">
             {members.map((m) => (
               <Row key={m.id}>
-                <Avatar name={m.name} size={32} />
+                <Avatar name={m.name} src={m.avatar_url} size={32} />
                 <span className="flex-1 truncate text-sm font-semibold">{m.name}</span>
-                <Amount cents={bal.get(m.id) ?? 0} currency={g.currency} sign />
+                <BalanceText cents={bal.get(m.id) ?? 0} currency={g.currency} perspective="them" />
               </Row>
             ))}
           </div>
@@ -286,7 +287,7 @@ function MembersTab({ g }: { g: Group }) {
             const active = memberHasActivity(g, m.id);
             return (
               <Row key={m.id}>
-                <Avatar name={m.name} size={32} />
+                <Avatar name={m.name} src={m.avatar_url} size={32} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{m.name}{m.user_id === me.id && <span className="font-normal text-ink-2"> (you)</span>}</p>
                   <p className="truncate text-[12px] text-ink-2">{m.email ?? 'No email'}</p>

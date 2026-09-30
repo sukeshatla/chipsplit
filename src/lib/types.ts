@@ -19,6 +19,7 @@ export interface Member {
   email: string | null;
   email_opt_out: boolean; // excluded from this group's "email summary" mailto
   is_admin: boolean; // can change group settings, delete the group, or delete an expense
+  avatar_url?: string | null; // filled in at load time from the linked profile, if any; not stored here
 }
 
 /** An entry in the signed-in user's own friends list, independent of any group. */
@@ -29,6 +30,7 @@ export interface Contact {
   name: string;
   email: string | null;
   created_at: string;
+  avatar_url?: string | null; // filled in at load time from the linked profile, if any; not stored here
 }
 
 export interface Split {

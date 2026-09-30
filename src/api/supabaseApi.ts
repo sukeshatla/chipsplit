@@ -79,12 +79,46 @@ export const supabaseApi: DataApi = {
     }
     const rows = check(await db().from('groups').select(GROUP_SELECT).order('created_at')) as any[];
     const contacts = check(await db().from('contacts').select('*').order('name')) as Contact[];
-    return { me: profile, groups: rows.map(mapGroup), contacts };
+    const groups = rows.map(mapGroup);
+
+    // Avatars aren't denormalized onto members/contacts; fetch them for everyone we're
+    // actually linked to (shared group or contact) so a changed photo shows up everywhere live.
+    const userIds = new Set<string>();
+    groups.forEach((g) => g.members.forEach((m) => { if (m.user_id) userIds.add(m.user_id); }));
+    contacts.forEach((c) => { if (c.user_id) userIds.add(c.user_id); });
+    if (userIds.size) {
+      const avatars = check(await db().rpc('linked_avatars', { p_user_ids: [...userIds] })) as { id: string; avatar_url: string | null }[];
+      const map = new Map(avatars.map((a) => [a.id, a.avatar_url]));
+      groups.forEach((g) => g.members.forEach((m) => { if (m.user_id) m.avatar_url = map.get(m.user_id) ?? null; }));
+      contacts.forEach((c) => { if (c.user_id) c.avatar_url = map.get(c.user_id) ?? null; });
+    }
+
+    return { me: profile, groups, contacts };
   },
 
   async updateProfile(patch) {
     const user = await currentUser();
     check(await db().from('profiles').update(patch).eq('id', user.id));
+    // group_members.name is a snapshot taken when you were added, not a live reference to
+    // your profile, so every membership needs to be updated alongside it.
+    if (patch.display_name) {
+      check(await db().from('group_members').update({ name: patch.display_name }).eq('user_id', user.id));
+    }
+  },
+
+  async uploadAvatar(blob) {
+    const user = await currentUser();
+    const path = `${user.id}/avatar.jpg`;
+    const { error: upErr } = await db().storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '3600' });
+    if (upErr) throw new Error(upErr.message);
+    const { data } = db().storage.from('avatars').getPublicUrl(path);
+    check(await db().from('profiles').update({ avatar_url: `${data.publicUrl}?v=${Date.now()}` }).eq('id', user.id));
+  },
+
+  async removeAvatar() {
+    const user = await currentUser();
+    await db().storage.from('avatars').remove([`${user.id}/avatar.jpg`]);
+    check(await db().from('profiles').update({ avatar_url: null }).eq('id', user.id));
   },
 
   async createGroup({ name, kind, currency }) {

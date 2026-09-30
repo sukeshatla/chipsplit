@@ -237,6 +237,7 @@ Run these in order, once each, in the Supabase SQL editor:
 | `0007_club_and_expenses_kind.sql` | Establishes the group kind taxonomy: `club` (recurring games, plus expenses) or `expenses` |
 | `0008_admin_settled_delete_session.sql` | Deleting a game requires being a group admin, and the game must be settled first |
 | `0009_lock_final_session_results.sql` | A finalized game's buy-in/cash-out rows can only change while the game is reopened, or by an admin |
+| `0010_avatars.sql` | A public `avatars` storage bucket (own-folder-only writes) and `linked_avatars()`, a scoped read of avatar photos for people you actually share a group or contact with |
 
 All tables have row-level security: you can read and write a group's data only if you're a member. Groups are created through `create_group()` (which also makes you an admin), and members are added through `add_member()`, which links an existing account by email or copies in an existing friend by `contact_id`.
 
@@ -259,7 +260,7 @@ Scripts: `npm run dev` (local server), `npm test` (unit tests), `npm run typeche
 ## Costs and limits
 
 - **GitHub Pages:** free for public repos.
-- **Supabase free plan:** comfortably covers a group of friends (500 MB database, generous auth limits at the time of writing; check supabase.com/pricing for current numbers). Projects pause after about a week idle; the keep-alive workflow handles that.
+- **Supabase free plan:** comfortably covers a group of friends (500 MB database, 1 GB file storage, generous auth limits at the time of writing; check supabase.com/pricing for current numbers). Uploaded profile photos are resized to 320px client-side before upload, so each one is tens of KB, not megabytes. Projects pause after about a week idle; the keep-alive workflow handles that.
 - **Google sign-in:** free.
 - **Email summaries:** free — they open a pre-filled `mailto:` link in your own mail client rather than sending through a service, so there's no email provider or API key involved.
 

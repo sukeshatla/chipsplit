@@ -5,6 +5,9 @@ export interface DataApi {
   mode: 'demo' | 'supabase';
   loadAll(): Promise<AppData>;
   updateProfile(patch: Partial<Pick<Profile, 'display_name' | 'default_currency'>>): Promise<void>;
+  /** `blob` is already resized/compressed client-side; this persists it as the new avatar_url. */
+  uploadAvatar(blob: Blob): Promise<void>;
+  removeAvatar(): Promise<void>;
   createGroup(input: { name: string; kind: GroupKind; currency: string }): Promise<string>;
   updateGroup(id: string, patch: { name?: string; kind?: GroupKind; currency?: string }): Promise<void>;
   deleteGroup(id: string): Promise<void>;

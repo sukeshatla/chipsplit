@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ArrowLeft, ArrowRight, Check, Lock, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { isGroupAdmin, isSessionSettled, memberName, myMemberId, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
+import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, myMemberId, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
 import { Amount, Avatar, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Textarea } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -141,7 +141,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
               return (
                 <div key={l.member_id} className="grid grid-cols-2 items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,1fr)_170px_140px_90px_36px] md:px-5">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <Avatar name={name} size={30} />
+                    <Avatar name={name} src={memberAvatar(g, l.member_id)} size={30} />
                     <span className="truncate text-sm font-semibold">{name}</span>
                   </div>
                   <div className="flex items-center justify-end gap-1 md:order-4">

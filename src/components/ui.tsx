@@ -84,18 +84,25 @@ export function Amount({ cents, currency = 'USD', sign, className }: { cents: nu
   );
 }
 
-/** "owes you $20" / "you owe $20" / "settled up" */
-export function BalanceText({ cents, currency = 'USD' }: { cents: number; currency?: string }) {
+/** "owes you $20" / "you owe $20" / "settled up" (perspective "you"), or "gets back $20" / "owes $20" (perspective "them"). */
+export function BalanceText({ cents, currency = 'USD', perspective = 'you' }: { cents: number; currency?: string; perspective?: 'you' | 'them' }) {
   if (cents === 0) return <span className="text-[13px] text-ink-2">settled up</span>;
+  const label = perspective === 'you' ? (cents > 0 ? 'owes you' : 'you owe') : (cents > 0 ? 'gets back' : 'owes');
   return (
     <span className="text-right leading-tight">
-      <span className={clsx('block text-[12px] font-semibold', cents > 0 ? 'text-gain' : 'text-loss')}>{cents > 0 ? 'owes you' : 'you owe'}</span>
+      <span className={clsx('block text-[12px] font-semibold', cents > 0 ? 'text-gain' : 'text-loss')}>{label}</span>
       <span className={clsx('amount font-display text-base font-medium', cents > 0 ? 'text-gain' : 'text-loss')}>{formatMoney(Math.abs(cents), currency)}</span>
     </span>
   );
 }
 
-export function Avatar({ name, size = 36, className }: { name: string; size?: number; className?: string }) {
+export function Avatar({ name, src, size = 36, className }: { name: string; src?: string | null; size?: number; className?: string }) {
+  if (src) {
+    return (
+      <img src={src} alt="" referrerPolicy="no-referrer" style={{ width: size, height: size }}
+        className={clsx('inline-block shrink-0 rounded-full object-cover', className)} />
+    );
+  }
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0]!.toUpperCase()).join('') || '?';
   const hue = [...name].reduce((a, c) => a + c.charCodeAt(0), 0) % 4;
   const tones = ['bg-felt/10 text-felt', 'bg-brass/15 text-brass', 'bg-gain/10 text-gain', 'bg-ink/5 text-ink'];

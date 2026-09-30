@@ -74,7 +74,7 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
                   <button key={m.id} type="button" onClick={() => toggle(m.id)} aria-pressed={on}
                     className={clsx('flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm font-semibold transition-colors',
                       on ? 'border-felt bg-felt/10' : 'border-line text-ink-2 hover:bg-surface-2')}>
-                    <Avatar name={m.name} size={26} />
+                    <Avatar name={m.name} src={m.avatar_url} size={26} />
                     <span className="flex-1 truncate">{m.name}</span>
                     {on && <Check size={16} className="text-felt dark:text-gain" aria-hidden="true" />}
                   </button>

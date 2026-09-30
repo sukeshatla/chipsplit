@@ -68,6 +68,10 @@ export function memberName(g: Group, id: string) {
   return g.members.find((m) => m.id === id)?.name ?? 'Unknown';
 }
 
+export function memberAvatar(g: Group, id: string): string | null {
+  return g.members.find((m) => m.id === id)?.avatar_url ?? null;
+}
+
 /** Whether the signed-in user can change group settings, delete the group, or delete an expense. */
 export function isGroupAdmin(g: Group, meId: string): boolean {
   return g.members.some((m) => m.user_id === meId && m.is_admin);
@@ -105,7 +109,7 @@ export function statusFromKey(key: string): FriendStatus {
 export const STATUS_LABEL: Record<FriendStatus, string> = { friend: 'Friend', invited: 'Invited', guest: 'Guest' };
 
 export interface FriendGroupBalance { group: Group; memberId: string; myMemberId: string; cents: number }
-export interface Friend { key: string; name: string; email: string | null; net: number; groups: FriendGroupBalance[] }
+export interface Friend { key: string; name: string; email: string | null; avatar_url: string | null; net: number; groups: FriendGroupBalance[] }
 
 /**
  * Splitwise-style per-friend balances. Each group's debts are simplified first, then the
@@ -127,7 +131,7 @@ export function friendBalances(data: AppData): Friend[] {
       const key = friendKey(m);
       let f = map.get(key);
       if (!f) {
-        f = { key, name: m.name, email: m.email, net: 0, groups: [] };
+        f = { key, name: m.name, email: m.email, avatar_url: m.avatar_url ?? null, net: 0, groups: [] };
         map.set(key, f);
       }
       const cents = perMember.get(m.id) ?? 0;
@@ -154,8 +158,8 @@ export function friendsList(data: AppData): FriendRow[] {
   for (const c of data.contacts) {
     const key = friendKey(c);
     const existing = rows.get(key);
-    if (existing) existing.contactId = c.id;
-    else rows.set(key, { key, name: c.name, email: c.email, net: 0, groups: [], contactId: c.id, status: statusFromKey(key) });
+    if (existing) { existing.contactId = c.id; existing.avatar_url ??= c.avatar_url ?? null; }
+    else rows.set(key, { key, name: c.name, email: c.email, avatar_url: c.avatar_url ?? null, net: 0, groups: [], contactId: c.id, status: statusFromKey(key) });
   }
   return [...rows.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
 }
@@ -223,7 +227,7 @@ export function activity(data: AppData, limit = 20, onlyGroupId?: string): Activ
     .slice(0, limit);
 }
 
-export interface LeaderRow { memberId: string; name: string; net: number; games: number; wins: number; best: number }
+export interface LeaderRow { memberId: string; name: string; avatar_url: string | null; net: number; games: number; wins: number; best: number }
 
 export function pokerLeaderboard(g: Group): LeaderRow[] {
   const rows = new Map<string, LeaderRow>();
@@ -231,7 +235,7 @@ export function pokerLeaderboard(g: Group): LeaderRow[] {
     if (s.status !== 'final') continue;
     for (const r of s.results) {
       const net = r.cash_out_cents - r.buy_in_cents;
-      const row = rows.get(r.member_id) ?? { memberId: r.member_id, name: memberName(g, r.member_id), net: 0, games: 0, wins: 0, best: 0 };
+      const row = rows.get(r.member_id) ?? { memberId: r.member_id, name: memberName(g, r.member_id), avatar_url: memberAvatar(g, r.member_id), net: 0, games: 0, wins: 0, best: 0 };
       row.net += net;
       row.games += 1;
       if (net > 0) row.wins += 1;

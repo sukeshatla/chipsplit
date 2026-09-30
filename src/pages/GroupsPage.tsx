@@ -61,7 +61,7 @@ export function GroupsPage() {
                     </div>
                     <div className="mt-4 flex items-center justify-between">
                       <div className="flex -space-x-2">
-                        {g.members.slice(0, 6).map((m) => <Avatar key={m.id} name={m.name} size={28} className="ring-2 ring-surface" />)}
+                        {g.members.slice(0, 6).map((m) => <Avatar key={m.id} name={m.name} src={m.avatar_url} size={28} className="ring-2 ring-surface" />)}
                         {g.members.length > 6 && <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-surface-2 text-[11px] font-semibold ring-2 ring-surface">+{g.members.length - 6}</span>}
                       </div>
                       <p className="text-[12px] text-ink-2">

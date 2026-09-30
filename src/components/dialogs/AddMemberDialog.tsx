@@ -48,7 +48,7 @@ export function AddMemberDialog({ group, open, onClose, onAdded }: { group: Grou
                 return (
                   <button key={c.id} disabled={busy} onClick={() => addExisting(c.id)}
                     className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-surface-2 disabled:opacity-50">
-                    <Avatar name={c.name} size={34} />
+                    <Avatar name={c.name} src={c.avatar_url} size={34} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{c.name}</p>
                       <Badge tone={status === 'friend' ? 'felt' : status === 'invited' ? 'brass' : 'neutral'}>{STATUS_LABEL[status]}</Badge>

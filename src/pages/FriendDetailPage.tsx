@@ -29,7 +29,7 @@ export function FriendDetailPage() {
     <>
       <Link to="/friends" className="mb-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-ink"><ArrowLeft size={14} aria-hidden="true" />Friends</Link>
       <section className="mb-5 flex flex-wrap items-center gap-4">
-        <Avatar name={f.name} size={64} />
+        <Avatar name={f.name} src={f.avatar_url} size={64} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h1 className="truncate font-display text-[28px] font-medium leading-tight">{f.name}</h1>

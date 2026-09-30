@@ -84,7 +84,15 @@ function assertAdmin(d: DemoStore, g: Group, message: string) {
 export const demoApi: DataApi = {
   mode: 'demo',
 
-  loadAll: () => mutate((d) => structuredClone(d)),
+  loadAll: () => mutate((d) => {
+    const clone = structuredClone(d);
+    // Demo "friends" are fixed sample identities with no real account; only the signed-in
+    // user's own avatar is ever editable, so mirror it onto their own memberships/contacts.
+    const avatarFor = (uid: string | null) => (uid === clone.me.id ? clone.me.avatar_url : null);
+    clone.groups.forEach((g) => g.members.forEach((m) => { m.avatar_url = avatarFor(m.user_id); }));
+    clone.contacts.forEach((c) => { c.avatar_url = avatarFor(c.user_id); });
+    return clone;
+  }),
 
   updateProfile: (patch) => mutate((d) => {
     d.me = { ...d.me, ...patch };
@@ -92,6 +100,18 @@ export const demoApi: DataApi = {
       d.groups.forEach((g) => g.members.forEach((m) => { if (m.user_id === d.me.id) m.name = patch.display_name!; }));
     }
   }),
+
+  uploadAvatar: async (blob) => {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Could not read that image'));
+      reader.readAsDataURL(blob);
+    });
+    return mutate((d) => { d.me.avatar_url = dataUrl; });
+  },
+
+  removeAvatar: () => mutate((d) => { d.me.avatar_url = null; }),
 
   createGroup: ({ name, kind, currency }) => mutate((d) => {
     const id = uid();

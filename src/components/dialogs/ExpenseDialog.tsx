@@ -12,11 +12,11 @@ export const CATEGORIES = ['general', 'food', 'drinks', 'lodging', 'transport', 
 type SplitMode = 'equal' | 'shares' | 'exact' | 'percent';
 
 /** One row in the "who's in this split" list: a checkable toggle, plus the mode's own control when included. */
-function SplitRow({ name, on, toggle, children }: { name: string; on: boolean; toggle(): void; children?: ReactNode }) {
+function SplitRow({ name, avatarUrl, on, toggle, children }: { name: string; avatarUrl?: string | null; on: boolean; toggle(): void; children?: ReactNode }) {
   return (
     <div className={clsx('flex items-center gap-2 rounded-lg border px-2.5 py-1.5', on ? 'border-felt bg-felt/10' : 'border-line')}>
       <button type="button" aria-pressed={on} onClick={toggle} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-        <Avatar name={name} size={24} />
+        <Avatar name={name} src={avatarUrl} size={24} />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">{name}</span>
         {on && <Check size={15} className="shrink-0 text-felt dark:text-gain" aria-hidden="true" />}
       </button>
@@ -171,7 +171,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
 
               if (mode === 'equal') {
                 const each = included.length ? Math.floor(total / included.length) : 0;
-                return <SplitRow key={m.id} name={m.name} on={on} toggle={toggle}>
+                return <SplitRow key={m.id} name={m.name} avatarUrl={m.avatar_url} on={on} toggle={toggle}>
                   <span className="amount shrink-0 text-[13px] text-ink-2">{formatMoney(each, group.currency)}</span>
                 </SplitRow>;
               }
@@ -181,7 +181,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
                 const totalShares = shares.reduce((a, x) => a + x.weight, 0);
                 const amount = on && totalShares ? Math.floor((total * (mine?.weight ?? 1)) / totalShares) : 0;
                 const setShares = (n: number) => setValues((v) => ({ ...v, [m.id]: String(Math.max(1, n)) }));
-                return <SplitRow key={m.id} name={m.name} on={on} toggle={toggle}>
+                return <SplitRow key={m.id} name={m.name} avatarUrl={m.avatar_url} on={on} toggle={toggle}>
                   <div className="flex shrink-0 items-center gap-1">
                     <IconButton label={`Fewer shares for ${m.name}`} onClick={() => setShares((mine?.weight ?? 1) - 1)}><Minus size={14} /></IconButton>
                     <span className="amount w-4 text-center text-sm">{mine?.weight ?? 1}</span>
@@ -191,12 +191,12 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
                 </SplitRow>;
               }
               if (mode === 'exact') {
-                return <SplitRow key={m.id} name={m.name} on={on} toggle={toggle}>
+                return <SplitRow key={m.id} name={m.name} avatarUrl={m.avatar_url} on={on} toggle={toggle}>
                   <MoneyInput className="w-28 shrink-0" value={values[m.id] ?? ''} placeholder="0"
                     onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))} />
                 </SplitRow>;
               }
-              return <SplitRow key={m.id} name={m.name} on={on} toggle={toggle}>
+              return <SplitRow key={m.id} name={m.name} avatarUrl={m.avatar_url} on={on} toggle={toggle}>
                 <div className="relative w-20 shrink-0">
                   <Input inputMode="decimal" className="amount pr-6 text-right" value={values[m.id] ?? ''} placeholder="0"
                     onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))} />

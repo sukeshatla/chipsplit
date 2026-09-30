@@ -104,7 +104,7 @@ export function CreateGroupDialog({ open, onClose }: { open: boolean; onClose():
                     <button key={f.key} type="button" aria-pressed={on} onClick={() => toggle(f.key)}
                       className={clsx('flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left transition-colors',
                         on ? 'border-felt bg-felt/10' : 'border-transparent hover:bg-surface-2')}>
-                      <Avatar name={f.name} size={28} />
+                      <Avatar name={f.name} src={f.avatar_url} size={28} />
                       <span className="min-w-0 flex-1 truncate text-sm font-semibold">{f.name}</span>
                       <Badge tone={STATUS_TONE[f.status]}>{STATUS_LABEL[f.status]}</Badge>
                     </button>

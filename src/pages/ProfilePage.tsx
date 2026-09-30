@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { clsx } from 'clsx';
-import { LogOut, Sun, Moon, Monitor, RotateCcw } from 'lucide-react';
+import { LogOut, Sun, Moon, Monitor, RotateCcw, Camera, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { useToast } from '../app/toast';
 import { pokerStats } from '../lib/ledger';
 import { getTheme, setTheme, type Theme } from '../lib/theme';
+import { resizeImage } from '../lib/image';
 import { resetDemo } from '../api/demoApi';
 import { Amount, Avatar, Button, Card, Field, Input, PageHeader, Select } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -23,8 +24,21 @@ export function ProfilePage() {
   const [currency, setCurrency] = useState(me.default_currency || 'USD');
   const [theme, setThemeState] = useState<Theme>(getTheme());
   const [confirmingReset, setConfirmingReset] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const stats = pokerStats(data);
   const dirty = name.trim() !== me.display_name || currency !== me.default_currency;
+
+  const handlePhoto = async (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.push('Choose an image file', 'error'); return; }
+    if (file.size > 15 * 1024 * 1024) { toast.push('That image is too large', 'error'); return; }
+    try {
+      const blob = await resizeImage(file);
+      await run((api) => api.uploadAvatar(blob), 'Profile photo updated');
+    } catch (e) {
+      toast.push(e instanceof Error ? e.message : 'Could not process that image', 'error');
+    }
+  };
 
   const themes: { value: Theme; label: string; icon: typeof Sun }[] = [
     { value: 'light', label: 'Light', icon: Sun }, { value: 'dark', label: 'Dark', icon: Moon }, { value: 'system', label: 'System', icon: Monitor },
@@ -36,10 +50,24 @@ export function ProfilePage() {
       <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
         <Card className="p-5">
           <div className="mb-5 flex items-center gap-4">
-            {me.avatar_url ? <img src={me.avatar_url} alt="" referrerPolicy="no-referrer" className="h-16 w-16 rounded-full object-cover" /> : <Avatar name={me.display_name} size={64} />}
-            <div className="min-w-0">
+            <div className="relative shrink-0">
+              <Avatar name={me.display_name} src={me.avatar_url} size={64} />
+              <button type="button" aria-label="Change photo" title="Change photo" disabled={busy} onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface bg-felt text-felt-ink disabled:opacity-50">
+                <Camera size={12} aria-hidden="true" />
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void handlePhoto(f); }} />
+            </div>
+            <div className="min-w-0 flex-1">
               <p className="truncate font-display text-xl font-medium">{me.display_name}</p>
               <p className="truncate text-sm text-ink-2">{me.email}{mode === 'supabase' && ', signed in with Google'}</p>
+              {me.avatar_url && (
+                <button type="button" disabled={busy} onClick={() => run((api) => api.removeAvatar(), 'Profile photo removed')}
+                  className="mt-1 inline-flex items-center gap-1 text-[12px] font-semibold text-ink-2 hover:text-loss disabled:opacity-50">
+                  <X size={12} aria-hidden="true" />Remove photo
+                </button>
+              )}
             </div>
           </div>
           <div className="space-y-4">
