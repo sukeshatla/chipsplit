@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
 import { activity, groupBalances, myMemberId, pokerStats, totals } from '../lib/ledger';
@@ -13,7 +13,6 @@ const ACTIVITY_ICON = { expense: Receipt, game: Spade, payment: HandCoins };
 
 export function DashboardPage() {
   const data = useData();
-  const nav = useNavigate();
   const { me, groups } = data;
   const currency = me.default_currency || 'USD';
   const t = totals(data);
@@ -29,7 +28,6 @@ export function DashboardPage() {
     <>
       <PageHeader title={`${greet}, ${me.display_name.split(' ')[0]}`}
         actions={<>
-          <Button onClick={() => nav('/rummy')}><Spade size={16} aria-hidden="true" />Rummy scores</Button>
           <Button onClick={() => setQuickExpense(true)}><Receipt size={16} aria-hidden="true" />Add expense</Button>
           <Button variant="primary" onClick={() => setNewGroup(true)}><Plus size={16} aria-hidden="true" />New group</Button>
         </>} />

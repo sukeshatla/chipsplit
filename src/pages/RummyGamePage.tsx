@@ -139,8 +139,10 @@ export function RummyGamePage() {
                   <div key={p.id} className="flex items-center gap-3">
                     <Avatar name={p.name} src={p.avatar_url} size={26} />
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold">{p.name}</span>
-                    <Input inputMode="numeric" className="w-20 text-right" placeholder="0"
-                      value={inputs[p.id] ?? ''} onChange={(e) => { setInputs((v) => ({ ...v, [p.id]: e.target.value.replace(/\D/g, '') })); setRoundError(null); }} />
+                    <div className="w-20 shrink-0">
+                      <Input inputMode="numeric" className="text-right" placeholder="0"
+                        value={inputs[p.id] ?? ''} onChange={(e) => { setInputs((v) => ({ ...v, [p.id]: e.target.value.replace(/\D/g, '') })); setRoundError(null); }} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -157,30 +159,30 @@ export function RummyGamePage() {
             {game.rounds.length === 0 ? (
               <p className="px-5 pb-5 pt-2 text-sm text-ink-2">No rounds recorded yet.</p>
             ) : (
-              <div className="overflow-x-auto px-4 pb-4 md:px-5">
-                <table className="w-full min-w-[420px] border-collapse text-sm">
-                  <thead>
-                    <tr className="text-[12px] text-ink-2">
-                      <th className="py-1.5 pr-2 text-left font-semibold">Round</th>
-                      {game.players.map((p) => <th key={p.id} className="py-1.5 px-2 text-right font-semibold">{p.name.split(' ')[0]}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {game.rounds.map((r) => (
-                      <tr key={r.id}
-                        className={isScorer ? `cursor-pointer border-t border-line hover:bg-surface-2/60 ${editingRoundId === r.id ? 'bg-felt/10' : ''}` : 'border-t border-line'}
-                        onClick={isScorer ? () => startEdit(r) : undefined}>
-                        <td className="py-1.5 pr-2 text-ink-2">{r.round_no}</td>
-                        {game.players.map((p) => {
-                          const s = r.scores.find((x) => x.player_id === p.id);
-                          return <td key={p.id} className="amount py-1.5 px-2 text-right">{s ? s.points : '—'}</td>;
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {isScorer && <p className="mt-2 text-[11px] text-ink-2">Tap a round to fix its scores.</p>}
-                <p className="mt-2 text-[11px] text-ink-2">Started {formatDate(game.created_at)}{game.finished_at ? `, finished ${formatDate(game.finished_at)}` : ''}</p>
+              <div className="space-y-2 px-4 pb-4 md:px-5">
+                {game.rounds.map((r) => (
+                  <div key={r.id}
+                    className={isScorer
+                      ? `cursor-pointer rounded-xl border p-3 hover:bg-surface-2/60 ${editingRoundId === r.id ? 'border-felt bg-felt/10' : 'border-line'}`
+                      : 'rounded-xl border border-line p-3'}
+                    onClick={isScorer ? () => startEdit(r) : undefined}>
+                    <p className="mb-1.5 text-[12px] font-semibold text-ink-2">Round {r.round_no}</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+                      {r.scores.map((s) => {
+                        const p = game.players.find((x) => x.id === s.player_id);
+                        if (!p) return null;
+                        return (
+                          <div key={s.player_id} className="flex items-center justify-between gap-2 text-sm">
+                            <span className="min-w-0 truncate text-ink-2">{p.name}</span>
+                            <span className="amount font-semibold">{s.points}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                {isScorer && <p className="mt-1 text-[11px] text-ink-2">Tap a round to fix its scores.</p>}
+                <p className="mt-1 text-[11px] text-ink-2">Started {formatDate(game.created_at)}{game.finished_at ? `, finished ${formatDate(game.finished_at)}` : ''}</p>
               </div>
             )}
           </Card>
