@@ -218,6 +218,30 @@ describe('summaryMailto', async () => {
   });
 });
 
+describe('reminderMailto', async () => {
+  const { reminderMailto } = await import('./ledger');
+  const g: Group = {
+    id: 'g', name: 'Roommates', kind: 'expenses', currency: 'USD', created_by: null, created_at: '',
+    members: [
+      { id: 'a', group_id: 'g', user_id: null, contact_id: null, name: 'Ana', email: 'ana@x.com', email_opt_out: false, is_admin: true },
+      { id: 'c', group_id: 'g', user_id: null, contact_id: null, name: 'Cy', email: null, email_opt_out: false, is_admin: false },
+    ],
+    expenses: [], sessions: [], settlements: [],
+  };
+  it('addresses the debtor directly and mentions who they owe and how much', () => {
+    const url = reminderMailto(g, { from: 'a', to: 'c', cents: 1500 });
+    expect(url).not.toBeNull();
+    expect(url!.startsWith('mailto:ana%40x.com')).toBe(true);
+    const body = decodeURIComponent(url!.split('body=')[1]!);
+    expect(body).toContain('Ana');
+    expect(body).toContain('Cy');
+    expect(body).toContain('$15');
+  });
+  it('returns null when the debtor has no email on file', () => {
+    expect(reminderMailto(g, { from: 'c', to: 'a', cents: 1500 })).toBeNull();
+  });
+});
+
 describe('friendsList', async () => {
   const { seedDemo } = await import('../api/seed');
   const { friendsList, friendBalances, friendKey, statusFromKey } = await import('./ledger');

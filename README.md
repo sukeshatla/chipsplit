@@ -38,6 +38,7 @@ It installs on phones as an app (PWA), and has a **demo mode** that works with n
 **Balances and settling up**
 - Each group shows where everyone stands and a **simplified debts** list with one-tap "Record" payments.
 - **Send summary**: opens a pre-filled email (via `mailto:`, no email service required) with the balance breakdown and settle-up list, for a group or a single finalized game. Anyone can opt out of being included, per group, from the Members tab.
+- **Remind**: a one-tap `mailto:` nudge addressed to just the one person who owes a specific payment, next to it in the settle-up list.
 - Payment history with method (Cash, Zelle, Venmo, UPI, PayPal) and notes.
 - A group can't be deleted until everyone in it is settled up — enforced by the database, not just the UI.
 
@@ -56,7 +57,7 @@ It installs on phones as an app (PWA), and has a **demo mode** that works with n
 - Recent activity (capped, with a link to the full **Activity** page) and your groups (capped, with a link to **Groups**).
 
 **Accounts and profile**
-- **Sign in with Google** (Supabase Auth).
+- **Sign in with Google**, or **email magic link** (no password to set, leak, or forget) — both via Supabase Auth. Either one auto-creates the account on first sign-in.
 - Profile: display name, currency for totals, light / dark / system theme, card-game stats.
 - Groups are either a **Club** (recurring games, plus expenses) or an **Expenses** group (trips, rent — no games) — no separate "both" option, since a club already covers it.
 
@@ -216,6 +217,7 @@ Run these in order, once each, in the Supabase SQL editor:
 | `0005_fix_group_delete_cascade.sql` | fixes `expense_payers`/`expense_shares`/`session_results`/`settlements` to cascade-delete with their group (they didn't originally), and adds a guard so removing a single active member is still blocked |
 | `0006_require_settled_to_delete_group.sql` | blocks deleting a group until every member's balance is zero |
 | `0007_club_and_expenses_kind.sql` | renames the `poker` group kind to `club` and drops the unused `mixed` kind (`groups.kind` is now `club` \| `expenses`) |
+| `0008_admin_settled_delete_session.sql` | deleting a game is admin-only and blocked while a finalized game still has unpaid settle-up (mirrors 0006 at the game level) |
 
 All tables have row-level security: you can read and write a group's data only if you're a member. Groups are created through `create_group()` (which also makes you an admin), and members are added through `add_member()`, which links an existing account by email or copies in an existing friend by `contact_id`.
 
@@ -253,8 +255,9 @@ Scripts: `npm run dev` (local server), `npm test` (unit tests), `npm run typeche
 - **A friend signed in but doesn't see the group:** the email you added for them must match their Google email. You can remove the guest (if they have no history) and add them again with the right email, or edit `group_members.email` in the Supabase table editor.
 - **Blank page on GitHub Pages:** make sure Pages source is set to GitHub Actions, and that `VITE_BASE` matches your repo name.
 - **The app looks out of date after a deploy:** it's a PWA and caches aggressively. Hard-refresh, or in DevTools → Application, unregister the service worker and clear site data.
-- **"Delete group" is disabled:** the group isn't settled up yet — clear its Balances tab first (or record the remaining payments), or make sure you're an admin of that group.
+- **"Delete group" or "Delete game" is disabled/missing:** either the group/game isn't settled up yet (clear the remaining payments first) or you're not an admin of that group.
 - **"Only a group admin can..." errors:** by default everyone in a group is an admin; someone narrowed it down from the Members tab. Ask a current admin to re-add you, or check the shield icon next to each member.
+- **Magic-link email never arrives:** works out of the box (the Email provider is on by default, no Supabase config needed), but Supabase's shared/default mailer has a low rate limit (a few emails per hour) until you set up custom SMTP under **Authentication → Emails**. Fine for a friends-and-family group; if you're testing sign-up repeatedly, check spam or wait a few minutes between attempts.
 
 **Note on spreadsheet import:** it uses the `xlsx` package (0.18.5 from npm), which is only loaded when you import a file and only reads files you choose yourself. If you prefer the latest SheetJS build, install it from `https://cdn.sheetjs.com` per their docs.
 

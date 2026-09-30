@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { Mail } from 'lucide-react';
 import { useAuth } from '../app/auth';
 import { useToast } from '../app/toast';
-import { Button } from '../components/ui';
+import { Button, Input } from '../components/ui';
 import { Logo } from '../components/Logo';
 import { formatMoney } from '../lib/money';
 
@@ -23,15 +24,27 @@ const SAMPLE = [
 ];
 
 export function LoginPage() {
-  const { status, supabaseReady, signInWithGoogle, startDemo } = useAuth();
+  const { status, supabaseReady, signInWithGoogle, sendMagicLink, startDemo } = useAuth();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState('');
+  const [linkSent, setLinkSent] = useState(false);
   if (status === 'signedIn') return <Navigate to="/" replace />;
 
   const google = async () => {
     setBusy(true);
     try { await signInWithGoogle(); } catch (e) {
       toast.push(e instanceof Error ? e.message : 'Google sign-in failed', 'error');
+      setBusy(false);
+    }
+  };
+
+  const magicLink = async () => {
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { toast.push('Enter a valid email', 'error'); return; }
+    setBusy(true);
+    try { await sendMagicLink(email.trim()); setLinkSent(true); } catch (e) {
+      toast.push(e instanceof Error ? e.message : 'Could not send the link', 'error');
+    } finally {
       setBusy(false);
     }
   };
@@ -66,11 +79,27 @@ export function LoginPage() {
             <Button onClick={google} loading={busy} disabled={!supabaseReady} className="h-12 border-line text-[15px]">
               <GoogleMark /> Continue with Google
             </Button>
+            <div className="flex items-center gap-3 py-1 text-[12px] font-semibold text-ink-2">
+              <span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" />
+            </div>
+            {linkSent ? (
+              <p className="rounded-lg bg-felt/10 p-3 text-[13px] leading-relaxed text-ink">
+                Check <b>{email}</b> for a sign-in link. No password needed{' — '}just open it on this device.
+              </p>
+            ) : (
+              <>
+                <Input type="email" inputMode="email" autoComplete="email" value={email} placeholder="you@example.com" disabled={!supabaseReady}
+                  onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') magicLink(); }} className="h-12" />
+                <Button onClick={magicLink} loading={busy} disabled={!supabaseReady} className="h-12 border-line text-[15px]">
+                  <Mail size={18} aria-hidden="true" /> Email me a sign-in link
+                </Button>
+              </>
+            )}
             <Button variant="primary" onClick={startDemo} className="h-12 text-[15px]">Try the demo</Button>
           </div>
           {!supabaseReady && (
             <p className="mt-4 rounded-lg bg-surface-2 p-3 text-[13px] leading-relaxed text-ink-2">
-              Google sign-in turns on once you add your Supabase keys to <code className="font-semibold text-ink">.env.local</code>. The README walks through it.
+              Sign-in turns on once you add your Supabase keys to <code className="font-semibold text-ink">.env.local</code>. The README walks through it.
             </p>
           )}
         </div>

@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { ArrowLeft, ArrowRight, Check, Lock, LockOpen, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Lock, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { isGroupAdmin, isSessionSettled, memberName, myMemberId, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
+import { isGroupAdmin, isSessionSettled, memberName, myMemberId, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
 import { Amount, Avatar, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Textarea } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -240,6 +240,10 @@ function Payments({ g, s }: { g: Group; s: GameSession }) {
               <b className="font-semibold">{memberName(g, p.to)}</b>
             </span>
             <span className={clsx('amount font-display font-medium', p.settlementId && 'line-through')}>{formatMoney(p.cents, g.currency)}</span>
+            {!p.settlementId && reminderMailto(g, p) && (
+              <IconButton label={`Remind ${memberName(g, p.from)}`} title="Email a settle-up reminder"
+                onClick={() => { window.location.href = reminderMailto(g, p)!; }}><Mail size={16} /></IconButton>
+            )}
             {p.settlementId ? (
               <Button size="sm" variant="ghost" disabled={busy} onClick={() => run((api) => api.deleteSettlement(p.settlementId!), 'Marked unpaid')}>
                 <RotateCcw size={14} aria-hidden="true" />Undo

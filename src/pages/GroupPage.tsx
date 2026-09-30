@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { groupBalances, isGroupAdmin, isGroupSettled, memberHasActivity, memberName, myMemberId, pokerLeaderboard, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
+import { groupBalances, isGroupAdmin, isGroupSettled, memberHasActivity, memberName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, Badge, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -156,6 +156,10 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
                     <b className="font-semibold">{memberName(g, t.to)}</b>
                   </span>
                   <span className="amount font-display font-medium">{formatMoney(t.cents, g.currency)}</span>
+                  {reminderMailto(g, t) && (
+                    <IconButton label={`Remind ${memberName(g, t.from)}`} title="Email a settle-up reminder"
+                      onClick={() => { window.location.href = reminderMailto(g, t)!; }}><Mail size={16} /></IconButton>
+                  )}
                   <Button size="sm" onClick={() => onSettle({ from: t.from, to: t.to, cents: t.cents })}>Record</Button>
                 </Row>
               ))}

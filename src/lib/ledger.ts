@@ -277,18 +277,35 @@ export function summaryMailto(g: Group, sessionId?: string): string {
   const recipients = g.members.filter((m) => m.email && !m.email_opt_out && involved.has(m.id)).map((m) => m.email!);
 
   const subject = session ? `ChipSplit summary — ${g.name}${session.location ? `, ${session.location}` : ''}` : `ChipSplit summary — ${g.name}`;
-  const lines: string[] = [subject, ''];
+  const lines: string[] = [subject, '-'.repeat(Math.min(subject.length, 42)), ''];
   for (const id of involved) {
     const cents = bal.get(id) ?? 0;
     if (cents === 0) continue;
-    lines.push(`${memberName(g, id)}: ${cents > 0 ? 'is owed' : 'owes'} ${formatMoney(Math.abs(cents), g.currency)}`);
+    lines.push(`  ${memberName(g, id)} ${cents > 0 ? 'is owed' : 'owes'} ${formatMoney(Math.abs(cents), g.currency)}`);
   }
   lines.push('', 'Settle up:');
-  if (transfers.length === 0) lines.push('Everyone is settled up.');
-  else transfers.forEach((t) => lines.push(`${memberName(g, t.from)} → ${memberName(g, t.to)}: ${formatMoney(t.cents, g.currency)}`));
+  if (transfers.length === 0) lines.push('  Everyone is settled up.');
+  else transfers.forEach((t) => lines.push(`  ${memberName(g, t.from)} → ${memberName(g, t.to)}   ${formatMoney(t.cents, g.currency)}`));
+  lines.push('', '— Sent from ChipSplit');
 
   const to = recipients.map(encodeURIComponent).join(',');
   return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
+}
+
+/** A `mailto:` reminder addressed to just the one person who owes this transfer. Returns
+ *  null when they have no email on file, so a caller can disable the button in that case. */
+export function reminderMailto(g: Group, t: Transfer): string | null {
+  const debtor = g.members.find((m) => m.id === t.from);
+  if (!debtor?.email) return null;
+  const creditor = memberName(g, t.to);
+  const amount = formatMoney(t.cents, g.currency);
+  const subject = `Reminder: you owe ${amount} in ${g.name}`;
+  const body = [
+    `Hey ${debtor.name},`, '',
+    `Just a friendly reminder that you owe ${creditor} ${amount} in ${g.name}.`, '',
+    'Whenever works for you — thanks!',
+  ].join('\n');
+  return `mailto:${encodeURIComponent(debtor.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 export interface SessionTransfer { from: string; to: string; cents: number; settlementId: string | null }

@@ -14,6 +14,7 @@ interface AuthCtx {
   api: DataApi;
   supabaseReady: boolean;
   signInWithGoogle(): Promise<void>;
+  sendMagicLink(email: string): Promise<void>;
   startDemo(): void;
   signOut(): Promise<void>;
 }
@@ -63,6 +64,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
+  /** Emails a one-time sign-in link; no password ever exists. Completes via the same
+   *  PKCE ?code= redirect handling as Google, once the person clicks the link. */
+  const sendMagicLink = useCallback(async (email: string) => {
+    if (!supabase) throw new Error('Supabase is not configured');
+    const redirectTo = window.location.origin + window.location.pathname;
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
+    if (error) throw error;
+  }, []);
+
   const startDemo = useCallback(() => {
     localStorage.setItem(MODE_KEY, 'demo');
     qc.clear();
@@ -84,8 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthCtx>(() => ({
     status, mode, api: mode === 'demo' ? demoApi : supabaseApi, supabaseReady: supabaseConfigured,
-    signInWithGoogle, startDemo, signOut,
-  }), [status, mode, signInWithGoogle, startDemo, signOut]);
+    signInWithGoogle, sendMagicLink, startDemo, signOut,
+  }), [status, mode, signInWithGoogle, sendMagicLink, startDemo, signOut]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
