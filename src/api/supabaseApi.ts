@@ -41,9 +41,12 @@ const GROUP_SELECT = `
 
 const num = (v: any) => Number(v ?? 0);
 
+// rummy_players is named explicitly (rummy_players_rummy_game_id_fkey) because rummy_games also
+// has a second FK to it (winner_player_id) -- without this, PostgREST can't tell which
+// relationship to embed and the query fails outright.
 const RUMMY_SELECT = `
   id, group_id, name, point_limit, status, scorer_id, winner_player_id, created_at, finished_at,
-  rummy_players ( id, rummy_game_id, user_id, name ),
+  rummy_players!rummy_players_rummy_game_id_fkey ( id, rummy_game_id, user_id, name ),
   rummy_rounds ( id, round_no, created_at, rummy_round_scores ( player_id, points ) )
 `;
 
@@ -349,6 +352,13 @@ export const supabaseApi: DataApi = {
   async addRummyRound(gameId, scores) {
     check(await db().rpc('add_rummy_round', {
       p_game_id: gameId,
+      p_scores: scores.map((s) => ({ player_id: s.playerId, points: s.points })),
+    }));
+  },
+
+  async updateRummyRound(roundId, scores) {
+    check(await db().rpc('update_rummy_round', {
+      p_round_id: roundId,
       p_scores: scores.map((s) => ({ player_id: s.playerId, points: s.points })),
     }));
   },

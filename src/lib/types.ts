@@ -141,7 +141,7 @@ export interface RummyGame {
   id: string;
   group_id: string | null;
   name: string | null;
-  point_limit: 100 | 150 | 200;
+  point_limit: 101 | 151 | 201;
   status: 'active' | 'finished';
   scorer_id: string;
   winner_player_id: string | null;

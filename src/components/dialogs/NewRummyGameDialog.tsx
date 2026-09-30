@@ -9,7 +9,7 @@ import type { Group } from '../../lib/types';
 import type { NewRummyPlayer } from '../../api/types';
 
 const STATUS_TONE: Record<FriendStatus, 'felt' | 'brass' | 'neutral'> = { friend: 'felt', invited: 'brass', guest: 'neutral' };
-const POINT_LIMITS = [100, 150, 200] as const;
+const POINT_LIMITS = [101, 151, 201] as const;
 
 /** `group` set = launched from inside a club, roster comes from its members.
  *  `group` omitted = the standalone tracker, roster comes from friends plus typed-in guests. */
@@ -18,7 +18,7 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
   const { run, busy } = useAction();
   const nav = useNavigate();
   const [name, setName] = useState('');
-  const [pointLimit, setPointLimit] = useState<100 | 150 | 200>(100);
+  const [pointLimit, setPointLimit] = useState<101 | 151 | 201>(101);
   const [picked, setPicked] = useState<string[]>([]);
   const [q, setQ] = useState('');
   const [guestName, setGuestName] = useState('');
@@ -37,7 +37,7 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
   };
 
   const close = () => {
-    setName(''); setPointLimit(100); setPicked([]); setQ(''); setGuestName(''); setGuests([]); setError(null);
+    setName(''); setPointLimit(101); setPicked([]); setQ(''); setGuestName(''); setGuests([]); setError(null);
     onClose();
   };
 
@@ -61,7 +61,7 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
           <Input value={name} placeholder={group ? `${group.name} rummy` : 'Friday night rummy'} onChange={(e) => setName(e.target.value)} />
         </Field>
         <Field label="Points to eliminate a player" hint="Cross this total and you're out, marked in red. Last player standing wins.">
-          <Select value={pointLimit} onChange={(e) => setPointLimit(Number(e.target.value) as 100 | 150 | 200)}>
+          <Select value={pointLimit} onChange={(e) => setPointLimit(Number(e.target.value) as 101 | 151 | 201)}>
             {POINT_LIMITS.map((p) => <option key={p} value={p}>{p} points</option>)}
           </Select>
         </Field>

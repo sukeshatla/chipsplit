@@ -325,6 +325,25 @@ export const demoApi: DataApi = {
     }
   }),
 
+  updateRummyRound: (roundId, scores) => mutate((d) => {
+    const g = d.rummyGames.find((x) => x.rounds.some((r) => r.id === roundId));
+    if (!g) throw new Error('That round no longer exists');
+    if (g.scorer_id !== d.me.id) throw new Error('Only the scorer can edit this round');
+    const round = g.rounds.find((r) => r.id === roundId)!;
+    const points = new Map(scores.map((s) => [s.playerId, s.points]));
+    round.scores = round.scores.map((s) => ({ player_id: s.player_id, points: points.get(s.player_id) ?? s.points }));
+    const remaining = rummyStandings(g).filter((s) => !s.eliminated);
+    if (remaining.length <= 1) {
+      g.status = 'finished';
+      g.finished_at = g.finished_at ?? now();
+      g.winner_player_id = remaining[0]?.player.id ?? null;
+    } else {
+      g.status = 'active';
+      g.finished_at = null;
+      g.winner_player_id = null;
+    }
+  }),
+
   closeRummyGame: (gameId) => mutate((d) => {
     const g = rummyGame(d, gameId);
     if (g.scorer_id !== d.me.id) throw new Error('Only the scorer can close this game');

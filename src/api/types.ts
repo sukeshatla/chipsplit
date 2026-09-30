@@ -51,9 +51,11 @@ export interface DataApi {
   /** `groupId: null` lists standalone games (not attached to any group). */
   loadRummyGames(groupId: string | null): Promise<RummyGame[]>;
   loadRummyGame(id: string): Promise<RummyGame | null>;
-  createRummyGame(input: { groupId: string | null; name: string; pointLimit: 100 | 150 | 200; players: NewRummyPlayer[] }): Promise<string>;
+  createRummyGame(input: { groupId: string | null; name: string; pointLimit: 101 | 151 | 201; players: NewRummyPlayer[] }): Promise<string>;
   /** `scores` must cover exactly the currently-active (non-eliminated) players. */
   addRummyRound(gameId: string, scores: { playerId: string; points: number }[]): Promise<void>;
+  /** Only the scorer, at any game status -- may reopen a finished game or finish an active one. */
+  updateRummyRound(roundId: string, scores: { playerId: string; points: number }[]): Promise<void>;
   closeRummyGame(gameId: string): Promise<void>;
   deleteRummyGame(gameId: string): Promise<void>;
 }

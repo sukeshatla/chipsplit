@@ -151,6 +151,15 @@ function RummyTab({ g }: { g: Group }) {
   const q = useQuery({ queryKey: ['rummy-list', g.id], queryFn: () => api.loadRummyGames(g.id) });
 
   if (q.isLoading) return <Spinner />;
+  if (q.isError) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="font-display text-lg font-medium">Couldn't load rummy games</p>
+        <p className="mt-2 text-sm text-ink-2">{q.error instanceof Error ? q.error.message : 'Check your connection and try again.'}</p>
+        <Button className="mt-4" onClick={() => q.refetch()}>Try again</Button>
+      </Card>
+    );
+  }
   const games = q.data ?? [];
 
   return (

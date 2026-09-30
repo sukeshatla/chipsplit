@@ -17,6 +17,8 @@ export function RummyGamePage() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const [inputs, setInputs] = useState<Record<string, string>>({});
+  const [editingRoundId, setEditingRoundId] = useState<string | null>(null);
+  const [roundError, setRoundError] = useState<string | null>(null);
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -24,6 +26,15 @@ export function RummyGamePage() {
 
   if (!id) return <Navigate to="/rummy" replace />;
   if (q.isLoading) return <Spinner />;
+  if (q.isError) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="font-display text-lg font-medium">Couldn't load this game</p>
+        <p className="mt-2 text-sm text-ink-2">{q.error instanceof Error ? q.error.message : 'Check your connection and try again.'}</p>
+        <Button className="mt-4" onClick={() => q.refetch()}>Try again</Button>
+      </Card>
+    );
+  }
   const game = q.data;
   if (!game) return <Navigate to="/rummy" replace />;
 
@@ -33,15 +44,36 @@ export function RummyGamePage() {
   const isScorer = game.scorer_id === me.id;
   const winner = game.winner_player_id ? game.players.find((p) => p.id === game.winner_player_id) : null;
 
+  const editingRound = editingRoundId ? game.rounds.find((r) => r.id === editingRoundId) ?? null : null;
+  const panelPlayers = editingRound
+    ? editingRound.scores.map((s) => game.players.find((p) => p.id === s.player_id)).filter((p): p is (typeof game.players)[number] => !!p)
+    : active.map((s) => s.player);
+
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['rummy', id] });
     qc.invalidateQueries({ queryKey: ['rummy-list'] });
   };
 
-  const addRound = async () => {
-    const scores = active.map((s) => ({ playerId: s.player.id, points: Math.max(0, Number(inputs[s.player.id]) || 0) }));
-    const ok = await run((api) => api.addRummyRound(game.id, scores), 'Round added');
-    if (ok) { setInputs({}); refresh(); }
+  const startEdit = (round: NonNullable<typeof editingRound>) => {
+    const vals: Record<string, string> = {};
+    round.scores.forEach((s) => { vals[s.player_id] = String(s.points); });
+    setInputs(vals);
+    setEditingRoundId(round.id);
+    setRoundError(null);
+  };
+
+  const cancelEdit = () => { setEditingRoundId(null); setInputs({}); setRoundError(null); };
+
+  const saveRound = async () => {
+    const scores = panelPlayers.map((p) => ({ playerId: p.id, points: Math.max(0, Number(inputs[p.id]) || 0) }));
+    if (scores.every((s) => s.points === 0)) {
+      setRoundError("Everyone can't stay at 0 — enter points for the hand's losers first.");
+      return;
+    }
+    const ok = editingRound
+      ? await run((api) => api.updateRummyRound(editingRound.id, scores), 'Round updated')
+      : await run((api) => api.addRummyRound(game.id, scores), 'Round added');
+    if (ok) { setInputs({}); setEditingRoundId(null); setRoundError(null); refresh(); }
   };
 
   return (
@@ -96,22 +128,26 @@ export function RummyGamePage() {
         </Card>
 
         <div className="space-y-5">
-          {isScorer && game.status === 'active' && (
+          {isScorer && (game.status === 'active' || editingRound) && (
             <Card className="p-4 md:p-5">
-              <h2 className="mb-3 font-display text-base font-medium">Add round {game.rounds.length + 1}</h2>
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-display text-base font-medium">{editingRound ? `Edit round ${editingRound.round_no}` : `Add round ${game.rounds.length + 1}`}</h2>
+                {editingRound && <button type="button" className="text-[13px] font-semibold text-ink-2 hover:text-ink" onClick={cancelEdit}>Cancel</button>}
+              </div>
               <div className="space-y-2">
-                {active.map((s) => (
-                  <div key={s.player.id} className="flex items-center gap-3">
-                    <Avatar name={s.player.name} src={s.player.avatar_url} size={26} />
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">{s.player.name}</span>
+                {panelPlayers.map((p) => (
+                  <div key={p.id} className="flex items-center gap-3">
+                    <Avatar name={p.name} src={p.avatar_url} size={26} />
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">{p.name}</span>
                     <Input inputMode="numeric" className="w-20 text-right" placeholder="0"
-                      value={inputs[s.player.id] ?? ''} onChange={(e) => setInputs((v) => ({ ...v, [s.player.id]: e.target.value.replace(/\D/g, '') }))} />
+                      value={inputs[p.id] ?? ''} onChange={(e) => { setInputs((v) => ({ ...v, [p.id]: e.target.value.replace(/\D/g, '') })); setRoundError(null); }} />
                   </div>
                 ))}
               </div>
+              {roundError && <p className="mt-2 text-[13px] text-loss">{roundError}</p>}
               <p className="mt-2 text-[12px] text-ink-2">Leave the hand's winner at 0. Anyone who reaches {game.point_limit} is marked out.</p>
               <div className="mt-3 flex justify-end">
-                <Button variant="primary" loading={busy} onClick={addRound}>Save round</Button>
+                <Button variant="primary" loading={busy} onClick={saveRound}>{editingRound ? 'Save changes' : 'Save round'}</Button>
               </div>
             </Card>
           )}
@@ -131,7 +167,9 @@ export function RummyGamePage() {
                   </thead>
                   <tbody>
                     {game.rounds.map((r) => (
-                      <tr key={r.id} className="border-t border-line">
+                      <tr key={r.id}
+                        className={isScorer ? `cursor-pointer border-t border-line hover:bg-surface-2/60 ${editingRoundId === r.id ? 'bg-felt/10' : ''}` : 'border-t border-line'}
+                        onClick={isScorer ? () => startEdit(r) : undefined}>
                         <td className="py-1.5 pr-2 text-ink-2">{r.round_no}</td>
                         {game.players.map((p) => {
                           const s = r.scores.find((x) => x.player_id === p.id);
@@ -141,6 +179,7 @@ export function RummyGamePage() {
                     ))}
                   </tbody>
                 </table>
+                {isScorer && <p className="mt-2 text-[11px] text-ink-2">Tap a round to fix its scores.</p>}
                 <p className="mt-2 text-[11px] text-ink-2">Started {formatDate(game.created_at)}{game.finished_at ? `, finished ${formatDate(game.finished_at)}` : ''}</p>
               </div>
             )}

@@ -17,7 +17,13 @@ export function RummyListPage() {
     <>
       <PageHeader title="Rummy scores" subtitle="Track points across a game, independent of any group."
         actions={<Button variant="primary" onClick={() => setNewGame(true)}><Plus size={16} aria-hidden="true" />New rummy game</Button>} />
-      {q.isLoading ? <Spinner /> : (
+      {q.isLoading ? <Spinner /> : q.isError ? (
+        <Card className="p-8 text-center">
+          <p className="font-display text-lg font-medium">Couldn't load your rummy games</p>
+          <p className="mt-2 text-sm text-ink-2">{q.error instanceof Error ? q.error.message : 'Check your connection and try again.'}</p>
+          <Button className="mt-4" onClick={() => q.refetch()}>Try again</Button>
+        </Card>
+      ) : (
         <Card>
           {!q.data || q.data.length === 0 ? (
             <EmptyState icon={<Spade size={28} />} title="No rummy games yet" body="Start one, add friends or players by name, and track points hand by hand."
