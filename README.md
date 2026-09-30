@@ -135,6 +135,13 @@ The **Continue with Google** button is now active.
 
 The workflow runs the tests, builds with the right base path, and publishes. If your repo is named `<username>.github.io`, change `VITE_BASE` in `.github/workflows/deploy.yml` to `/`.
 
+**Custom domain (optional):** this project is live at **chipnsplit.org**, registered on Cloudflare. To point your own domain at GitHub Pages:
+1. In Cloudflare DNS, add four `A` records at `@` to `185.199.108.153`, `.109.153`, `.110.153`, `.111.153`, plus a `CNAME` for `www` to `<your-github-username>.github.io` — all set to **DNS only** (grey cloud), at least until GitHub's certificate is issued.
+2. Set the domain: **Settings → Pages → Custom domain**, or `gh api -X PUT repos/<user>/<repo>/pages -f cname=yourdomain.com`.
+3. Since the site now serves from the domain's root instead of a `/<repo-name>/` subpath, change `VITE_BASE` in `.github/workflows/deploy.yml` to `/` (same fix as the `<username>.github.io` case above).
+4. Add the new domain to Google Cloud's **Authorized JavaScript origins** and Supabase's **Authentication → URL Configuration** (Site URL and Redirect URLs) — same as the localhost/github.io entries added during initial setup.
+5. Once DNS resolves (Cloudflare is usually near-instant), GitHub auto-issues an HTTPS certificate; enable **Enforce HTTPS** in Pages settings once it's ready.
+
 **Keep-alive:** Supabase pauses free projects after about a week without activity. `.github/workflows/keep-alive.yml` pings the database every three days using the same secrets, so a quiet month won't take the app offline. If it does pause, click **Restore** in the Supabase dashboard; no data is lost.
 
 **Install on a phone:** open the site in Safari (iPhone) and use **Share → Add to Home Screen**, or in Chrome (Android) use **Install app**. It's a PWA with a service worker, so after an update you may need to fully close and reopen the installed app (or hard-refresh a browser tab) to see the new version.

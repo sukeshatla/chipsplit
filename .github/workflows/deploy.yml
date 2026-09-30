@@ -27,8 +27,8 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          # For a <user>.github.io repo, change this to "/".
-          VITE_BASE: /${{ github.event.repository.name }}/
+          # Served from the custom domain chipnsplit.org (root), not a /<repo>/ subpath.
+          VITE_BASE: /
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v3

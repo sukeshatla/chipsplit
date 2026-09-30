@@ -2,7 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// VITE_BASE is set by the GitHub Pages workflow to "/<repo-name>/".
+// VITE_BASE is set by the GitHub Pages workflow. "/" for a custom domain or a
+// <user>.github.io repo (served from the root); "/<repo-name>/" for the default
+// <user>.github.io/<repo-name>/ project-site URL.
 export default defineConfig({
   base: process.env.VITE_BASE ?? '/',
   build: {
