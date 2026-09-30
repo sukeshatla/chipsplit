@@ -1,4 +1,4 @@
-import type { AppData, ChangeLogEntry, Contact, GameSession, Group } from './types';
+import type { AppData, ChangeLogEntry, GameSession, Group } from './types';
 import { settle, type Transfer } from './settle';
 import { formatMoney } from './money';
 
@@ -158,10 +158,6 @@ export function friendsList(data: AppData): FriendRow[] {
     else rows.set(key, { key, name: c.name, email: c.email, net: 0, groups: [], contactId: c.id, status: statusFromKey(key) });
   }
   return [...rows.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
-}
-
-export function findContact(data: AppData, id: string): Contact | undefined {
-  return data.contacts.find((c) => c.id === id);
 }
 
 export function totals(data: AppData) {
