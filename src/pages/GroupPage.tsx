@@ -149,20 +149,25 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
           <div className="mt-2">
             {transfers.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Everyone is settled up.</p> :
               transfers.map((t) => (
-                <Row key={`${t.from}-${t.to}`}>
-                  <Avatar name={memberName(g, t.from)} src={memberAvatar(g, t.from)} size={28} />
-                  <span className="min-w-0 flex-1 truncate text-sm">
-                    <b className="font-semibold text-loss">{memberName(g, t.from)}</b>
-                    <ArrowRight size={14} className="mx-1.5 inline text-ink-2" aria-label="pays" />
-                    <b className="font-semibold text-gain">{memberName(g, t.to)}</b>
-                  </span>
-                  <span className="amount font-display font-medium">{formatMoney(t.cents, g.currency)}</span>
-                  {reminderMailto(g, t) && (
-                    <IconButton label={`Remind ${memberName(g, t.from)}`} title="Email a settle-up reminder"
-                      onClick={() => { window.location.href = reminderMailto(g, t)!; }}><Mail size={16} /></IconButton>
-                  )}
-                  <Button size="sm" onClick={() => onSettle({ from: t.from, to: t.to, cents: t.cents })}>Record</Button>
-                </Row>
+                <div key={`${t.from}-${t.to}`}
+                  className="flex flex-col gap-2 border-b border-line px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3 md:px-5">
+                  <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                    <Avatar name={memberName(g, t.from)} src={memberAvatar(g, t.from)} size={28} />
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      <b className="font-semibold text-loss">{memberName(g, t.from)}</b>
+                      <ArrowRight size={14} className="mx-1.5 inline text-ink-2" aria-label="pays" />
+                      <b className="font-semibold text-gain">{memberName(g, t.to)}</b>
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center justify-end gap-2">
+                    <span className="amount font-display font-medium">{formatMoney(t.cents, g.currency)}</span>
+                    {reminderMailto(g, t) && (
+                      <IconButton label={`Remind ${memberName(g, t.from)}`} title="Email a settle-up reminder"
+                        onClick={() => { window.location.href = reminderMailto(g, t)!; }}><Mail size={16} /></IconButton>
+                    )}
+                    <Button size="sm" onClick={() => onSettle({ from: t.from, to: t.to, cents: t.cents })}>Record</Button>
+                  </div>
+                </div>
               ))}
           </div>
         </Card>

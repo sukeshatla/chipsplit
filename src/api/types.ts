@@ -1,5 +1,16 @@
 import type { AppData, ChangeLogEntry, GameSession, GroupKind, NewExpense, NewSession, NewSettlement, Profile, SessionResult } from '../lib/types';
 
+export interface AdminOverview {
+  total_users: number;
+  new_today: number;
+  new_this_week: number;
+  new_this_month: number;
+  active_today: number;
+  active_this_week: number;
+}
+export interface AdminDailyActivity { day: string; new_users: number; active_users: number }
+export interface AdminSignup { id: string; display_name: string; email: string; created_at: string; last_seen_at: string | null }
+
 /** Everything the UI can do. Implemented by Supabase (real) and localStorage (demo). */
 export interface DataApi {
   mode: 'demo' | 'supabase';
@@ -31,4 +42,8 @@ export interface DataApi {
   setGroupAdmin(memberId: string, isAdmin: boolean): Promise<void>;
   loadNotifications(): Promise<ChangeLogEntry[]>;
   markNotificationsSeen(): Promise<void>;
+  /** Admin-only; the server independently verifies the caller before returning anything. */
+  loadAdminOverview(): Promise<AdminOverview | null>;
+  loadAdminDailyActivity(days?: number): Promise<AdminDailyActivity[]>;
+  loadAdminRecentSignups(limit?: number): Promise<AdminSignup[]>;
 }

@@ -271,4 +271,10 @@ export const demoApi: DataApi = {
   loadNotifications: () => mutate((d) => d.changeLog.slice().reverse().slice(0, 50)),
 
   markNotificationsSeen: () => mutate((d) => { d.me.notifications_seen_at = now(); }),
+
+  // Admin analytics reads real signup/activity data across every user, which demo mode has
+  // no equivalent of; the admin page is gated to one real account anyway, so this never runs.
+  loadAdminOverview: () => Promise.resolve(null),
+  loadAdminDailyActivity: () => Promise.resolve([]),
+  loadAdminRecentSignups: () => Promise.resolve([]),
 };

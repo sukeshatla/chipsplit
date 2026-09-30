@@ -13,6 +13,7 @@ import { FriendsPage } from './pages/FriendsPage';
 import { FriendDetailPage } from './pages/FriendDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ActivityPage } from './pages/ActivityPage';
+import { AdminPage } from './pages/AdminPage';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="friends" element={<FriendsPage />} />
           <Route path="friends/:key" element={<FriendDetailPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="admin" element={<AdminPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

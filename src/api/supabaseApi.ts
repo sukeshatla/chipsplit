@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../lib/supabase';
 import type { AppData, ChangeLogEntry, Contact, Group, Profile } from '../lib/types';
-import type { DataApi } from './types';
+import type { AdminDailyActivity, AdminOverview, AdminSignup, DataApi } from './types';
 
 function db() {
   if (!supabase) throw new Error('Supabase is not configured. Add your keys to .env.local.');
@@ -67,6 +67,8 @@ export const supabaseApi: DataApi = {
 
   async loadAll(): Promise<AppData> {
     const user = await currentUser();
+    // Best-effort usage ping; never blocks or fails the load it's attached to.
+    db().rpc('record_visit').then(() => {}, () => {});
     let profile = check(await db().from('profiles').select('*').eq('id', user.id).maybeSingle()) as Profile | null;
     if (!profile) {
       const meta = user.user_metadata ?? {};
@@ -275,5 +277,18 @@ export const supabaseApi: DataApi = {
   async markNotificationsSeen() {
     const user = await currentUser();
     check(await db().from('profiles').update({ notifications_seen_at: new Date().toISOString() }).eq('id', user.id));
+  },
+
+  async loadAdminOverview() {
+    const rows = check(await db().rpc('admin_overview')) as AdminOverview[];
+    return rows[0] ?? null;
+  },
+
+  async loadAdminDailyActivity(days = 30) {
+    return check(await db().rpc('admin_daily_activity', { p_days: days })) as AdminDailyActivity[];
+  },
+
+  async loadAdminRecentSignups(limit = 20) {
+    return check(await db().rpc('admin_recent_signups', { p_limit: limit })) as AdminSignup[];
   },
 };

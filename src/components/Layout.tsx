@@ -1,8 +1,9 @@
 import { NavLink, Outlet, Link } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { LayoutDashboard, Users, Spade, HeartHandshake, UserRound, FlaskConical } from 'lucide-react';
+import { LayoutDashboard, Users, Spade, HeartHandshake, UserRound, FlaskConical, ShieldCheck } from 'lucide-react';
 import { DataProvider, useAppQuery } from '../app/data';
 import { useAuth } from '../app/auth';
+import { isAppAdmin } from '../lib/admin';
 import { Avatar, Button, Spinner } from './ui';
 import { Logo } from './Logo';
 import { NotificationsBell } from './NotificationsBell';
@@ -14,6 +15,7 @@ const NAV = [
   { to: '/friends', label: 'Friends', icon: HeartHandshake },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ];
+const ADMIN_NAV = { to: '/admin', label: 'Admin', icon: ShieldCheck, end: false };
 
 export function Layout() {
   const q = useAppQuery();
@@ -33,6 +35,7 @@ export function Layout() {
     );
   }
   const me = q.data.me;
+  const nav = isAppAdmin(me.email) ? [...NAV, ADMIN_NAV] : NAV;
 
   return (
     <DataProvider data={q.data}>
@@ -43,7 +46,7 @@ export function Layout() {
             <NotificationsBell />
           </div>
           <nav className="flex flex-col gap-0.5">
-            {NAV.map(({ to, label, icon: Icon, end }) => (
+            {nav.map(({ to, label, icon: Icon, end }) => (
               <NavLink key={to} to={to} end={end}
                 className={({ isActive }) => clsx('flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition-colors',
                   isActive ? 'bg-felt text-felt-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink')}>
@@ -80,7 +83,7 @@ export function Layout() {
         </div>
 
         <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end}
               className={({ isActive }) => clsx('flex h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold',
                 isActive ? 'text-felt dark:text-gain' : 'text-ink-2')}>
