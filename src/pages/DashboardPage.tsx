@@ -17,7 +17,7 @@ export function DashboardPage() {
   const { me, groups } = data;
   const currency = me.default_currency || 'USD';
   const t = totals(data);
-  const feed = activity(data, 8);
+  const feed = activity(data, 8, undefined, true);
   const poker = pokerStats(data);
   const openGames = groups.flatMap((g) => g.sessions.filter((s) => s.status === 'open').map((s) => ({ g, s })));
   const [newGroup, setNewGroup] = useState(false);

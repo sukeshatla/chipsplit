@@ -184,7 +184,9 @@ export interface ActivityItem {
   link: string;
 }
 
-export function activity(data: AppData, limit = 20, onlyGroupId?: string): ActivityItem[] {
+/** `onlyMine` drops anything you weren't a payer/sharer/player/party to -- for the Dashboard feed,
+ *  as opposed to a group's own History tab, which is the place to see everything in that group. */
+export function activity(data: AppData, limit = 20, onlyGroupId?: string, onlyMine?: boolean): ActivityItem[] {
   const items: ActivityItem[] = [];
   for (const g of data.groups) {
     if (onlyGroupId && g.id !== onlyGroupId) continue;
@@ -192,6 +194,7 @@ export function activity(data: AppData, limit = 20, onlyGroupId?: string): Activ
     for (const e of g.expenses) {
       const paid = e.payers.filter((p) => p.member_id === mine).reduce((a, p) => a + p.amount_cents, 0);
       const share = e.shares.filter((s) => s.member_id === mine).reduce((a, s) => a + s.amount_cents, 0);
+      if (onlyMine && !paid && !share) continue;
       const payerNames = e.payers.map((p) => memberName(g, p.member_id)).join(', ');
       items.push({
         id: e.id, kind: 'expense', date: e.spent_on, createdAt: e.created_at, title: e.description,
@@ -201,6 +204,7 @@ export function activity(data: AppData, limit = 20, onlyGroupId?: string): Activ
     }
     for (const s of g.sessions) {
       const r = s.results.find((x) => x.member_id === mine);
+      if (onlyMine && !r) continue;
       items.push({
         id: s.id, kind: 'game', date: s.played_on, createdAt: s.created_at,
         title: s.location ? `Game at ${s.location}` : 'Game',
@@ -211,6 +215,7 @@ export function activity(data: AppData, limit = 20, onlyGroupId?: string): Activ
       });
     }
     for (const st of g.settlements) {
+      if (onlyMine && st.from_member !== mine && st.to_member !== mine) continue;
       items.push({
         id: st.id, kind: 'payment', date: st.settled_on, createdAt: st.created_at,
         title: `${memberName(g, st.from_member)} paid ${memberName(g, st.to_member)}`,
