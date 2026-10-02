@@ -30,7 +30,7 @@ async function log(groupId: string, entityType: ChangeLogEntry['entity_type'], e
 }
 
 const GROUP_SELECT = `
-  id, name, kind, currency, created_by, created_at,
+  id, name, kind, currency, is_direct, created_by, created_at,
   group_members ( id, group_id, user_id, contact_id, name, email, email_opt_out, is_admin ),
   expenses ( id, group_id, description, category, amount_cents, spent_on, created_by, created_at, deleted_at,
     expense_payers ( member_id, amount_cents ), expense_shares ( member_id, amount_cents ) ),
@@ -86,7 +86,7 @@ function mapExpense(e: any) {
 function mapGroup(r: any): Group {
   const expenses = (r.expenses ?? []).map(mapExpense);
   return {
-    id: r.id, name: r.name, kind: r.kind, currency: r.currency, created_by: r.created_by, created_at: r.created_at,
+    id: r.id, name: r.name, kind: r.kind, currency: r.currency, is_direct: !!r.is_direct, created_by: r.created_by, created_at: r.created_at,
     members: (r.group_members ?? []).map((m: any) => ({ ...m })),
     expenses: expenses.filter((e: any) => !e.deleted_at),
     deleted_expenses: expenses.filter((e: any) => e.deleted_at),
@@ -162,8 +162,8 @@ export const supabaseApi: DataApi = {
     check(await db().from('profiles').update({ avatar_url: null }).eq('id', user.id));
   },
 
-  async createGroup({ name, kind, currency }) {
-    return check(await db().rpc('create_group', { p_name: name, p_kind: kind, p_currency: currency })) as string;
+  async createGroup({ name, kind, currency, direct }) {
+    return check(await db().rpc('create_group', { p_name: name, p_kind: kind, p_currency: currency, p_direct: !!direct })) as string;
   },
 
   async updateGroup(id, patch) {

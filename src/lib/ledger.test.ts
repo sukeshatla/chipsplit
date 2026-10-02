@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { settle } from './settle';
 import { splitByWeights, splitEqual, parseMoney, equalPercents } from './money';
-import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink, shortName } from './ledger';
+import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink, shortName, listedGroups, directFriendKey, activity } from './ledger';
 import type { AppData, Group } from './types';
 
 describe('settle', () => {
@@ -308,5 +308,27 @@ describe('shortName', () => {
     const others = ['Srinath Pinnaka', 'Srinath Patel', 'Srija Poreddy'];
     expect(shortName('Srinath Pinnaka', others)).toBe('Srinath Pinnaka');
     expect(shortName('Srija Poreddy', others)).toBe('Srija P.');
+  });
+});
+
+describe('direct (friend-only) groups', () => {
+  const me = { id: 'me', display_name: 'Me', email: 'me@x.com', avatar_url: null, default_currency: 'USD', notifications_seen_at: '' };
+  const mem = (id: string, userId: string | null, name: string) => ({ id, group_id: 'd', user_id: userId, contact_id: null, name, email: `${name.toLowerCase()}@x.com`, email_opt_out: false, is_admin: true });
+  const direct: Group = {
+    id: 'd', name: 'Kiran', kind: 'expenses', is_direct: true, currency: 'USD', created_by: 'me', created_at: '',
+    members: [mem('m1', 'me', 'Me'), mem('m2', null, 'Kiran')], sessions: [], settlements: [],
+    expenses: [{ id: 'e1', group_id: 'd', description: 'Coffee', category: 'food', amount_cents: 1200, spent_on: '2026-10-02', created_by: 'me', created_at: '',
+      payers: [{ member_id: 'm1', amount_cents: 1200 }], shares: [{ member_id: 'm1', amount_cents: 600 }, { member_id: 'm2', amount_cents: 600 }] }],
+  };
+  const club: Group = { ...direct, id: 'c', name: 'Club', kind: 'club', is_direct: false, expenses: [] };
+  const data: AppData = { me, groups: [club, direct], contacts: [] };
+
+  it('leaves direct groups out of Groups lists', () => {
+    expect(listedGroups(data).map((g) => g.id)).toEqual(['c']);
+  });
+  it('points one-on-one activity at the friend page', () => {
+    expect(directFriendKey(direct, 'me')).toBe('e:kiran@x.com');
+    expect(directFriendKey(club, 'me')).toBeNull();
+    expect(activity(data).find((a) => a.id === 'e1')!.link).toBe('/friends/e%3Akiran%40x.com?expense=e1');
   });
 });

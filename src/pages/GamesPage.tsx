@@ -49,7 +49,7 @@ export function GamesPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{g.name}{s.location ? `, ${s.location}` : ''}</p>
-                  <p className="text-[12px] text-ink-2">{s.results.length} players, {formatMoney(s.results.reduce((a, x) => a + x.buy_in_cents, 0), g.currency)} in play</p>
+                  <p className="truncate text-[12px] text-ink-2">{s.results.length} players, {formatMoney(s.results.reduce((a, x) => a + x.buy_in_cents, 0), g.currency)} in play</p>
                 </div>
                 {s.status === 'open' ? <Badge tone="brass">In progress</Badge>
                   : r ? <Amount cents={r.cash_out_cents - r.buy_in_cents} currency={g.currency} sign />

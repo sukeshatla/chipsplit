@@ -5,11 +5,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { useToast } from '../app/toast';
-import { pokerStats } from '../lib/ledger';
 import { getTheme, setTheme, type Theme } from '../lib/theme';
 import { resizeImage } from '../lib/image';
 import { resetDemo } from '../api/demoApi';
-import { Amount, Avatar, Button, Card, Field, Input, PageHeader, Select } from '../components/ui';
+import { Avatar, Button, Card, Field, Input, PageHeader, Select } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CURRENCIES } from '../components/dialogs/CreateGroupDialog';
 
@@ -25,7 +24,6 @@ export function ProfilePage() {
   const [theme, setThemeState] = useState<Theme>(getTheme());
   const [confirmingReset, setConfirmingReset] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const stats = pokerStats(data);
   const dirty = name.trim() !== me.display_name || currency !== me.default_currency;
 
   const handlePhoto = async (file: File | undefined) => {
@@ -87,18 +85,6 @@ export function ProfilePage() {
         </Card>
 
         <div className="space-y-5">
-          <Card className="p-5">
-            <h2 className="mb-3 font-display text-base font-medium">Your card games</h2>
-            {stats.games === 0 ? <p className="text-sm text-ink-2">Play a finalized game to see your numbers.</p> : (
-              <dl className="grid grid-cols-2 gap-y-4">
-                <div><dt className="text-[13px] text-ink-2">All-time</dt><dd><Amount cents={stats.net} currency={currency} sign className="text-lg md:text-xl" /></dd></div>
-                <div><dt className="text-[13px] text-ink-2">Winning nights</dt><dd className="font-display text-lg font-medium md:text-xl">{stats.wins} of {stats.games}</dd></div>
-                <div><dt className="text-[13px] text-ink-2">Best night</dt><dd><Amount cents={stats.best} currency={currency} sign className="text-lg md:text-xl" /></dd></div>
-                <div><dt className="text-[13px] text-ink-2">Worst night</dt><dd><Amount cents={stats.worst} currency={currency} sign className="text-lg md:text-xl" /></dd></div>
-              </dl>
-            )}
-          </Card>
-
           <Card className="p-5">
             <h2 className="mb-3 font-display text-base font-medium">Appearance</h2>
             <div role="radiogroup" className="grid grid-cols-3 gap-2">

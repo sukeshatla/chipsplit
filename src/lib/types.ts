@@ -88,6 +88,9 @@ export interface Group {
   name: string;
   kind: GroupKind;
   currency: string;
+  /** A friend-only expense group (made from Quick add or a friend's page): hidden from Groups
+   *  lists and shown under Friends instead. Works like any other group underneath. */
+  is_direct?: boolean;
   created_by: string | null;
   created_at: string;
   members: Member[];

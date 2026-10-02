@@ -131,10 +131,10 @@ export const demoApi: DataApi = {
 
   removeAvatar: () => mutate((d) => { d.me.avatar_url = null; }),
 
-  createGroup: ({ name, kind, currency }) => mutate((d) => {
+  createGroup: ({ name, kind, currency, direct }) => mutate((d) => {
     const id = uid();
     d.groups.push({
-      id, name, kind, currency, created_by: d.me.id, created_at: now(),
+      id, name, kind, currency, is_direct: !!direct, created_by: d.me.id, created_at: now(),
       members: [{ id: uid(), group_id: id, user_id: d.me.id, contact_id: null, name: d.me.display_name, email: d.me.email, email_opt_out: false, is_admin: true }],
       expenses: [], deleted_expenses: [], sessions: [], settlements: [],
     });

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Spade, Receipt, Users } from 'lucide-react';
 import { useData } from '../app/data';
-import { groupBalances, myMemberId } from '../lib/ledger';
+import { groupBalances, listedGroups, myMemberId } from '../lib/ledger';
 import { Amount, Avatar, Badge, Button, Card, EmptyState, PageHeader, Tabs } from '../components/ui';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import type { GroupKind } from '../lib/types';
@@ -23,7 +23,9 @@ export function GroupIcon({ kind, size = 36 }: { kind: GroupKind; size?: number 
 }
 
 export function GroupsPage() {
-  const { me, groups } = useData();
+  const data = useData();
+  const { me } = data;
+  const groups = listedGroups(data);
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
   const shown = groups.filter((g) => filter === 'all' || (filter === 'games' ? g.kind === 'club' : g.kind === 'expenses'));

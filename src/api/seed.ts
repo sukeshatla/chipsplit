@@ -117,7 +117,11 @@ export function seedDemo(): AppData {
   // A friend added straight to the address book, not part of any group yet.
   contacts.set('Meera', { id: uid(), owner_id: me.id, user_id: null, name: 'Meera', email: null, created_at: `${daysAgo(5)}T12:00:00Z` });
 
-  return { me, groups: [club, trip, home], contacts: [...contacts.values()] };
+  // ---- One-on-one with Ajay, outside any group (Quick add / a friend's page) ----
+  const withAjay = { ...makeGroup('Ajay', 'expenses', ['Suki', 'Ajay'], 12), is_direct: true };
+  withAjay.expenses.push(exp(withAjay, 'Movie tickets', 'fun', 36, 'Suki', ['Suki', 'Ajay'], 4));
+
+  return { me, groups: [club, trip, home, withAjay], contacts: [...contacts.values()] };
 }
 
 /** A few recent, plausible history entries -- all from Ravi, the one demo friend who's "signed

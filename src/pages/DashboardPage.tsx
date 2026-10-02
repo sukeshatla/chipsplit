@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
-import { activity, groupBalances, myMemberId, pokerStats, totals } from '../lib/ledger';
+import { activity, friendBalances, groupBalances, listedGroups, myMemberId, pokerStats, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Button, Card, CardHeader, EmptyState, PageHeader, Row } from '../components/ui';
+import { Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row } from '../components/ui';
 import { GroupIcon } from './GroupsPage';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import { QuickExpenseDialog } from '../components/dialogs/QuickExpenseDialog';
@@ -13,12 +13,18 @@ const ACTIVITY_ICON = { expense: Receipt, game: Spade, payment: HandCoins };
 
 export function DashboardPage() {
   const data = useData();
-  const { me, groups } = data;
+  const { me } = data;
+  const groups = listedGroups(data);
+  // Friends you have one-on-one (non-group) expenses with, and where you stand with each.
+  const directFriends = friendBalances(data)
+    .map((f) => ({ ...f, direct: f.groups.filter((fg) => fg.group.is_direct).reduce((a, fg) => a + fg.cents, 0), has: f.groups.some((fg) => fg.group.is_direct) }))
+    .filter((f) => f.has)
+    .sort((a, b) => Math.abs(b.direct) - Math.abs(a.direct) || a.name.localeCompare(b.name));
   const currency = me.default_currency || 'USD';
   const t = totals(data);
-  const feed = activity(data, 8, undefined, true);
+  const feed = activity(data, 5, undefined, true);
   const poker = pokerStats(data);
-  const openGames = groups.flatMap((g) => g.sessions.filter((s) => s.status === 'open').map((s) => ({ g, s })));
+  const openGames = data.groups.flatMap((g) => g.sessions.filter((s) => s.status === 'open').map((s) => ({ g, s })));
   const [newGroup, setNewGroup] = useState(false);
   const [quickExpense, setQuickExpense] = useState(false);
   const hour = new Date().getHours();
@@ -67,29 +73,6 @@ export function DashboardPage() {
       )}
 
       <Card>
-        <CardHeader title="Recent activity" action={feed.length > 0 && <Link to="/activity" className="text-[13px] font-semibold text-felt dark:text-gain">See more</Link>} />
-        <div className="mt-2">
-          {feed.length === 0 ? (
-            <EmptyState icon={<Receipt size={28} />} title="Nothing logged yet" body="Games, expenses, and payments show up here." />
-          ) : feed.map((a) => {
-            const Icon = ACTIVITY_ICON[a.kind];
-            return (
-              <Link key={a.id} to={a.link} className="block">
-                <Row className="hover:bg-surface-2/60">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2"><Icon size={16} aria-hidden="true" /></span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{a.title}</p>
-                    <p className="truncate text-[12px] text-ink-2">{a.group.name}, {a.detail}, {formatDate(a.date, { month: 'short', day: 'numeric' })}</p>
-                  </div>
-                  {a.impact !== null ? <Amount cents={a.impact} currency={a.group.currency} sign /> : <span className="text-right text-[12px] text-ink-2">{a.note ?? 'not involved'}</span>}
-                </Row>
-              </Link>
-            );
-          })}
-        </div>
-      </Card>
-
-      <Card className="mt-5">
         <CardHeader title="Groups" action={groups.length > 0 && <Link to="/groups" className="text-[13px] font-semibold text-felt dark:text-gain">See all</Link>} />
         <div className="mt-2">
           {groups.length === 0 ? (
@@ -106,6 +89,46 @@ export function DashboardPage() {
                   <p className="text-[12px] text-ink-2">{g.members.length} people</p>
                 </div>
                 <Amount cents={bal} currency={g.currency} sign />
+              </Link>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card className="mt-5">
+        <CardHeader title="Friends" action={<Link to="/friends" className="text-[13px] font-semibold text-felt dark:text-gain">See all</Link>} />
+        <p className="px-4 text-[12px] text-ink-2 md:px-5">One-on-one expenses, outside any group.</p>
+        <div className="mt-1">
+          {directFriends.length === 0 ? (
+            <EmptyState icon={<Receipt size={28} />} title="Nothing one-on-one yet" body="Split something with a friend without making a group."
+              action={<Button onClick={() => setQuickExpense(true)}><Receipt size={16} aria-hidden="true" />Add expense</Button>} />
+          ) : directFriends.slice(0, 6).map((f) => (
+            <Link key={f.key} to={`/friends/${encodeURIComponent(f.key)}`} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-surface-2/60 md:px-5">
+              <Avatar name={f.name} src={f.avatar_url} size={32} />
+              <p className="min-w-0 flex-1 truncate text-sm font-semibold">{f.name}</p>
+              <BalanceText cents={f.direct} currency={currency} />
+            </Link>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="mt-5">
+        <CardHeader title="Recent activity" action={feed.length > 0 && <Link to="/activity" className="text-[13px] font-semibold text-felt dark:text-gain">See more</Link>} />
+        <div className="mt-2">
+          {feed.length === 0 ? (
+            <EmptyState icon={<Receipt size={28} />} title="Nothing logged yet" body="Games, expenses, and payments show up here." />
+          ) : feed.map((a) => {
+            const Icon = ACTIVITY_ICON[a.kind];
+            return (
+              <Link key={a.id} to={a.link} className="block">
+                <Row className="hover:bg-surface-2/60">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2"><Icon size={16} aria-hidden="true" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{a.title}</p>
+                    <p className="truncate text-[12px] text-ink-2">{a.group.is_direct ? `with ${a.group.name}` : a.group.name}, {a.detail}, {formatDate(a.date, { month: 'short', day: 'numeric' })}</p>
+                  </div>
+                  {a.impact !== null ? <Amount cents={a.impact} currency={a.group.currency} sign /> : <span className="text-right text-[12px] text-ink-2">{a.note ?? 'not involved'}</span>}
+                </Row>
               </Link>
             );
           })}

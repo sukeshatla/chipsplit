@@ -102,6 +102,19 @@ export function isGroupSettled(g: Group): boolean {
   return [...groupBalances(g).values()].every((v) => v === 0);
 }
 
+/** Groups shown in Groups lists: everything except friend-only (direct) expense groups. */
+export function listedGroups(data: AppData): Group[] {
+  return data.groups.filter((g) => !g.is_direct);
+}
+
+/** For a direct group with exactly one other person, that person's friend key -- so links
+ *  about it can go to their friend page instead of a group page nobody sees in lists. */
+export function directFriendKey(g: Group, meId: string): string | null {
+  if (!g.is_direct) return null;
+  const others = g.members.filter((m) => m.user_id !== meId);
+  return others.length === 1 ? friendKey(others[0]!) : null;
+}
+
 export function memberHasActivity(g: Group, memberId: string) {
   // Deleted expenses count: they can still be restored, and the database won't remove a member they reference.
   return (
@@ -212,6 +225,7 @@ export function activity(data: AppData, limit = 20, onlyGroupId?: string, onlyMi
   for (const g of data.groups) {
     if (onlyGroupId && g.id !== onlyGroupId) continue;
     const mine = myMemberId(g, data.me.id);
+    const direct = directFriendKey(g, data.me.id);
     for (const e of g.expenses) {
       const paid = e.payers.filter((p) => p.member_id === mine).reduce((a, p) => a + p.amount_cents, 0);
       const share = e.shares.filter((s) => s.member_id === mine).reduce((a, s) => a + s.amount_cents, 0);
@@ -220,7 +234,7 @@ export function activity(data: AppData, limit = 20, onlyGroupId?: string, onlyMi
       items.push({
         id: e.id, kind: 'expense', date: e.spent_on, createdAt: e.created_at, title: e.description,
         detail: `${payerNames} paid`, group: g, impact: paid || share ? paid - share : null,
-        link: `/groups/${g.id}?tab=expenses&expense=${e.id}`,
+        link: direct ? `/friends/${encodeURIComponent(direct)}?expense=${e.id}` : `/groups/${g.id}?tab=expenses&expense=${e.id}`,
       });
     }
     for (const s of g.sessions) {
@@ -244,7 +258,7 @@ export function activity(data: AppData, limit = 20, onlyGroupId?: string, onlyMi
         impact: null,
         note: st.from_member === mine ? `you paid ${formatMoney(st.amount_cents, g.currency)}`
           : st.to_member === mine ? `you got ${formatMoney(st.amount_cents, g.currency)}` : undefined,
-        link: `/groups/${g.id}?tab=balances`,
+        link: direct ? `/friends/${encodeURIComponent(direct)}` : `/groups/${g.id}?tab=balances`,
       });
     }
   }

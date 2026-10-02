@@ -91,7 +91,7 @@ export function Field({ label, error, hint, children, className }: { label: stri
 
 export function Amount({ cents, currency = 'USD', sign, className }: { cents: number; currency?: string; sign?: boolean; className?: string }) {
   return (
-    <span className={clsx('amount font-display font-medium', cents > 0 ? 'text-gain' : cents < 0 ? 'text-loss' : 'text-ink-2', className)}>
+    <span className={clsx('amount shrink-0 whitespace-nowrap font-display font-medium', cents > 0 ? 'text-gain' : cents < 0 ? 'text-loss' : 'text-ink-2', className)}>
       {formatMoney(cents, currency, { sign })}
     </span>
   );
@@ -99,10 +99,10 @@ export function Amount({ cents, currency = 'USD', sign, className }: { cents: nu
 
 /** "owes you $20" / "you owe $20" / "settled up" (perspective "you"), or "gets back $20" / "owes $20" (perspective "them"). */
 export function BalanceText({ cents, currency = 'USD', perspective = 'you' }: { cents: number; currency?: string; perspective?: 'you' | 'them' }) {
-  if (cents === 0) return <span className="text-[13px] text-ink-2">settled up</span>;
+  if (cents === 0) return <span className="shrink-0 whitespace-nowrap text-[13px] text-ink-2">settled up</span>;
   const label = perspective === 'you' ? (cents > 0 ? 'owes you' : 'you owe') : (cents > 0 ? 'gets back' : 'owes');
   return (
-    <span className="text-right leading-tight">
+    <span className="shrink-0 whitespace-nowrap text-right leading-tight">
       <span className={clsx('block text-[12px] font-semibold', cents > 0 ? 'text-gain' : 'text-loss')}>{label}</span>
       <span className={clsx('amount font-display text-base font-medium', cents > 0 ? 'text-gain' : 'text-loss')}>{formatMoney(Math.abs(cents), currency)}</span>
     </span>
@@ -138,7 +138,7 @@ export function AvatarButton({ name, src, size = 32, onClick }: { name: string; 
 
 export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'gain' | 'loss' | 'brass' | 'felt'; children: ReactNode }) {
   return (
-    <span className={clsx('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[12px] font-semibold',
+    <span className={clsx('inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-[12px] font-semibold',
       tone === 'neutral' && 'bg-surface-2 text-ink-2', tone === 'gain' && 'bg-gain/10 text-gain',
       tone === 'loss' && 'bg-loss/10 text-loss', tone === 'brass' && 'bg-brass/15 text-brass', tone === 'felt' && 'bg-felt/10 text-felt')}>
       {children}
