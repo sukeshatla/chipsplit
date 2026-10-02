@@ -121,15 +121,11 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
             <p><span className="text-[12px] opacity-80 md:block md:text-sm">In </span><span className="amount font-display text-base font-medium md:text-3xl">{formatMoney(totalIn, g.currency)}</span></p>
             <p><span className="text-[12px] opacity-80 md:block md:text-sm">Out </span><span className="amount font-display text-base font-medium md:text-3xl">{formatMoney(totalOut, g.currency)}</span></p>
           </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <p className={clsx('min-w-0 text-[12px] font-semibold md:text-sm', !balanced && (diff === 0 || totalOut === 0 ? 'text-ink-2' : 'text-loss'))}>
-              {balanced ? 'Balances' : lines.length < 2 ? 'Add 2+ players'
-                : totalOut === 0 ? (final ? '' : 'Playing')
-                  : `${formatMoney(Math.abs(diff), g.currency)} ${diff > 0 ? 'over' : 'short'}`}
-            </p>
-            {!final && dirty && <Button size="sm" className="md:hidden" loading={busy} onClick={save}>Save</Button>}
-            {!final && balanced && <Button size="sm" variant="secondary" className="md:hidden" loading={busy} onClick={finalize}>Finalize</Button>}
-          </div>
+          <p className={clsx('min-w-0 text-[12px] font-semibold md:text-sm', !balanced && (diff === 0 || totalOut === 0 ? 'text-ink-2' : 'text-loss'))}>
+            {balanced ? 'Table balances' : lines.length < 2 ? 'Add 2+ players'
+              : totalOut === 0 ? (final ? '' : 'Playing')
+                : `${formatMoney(Math.abs(diff), g.currency)} ${diff > 0 ? 'over' : 'short'}`}
+          </p>
         </div>
       </section>
       {error && <p role="alert" className="mb-4 rounded-lg bg-loss/10 px-3 py-2 text-sm text-loss">{error}</p>}

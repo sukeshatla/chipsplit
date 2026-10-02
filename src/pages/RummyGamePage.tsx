@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { clsx } from 'clsx';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Lock, Spade, Trash2, Trophy } from 'lucide-react';
+import { ArrowRight, Coins, Lock, RotateCcw, Spade, Trash2, Trophy } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
-import { rummyStandings } from '../lib/rummy';
+import { rummyCanRejoin, rummyPaid, rummyPot, rummyResult, rummyStandings, type RummyResult } from '../lib/rummy';
 import { shortName } from '../lib/ledger';
-import { formatDate } from '../lib/money';
+import { formatDate, formatMoney, todayISO } from '../lib/money';
 import { AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, Input, PageHeader, Row, Spinner } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
-import type { RummyPlayer } from '../lib/types';
+import type { Group, RummyGame, RummyPlayer } from '../lib/types';
 
 export function RummyGamePage() {
   const { id } = useParams();
@@ -26,6 +26,7 @@ export function RummyGamePage() {
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [cardPlayer, setCardPlayer] = useState<RummyPlayer | null>(null);
+  const [rejoining, setRejoining] = useState<RummyPlayer | null>(null);
 
   const q = useQuery({ queryKey: ['rummy', id], queryFn: () => api.loadRummyGame(id!), enabled: !!id });
 
@@ -49,7 +50,16 @@ export function RummyGamePage() {
   const isScorer = game.scorer_id === me.id;
   const allNames = game.players.map((p) => p.name);
   const short = (name: string) => shortName(name, allNames);
+  // Column headers in the rounds table: first names, unless two players share one.
+  const firstName = (name: string) => name.trim().split(/\s+/)[0]!;
+  const colName = (name: string) => (allNames.filter((n) => firstName(n) === firstName(name)).length > 1 ? short(name) : firstName(name));
   const winner = game.winner_player_id ? game.players.find((p) => p.id === game.winner_player_id) : null;
+  const currency = group?.currency ?? (me.default_currency || 'USD');
+  const money = (c: number) => formatMoney(c, currency);
+  const staked = game.buy_in_cents > 0;
+  const canRejoin = isScorer && rummyCanRejoin(game, standings);
+  const topActive = active.length ? Math.max(...active.map((x) => x.total)) : 0;
+  const result = rummyResult(game);
 
   const editingRound = editingRoundId ? game.rounds.find((r) => r.id === editingRoundId) ?? null : null;
   const panelPlayers = editingRound
@@ -92,6 +102,7 @@ export function RummyGamePage() {
           <Badge tone={game.status === 'active' ? 'felt' : 'neutral'}>{game.status === 'active' ? 'Active' : 'Finished'}</Badge>
           <span>Out at {game.point_limit} points</span>
           <span>{game.players.length} players</span>
+          {staked && <span>{money(game.buy_in_cents)} buy-in · pot {money(rummyPot(game))}</span>}
         </span>}
         actions={game.status === 'active' && isScorer ? (
           <Button variant="danger" onClick={() => setConfirmingClose(true)}>Close game</Button>
@@ -103,7 +114,10 @@ export function RummyGamePage() {
       {game.status === 'finished' && (
         <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-brass/40 bg-brass/10 px-3 py-2 text-brass">
           <Trophy size={20} aria-hidden="true" />
-          <p className="text-sm font-semibold">{winner ? `${winner.name} wins!` : 'Game closed with no declared winner.'}</p>
+          <p className="text-sm font-semibold">
+            {winner ? `${winner.name} wins${result ? ` ${money(result.pot)}` : ''}!`
+              : result ? `Closed early: pot split between ${result.takers.map((p) => short(p.name)).join(', ')}.` : 'Game closed with no declared winner.'}
+          </p>
         </div>
       )}
       {!isScorer && game.status === 'active' && (
@@ -121,7 +135,10 @@ export function RummyGamePage() {
                 <span className="amount w-4 text-center text-[13px] text-ink-2">{i + 1}</span>
                 <AvatarButton name={s.player.name} src={s.player.avatar_url} size={30} onClick={() => setCardPlayer(s.player)} />
                 <p className="min-w-0 flex-1 truncate text-sm font-semibold">{short(s.player.name)}{s.player.user_id === me.id && <span className="font-normal text-ink-2"> (you)</span>}</p>
-                {s.eliminated && <Badge tone="loss">Out</Badge>}
+                {s.player.rejoins > 0 && <Badge tone="brass">↺{s.player.rejoins}</Badge>}
+                {s.eliminated && (canRejoin
+                  ? <Button size="sm" onClick={() => setRejoining(s.player)}><RotateCcw size={14} aria-hidden="true" />Rejoin</Button>
+                  : <Badge tone="loss">Out</Badge>)}
                 <span className={clsx('amount w-10 text-right font-display text-base font-medium', s.eliminated && 'text-loss')}>{s.total}</span>
               </Row>
             ))}
@@ -155,6 +172,8 @@ export function RummyGamePage() {
             </Card>
           )}
 
+          {result && <Payout game={game} group={group ?? null} result={result} isScorer={isScorer} money={money} short={short} onPosted={refresh} />}
+
           <Card>
             <CardHeader title="Round by round" />
             {game.rounds.length === 0 ? (
@@ -168,7 +187,7 @@ export function RummyGamePage() {
                       <tr className="text-[11px] font-semibold text-ink-2">
                         <th className="w-8 px-1.5 py-1.5 text-left font-semibold">#</th>
                         {game.players.map((p) => (
-                          <th key={p.id} className="max-w-[4.5rem] truncate px-1.5 py-1.5 text-right font-semibold">{short(p.name).split(' ')[0]}</th>
+                          <th key={p.id} title={p.name} className="max-w-[4.5rem] truncate px-1.5 py-1.5 text-right font-semibold">{colName(p.name)}</th>
                         ))}
                       </tr>
                     </thead>
@@ -204,9 +223,13 @@ export function RummyGamePage() {
 
       <MemberCardDialog member={cardPlayer} onClose={() => setCardPlayer(null)}
         extra={cardPlayer ? { label: 'Points this game', node: <span className="amount font-display text-base font-medium">{standings.find((x) => x.player.id === cardPlayer.id)?.total ?? 0}</span> } : undefined} />
+      <ConfirmDialog open={!!rejoining} onClose={() => setRejoining(null)} title={`Bring ${rejoining ? short(rejoining.name) : ''} back in?`} tone="primary" icon={RotateCcw} busy={busy}
+        confirmLabel="Rejoin"
+        body={rejoining && <>They restart at <b>{topActive}</b> points, the highest score still in.{staked && <> That's another <b>{money(game.buy_in_cents)}</b> buy-in, so they'll have put in <b>{money(rummyPaid(game, rejoining) + game.buy_in_cents)}</b>.</>}</>}
+        onConfirm={async () => { const pid = rejoining!.id; setRejoining(null); const ok = await run((api) => api.rejoinRummyPlayer(pid), 'Back in the game'); if (ok) refresh(); }} />
       <ConfirmDialog open={confirmingClose} onClose={() => setConfirmingClose(false)} title="Close this rummy game?" tone="primary" icon={Spade} busy={busy}
         confirmLabel="Close game"
-        body="This ends the game now. A winner is only declared if exactly one player is still under the point limit — otherwise it just closes with no winner."
+        body={staked ? 'This ends the game now. If one player is still in, they win the pot; otherwise the pot is split evenly between everyone still in.' : 'This ends the game now. A winner is only declared if exactly one player is still under the point limit — otherwise it just closes with no winner.'}
         onConfirm={async () => { setConfirmingClose(false); const ok = await run((api) => api.closeRummyGame(game.id), 'Game closed'); if (ok) refresh(); }} />
 
       <ConfirmDialog open={confirmingDelete} onClose={() => setConfirmingDelete(false)} title="Delete this rummy game?" icon={Trash2} busy={busy}
@@ -217,5 +240,63 @@ export function RummyGamePage() {
           if (ok) { qc.invalidateQueries({ queryKey: ['rummy-list'] }); nav(group ? `/groups/${group.id}/rummy` : '/rummy'); }
         }} />
     </>
+  );
+}
+
+/** Money after a staked game ends: who put in what, who pays whom, and (for a club game)
+ *  posting it as a finalized club game so it lands in the club's balances and settle-up. */
+function Payout({ game, group, result, isScorer, money, short, onPosted }: {
+  game: RummyGame; group: Group | null; result: RummyResult; isScorer: boolean;
+  money(c: number): string; short(n: string): string; onPosted(): void;
+}) {
+  const { run, busy } = useAction();
+  const name = (id: string) => short(game.players.find((p) => p.id === id)?.name ?? 'Someone');
+  // A rummy player maps to a club member by linked account, else by exact name (rosters are
+  // picked from the club's members, so names line up unless someone was renamed since).
+  const memberFor = (p: RummyPlayer) => group?.members.find((m) => (p.user_id && m.user_id === p.user_id) || m.name === p.name);
+  const mapped = game.players.map((p) => memberFor(p)?.id);
+  const unmatched = game.players.filter((_, i) => !mapped[i]);
+  const duplicate = new Set(mapped).size !== mapped.length;
+  const post = () => run(async (api) => {
+    const sid = await api.createSession({
+      group_id: group!.id, played_on: todayISO(), location: `Rummy${game.name ? `: ${game.name}` : ''}`, notes: null, default_buy_in_cents: game.buy_in_cents,
+    });
+    await api.saveSessionResults(sid, result.rows.map((r, i) => ({ member_id: mapped[i]!, buy_in_cents: r.paid, cash_out_cents: r.won })));
+    await api.updateSession(sid, { status: 'final' });
+    await api.linkRummySession(game.id, sid);
+  }, 'Added to club balances').then((ok) => { if (ok) onPosted(); });
+
+  return (
+    <Card>
+      <CardHeader title={<span className="inline-flex items-center gap-2"><Coins size={16} className="text-brass" aria-hidden="true" />Payout</span>}
+        action={<span className="text-[13px] text-ink-2">Pot {money(result.pot)}</span>} />
+      <div className="mt-1">
+        {result.transfers.length === 0 ? <p className="px-4 pb-3 text-sm text-ink-2 md:px-5">Everyone broke even.</p> : result.transfers.map((t) => (
+          <Row key={`${t.from}-${t.to}`} className="py-2">
+            <p className="min-w-0 flex-1 truncate text-sm">
+              <b className="font-semibold text-loss">{name(t.from)}</b>
+              <ArrowRight size={14} className="mx-1 inline text-ink-2" aria-label="pays" />
+              <b className="font-semibold text-gain">{name(t.to)}</b>
+            </p>
+            <span className="amount font-display text-base font-medium">{money(t.cents)}</span>
+          </Row>
+        ))}
+      </div>
+      {group && (
+        <div className="border-t border-line px-4 py-3 md:px-5">
+          {game.session_id ? (
+            <Link to={`/groups/${group.id}/games/${game.session_id}`} className="text-[13px] font-semibold text-felt underline dark:text-gain">In {group.name}'s balances. View the game</Link>
+          ) : isScorer ? (
+            <>
+              <Button variant="primary" className="w-full" loading={busy} disabled={unmatched.length > 0 || duplicate} onClick={post}>Add to {group.name} balances</Button>
+              <p className="mt-1.5 text-[12px] text-ink-2">
+                {unmatched.length > 0 ? `${unmatched.map((p) => p.name).join(', ')} ${unmatched.length === 1 ? "isn't" : "aren't"} in ${group.name} by that name, so this can't be added. Settle these payments directly instead.`
+                  : 'Records this as a finished club game, so the payments show up in Settle up with everything else.'}
+              </p>
+            </>
+          ) : <p className="text-[12px] text-ink-2">The scorer can add this to {group.name}'s balances.</p>}
+        </div>
+      )}
+    </Card>
   );
 }

@@ -3,14 +3,16 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Spade } from 'lucide-react';
 import { useAuth } from '../app/auth';
-import { formatDate } from '../lib/money';
-import { rummyStandings } from '../lib/rummy';
+import { formatDate, formatMoney } from '../lib/money';
+import { rummyPot, rummyStandings } from '../lib/rummy';
+import { useData } from '../app/data';
 import { shortName } from '../lib/ledger';
 import { Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../components/ui';
 import { NewRummyGameDialog } from '../components/dialogs/NewRummyGameDialog';
 
 export function RummyListPage() {
   const { api } = useAuth();
+  const currency = useData().me.default_currency || 'USD';
   const [newGame, setNewGame] = useState(false);
   const q = useQuery({ queryKey: ['rummy-list', null], queryFn: () => api.loadRummyGames(null) });
 
@@ -38,7 +40,7 @@ export function RummyListPage() {
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2"><Spade size={18} aria-hidden="true" /></span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{g.name || 'Rummy'}</p>
-                      <p className="truncate text-[12px] text-ink-2">{g.players.length} players, out at {g.point_limit}, {formatDate(g.created_at)}</p>
+                      <p className="truncate text-[12px] text-ink-2">{g.players.length} players, out at {g.point_limit}{g.buy_in_cents > 0 ? `, ${formatMoney(rummyPot(g), currency)} pot` : ''}, {formatDate(g.created_at)}</p>
                     </div>
                     <div className="shrink-0 text-right">
                       <Badge tone={g.status === 'active' ? 'felt' : 'neutral'}>{g.status === 'active' ? 'Active' : 'Finished'}</Badge>

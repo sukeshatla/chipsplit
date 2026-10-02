@@ -21,6 +21,10 @@ function load(): DemoStore {
       d.changeLog ??= [];
       d.rummyGames ??= [];
       d.groups.forEach((g) => { g.deleted_expenses ??= []; });
+      d.rummyGames.forEach((g) => {
+        g.buy_in_cents ??= 0; g.session_id ??= null;
+        g.players.forEach((p) => { p.rejoins ??= 0; p.score_offset ??= 0; });
+      });
       return d;
     }
   } catch { /* fall through to a fresh seed */ }
@@ -311,12 +315,13 @@ export const demoApi: DataApi = {
     return g ? withRummyAvatars(d, g) : null;
   }),
 
-  createRummyGame: ({ groupId, name, pointLimit, players }) => mutate((d) => {
+  createRummyGame: ({ groupId, name, pointLimit, buyInCents, players }) => mutate((d) => {
     if (players.length < 2) throw new Error('Add at least two players');
+    if (buyInCents < 0) throw new Error("The buy-in can't be negative");
     const id = uid();
-    const rummyPlayers: RummyPlayer[] = players.map((p) => ({ id: uid(), rummy_game_id: id, user_id: p.userId, name: p.name }));
+    const rummyPlayers: RummyPlayer[] = players.map((p) => ({ id: uid(), rummy_game_id: id, user_id: p.userId, name: p.name, rejoins: 0, score_offset: 0 }));
     d.rummyGames.push({
-      id, group_id: groupId, name: name.trim() || null, point_limit: pointLimit, status: 'active',
+      id, group_id: groupId, name: name.trim() || null, point_limit: pointLimit, buy_in_cents: buyInCents, session_id: null, status: 'active',
       scorer_id: d.me.id, winner_player_id: null, created_at: now(), finished_at: null,
       players: rummyPlayers, rounds: [],
     });
@@ -354,6 +359,29 @@ export const demoApi: DataApi = {
       g.finished_at = null;
       g.winner_player_id = null;
     }
+  }),
+
+  rejoinRummyPlayer: (playerId) => mutate((d) => {
+    const g = d.rummyGames.find((x) => x.players.some((p) => p.id === playerId));
+    if (!g) throw new Error('That player no longer exists');
+    if (g.scorer_id !== d.me.id || g.status !== 'active') throw new Error('Only the scorer can bring a player back, while the game is active');
+    const standings = rummyStandings(g);
+    const me = standings.find((s) => s.player.id === playerId)!;
+    if (!me.eliminated) throw new Error('That player is still in');
+    const active = standings.filter((s) => !s.eliminated);
+    if (active.length < 2) throw new Error('Rejoining needs at least two players still in');
+    const top = Math.max(...active.map((s) => s.total));
+    const p = g.players.find((x) => x.id === playerId)!;
+    p.rejoins += 1;
+    p.score_offset += top - me.total;
+  }),
+
+  linkRummySession: (gameId, sessionId) => mutate((d) => {
+    const g = rummyGame(d, gameId);
+    if (g.scorer_id !== d.me.id || g.status !== 'finished' || g.session_id) {
+      throw new Error("This game was already added to the club, or it isn't yours to add");
+    }
+    g.session_id = sessionId;
   }),
 
   closeRummyGame: (gameId) => mutate((d) => {

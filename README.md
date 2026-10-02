@@ -17,6 +17,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Starting a new game suggests the club's members as the roster (last game's players if there was one); pick who's actually at the table tonight.
 - Log buy-ins as people sit down. The **+** button adds a rebuy in one tap.
 - Enter cash-outs when the table breaks. A live **table check** shows whether total cash-outs match total buy-ins.
+- Built for entering a full table on a phone: one line per player, a **Buy-ins / Cash-outs** switch so only one box shows at a time, and the keyboard's **Next** key jumps straight to the next player.
 - Finalize to lock the results and get the **settle-up list**: the fewest payments that clear the table.
 - Tick off each payment as **Paid** (or undo it). The game shows "3 unpaid" until everyone's square.
 - Reopen a game to fix a mistake. Edit date, location, notes, and rebuy amount any time.
@@ -24,11 +25,18 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - A club can run more than one game on the same day — each is its own record, nothing is tied to a calendar day.
 - A club holds expenses too (split the pizza, chip in for the venue) — it isn't games-only.
 
+**Rummy**
+- Score pool rummy hand by hand: players are out at **101, 151, or 201** points; last one standing wins. Start one from a club's **Rummy** button, or stand-alone from friends and typed-in names.
+- Only the person who started the game enters or fixes rounds; everyone else in it can follow along. Rounds show as one table with running totals.
+- Optional **buy-in**: the winner takes the pot. A knocked-out player can **rejoin** for another buy-in while two or more are still in, restarting at the highest score still in. Closing early splits the pot between everyone still in.
+- When it ends, the **payout** lists the fewest payments, and a club game can be **added to the club's balances** in one tap so it settles with everything else.
+
 **Splitwise-style expenses**
 - Add expenses with one payer or **several payers**.
 - Split **equally**, by **shares** (e.g. one person owes 2 shares, everyone else 1), by **exact amounts**, or by **percentages** (defaults to an even split of 100%, not zero) — always to the exact cent. Every mode uses the same tap-to-include/exclude picker.
 - **Quick add**: from the Dashboard, add a one-off expense with any friends ("we ate out, one person paid") without setting up a group first — Chip n Split finds or creates the right group behind the scenes.
-- Edit or delete any expense. Expenses list is grouped by month and shows what you lent or borrowed.
+- Tap an expense for a summary: who paid, who's in, and each share, with **Edit** and **Delete** for group admins. Expenses are grouped by month and show what you lent or borrowed.
+- A deleted expense can be **restored** from the group's History tab.
 - **Import from Excel or CSV** (`.xlsx`, `.xls`, `.csv`) with a preview that flags bad rows before anything is saved. A template is downloadable from the import dialog.
 
 **Friends**
@@ -38,9 +46,9 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Friend detail page: your running balance with that person across every group you share, and a "Settle" button per group.
 
 **Balances and settling up**
-- Each group shows where everyone stands and a **simplified debts** list with one-tap "Record" payments.
-- **Send summary**: opens a pre-filled email (via `mailto:`, no email service required) with the balance breakdown and settle-up list, for a group or a single finalized game. Anyone can opt out of being included, per group, from the Members tab.
-- **Remind**: a one-tap `mailto:` nudge addressed to just the one person who owes a specific payment, next to it in the settle-up list.
+- Each group shows where everyone stands and a **simplified debts** list, one line per payment; tap one to record it or send a reminder.
+- **Send summary**: opens a pre-filled email (via `mailto:`, no email service required) with the balance breakdown and settle-up list, for a group or a single finalized game. Anyone can be left out of it, per group, from their card on the Members tab.
+- **Remind**: a `mailto:` nudge addressed to just the one person who owes a specific payment, from that payment in the settle-up list.
 - Payment history with method (Cash, Zelle, Venmo, UPI, PayPal) and notes.
 - A group can't be deleted until everyone in it is settled up — enforced by the database, not just the UI.
 
@@ -49,9 +57,8 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - A notifications bell in the header shows an unread count for activity across every group you're in — new expenses, deletions, payments, being added to a group. "Mark all as read" clears it.
 
 **Group admins**
-- Everyone in a group is an admin by default. Narrow it to one or two people from the Members tab if you want.
+- Everyone in a group is an admin by default. Narrow it to one or two people from each person's card on the Members tab if you want.
 - Only admins can add, edit, delete, or restore expenses, change group settings, or delete the group. Enforced server-side (Postgres RLS + triggers), so it holds even if someone bypasses the UI.
-- A deleted expense can be restored from the group's History tab.
 
 **Dashboard**
 - Two quick actions: **Add expense** (the quick-add flow above) and **New group**. Starting a game is a club-level action, done from inside that club.

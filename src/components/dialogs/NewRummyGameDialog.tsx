@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Search, UserPlus, X } from 'lucide-react';
-import { Avatar, Badge, Button, Field, Input, Modal, Select } from '../ui';
+import { Avatar, Badge, Button, Field, Input, Modal, MoneyInput, Select } from '../ui';
+import { parseMoney } from '../../lib/money';
 import { useAction, useData } from '../../app/data';
 import { friendsList, STATUS_LABEL, type FriendStatus } from '../../lib/ledger';
 import type { Group } from '../../lib/types';
@@ -19,6 +20,7 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
   const nav = useNavigate();
   const [name, setName] = useState('');
   const [pointLimit, setPointLimit] = useState<101 | 151 | 201>(101);
+  const [buyIn, setBuyIn] = useState('');
   const [picked, setPicked] = useState<string[]>([]);
   const [q, setQ] = useState('');
   const [guestName, setGuestName] = useState('');
@@ -37,7 +39,7 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
   };
 
   const close = () => {
-    setName(''); setPointLimit(101); setPicked([]); setQ(''); setGuestName(''); setGuests([]); setError(null);
+    setName(''); setPointLimit(101); setBuyIn(''); setPicked([]); setQ(''); setGuestName(''); setGuests([]); setError(null);
     onClose();
   };
 
@@ -49,7 +51,9 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
           ...guests.map((n) => ({ name: n, userId: null })),
         ];
     if (players.length < 2) { setError('Pick at least two players'); return; }
-    const id = await run((api) => api.createRummyGame({ groupId: group?.id ?? null, name, pointLimit, players }), 'Rummy game started');
+    const buyInCents = buyIn.trim() ? parseMoney(buyIn) : 0;
+    if (buyInCents === null || buyInCents < 0) { setError('Enter a valid buy-in, or leave it empty'); return; }
+    const id = await run((api) => api.createRummyGame({ groupId: group?.id ?? null, name, pointLimit, buyInCents, players }), 'Rummy game started');
     if (id) { close(); nav(`/rummy/${id}`); }
   };
 
@@ -60,11 +64,19 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
         <Field label="Name (optional)">
           <Input value={name} placeholder={group ? `${group.name} rummy` : 'Friday night rummy'} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="Points to eliminate a player" hint="Cross this total and you're out, marked in red. Last player standing wins.">
-          <Select value={pointLimit} onChange={(e) => setPointLimit(Number(e.target.value) as 101 | 151 | 201)}>
-            {POINT_LIMITS.map((p) => <option key={p} value={p}>{p} points</option>)}
-          </Select>
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Out at">
+            <Select value={pointLimit} onChange={(e) => setPointLimit(Number(e.target.value) as 101 | 151 | 201)}>
+              {POINT_LIMITS.map((p) => <option key={p} value={p}>{p} points</option>)}
+            </Select>
+          </Field>
+          <Field label="Buy-in (optional)">
+            <MoneyInput value={buyIn} placeholder="0" onChange={(e) => setBuyIn(e.target.value)} />
+          </Field>
+        </div>
+        <p className="-mt-2 text-[12px] text-ink-2">
+          Reach the limit and you're out; last one standing wins. With a buy-in, the winner takes the pot, and anyone knocked out can rejoin for another buy-in.
+        </p>
         <div>
           <span className="mb-1.5 block text-[13px] font-semibold">Players</span>
           {group ? (

@@ -130,6 +130,8 @@ export interface RummyPlayer {
   rummy_game_id: string;
   user_id: string | null;
   name: string;
+  rejoins: number; // times they bought back in after being knocked out
+  score_offset: number; // added to their round points; a rejoin resets them to the top active total
   avatar_url?: string | null; // filled in at load time, same as Member/Contact
 }
 
@@ -145,6 +147,8 @@ export interface RummyGame {
   group_id: string | null;
   name: string | null;
   point_limit: 101 | 151 | 201;
+  buy_in_cents: number; // each player's stake; 0 = just keeping score
+  session_id: string | null; // the club game this result was posted as, once posted
   status: 'active' | 'finished';
   scorer_id: string;
   winner_player_id: string | null;

@@ -5,8 +5,8 @@ import { ChevronRight, Plus, Spade } from 'lucide-react';
 import { useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { shortName } from '../lib/ledger';
-import { rummyStandings } from '../lib/rummy';
-import { formatDate } from '../lib/money';
+import { rummyPot, rummyStandings } from '../lib/rummy';
+import { formatDate, formatMoney } from '../lib/money';
 import { BackLink, Badge, Button, Card, CardHeader, EmptyState, PageHeader, Row, Spinner } from '../components/ui';
 import { NewRummyGameDialog } from '../components/dialogs/NewRummyGameDialog';
 import type { Group } from '../lib/types';
@@ -58,7 +58,7 @@ function RummyList({ g }: { g: Group }) {
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2"><Spade size={16} aria-hidden="true" /></span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{rg.name || 'Rummy'}</p>
-                    <p className="truncate text-[12px] text-ink-2">{rg.players.length} players, out at {rg.point_limit}, {formatDate(rg.created_at)}</p>
+                    <p className="truncate text-[12px] text-ink-2">{rg.players.length} players, out at {rg.point_limit}{rg.buy_in_cents > 0 ? `, ${formatMoney(rummyPot(rg), g.currency)} pot` : ''}, {formatDate(rg.created_at)}</p>
                   </div>
                   <Badge tone={rg.status === 'active' ? 'felt' : 'neutral'}>{rg.status === 'active' ? 'Active' : 'Finished'}</Badge>
                   {leader && <span className="hidden text-[12px] text-ink-2 sm:inline">{shortName(leader.player.name, rg.players.map((x) => x.name))} leads</span>}

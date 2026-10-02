@@ -55,7 +55,11 @@ export interface DataApi {
   /** `groupId: null` lists standalone games (not attached to any group). */
   loadRummyGames(groupId: string | null): Promise<RummyGame[]>;
   loadRummyGame(id: string): Promise<RummyGame | null>;
-  createRummyGame(input: { groupId: string | null; name: string; pointLimit: 101 | 151 | 201; players: NewRummyPlayer[] }): Promise<string>;
+  createRummyGame(input: { groupId: string | null; name: string; pointLimit: 101 | 151 | 201; buyInCents: number; players: NewRummyPlayer[] }): Promise<string>;
+  /** Scorer only, active game: a knocked-out player buys back in at the top active total. */
+  rejoinRummyPlayer(playerId: string): Promise<void>;
+  /** Scorer only: remember which club game a finished rummy game was posted as. */
+  linkRummySession(gameId: string, sessionId: string): Promise<void>;
   /** `scores` must cover exactly the currently-active (non-eliminated) players. */
   addRummyRound(gameId: string, scores: { playerId: string; points: number }[]): Promise<void>;
   /** Only the scorer, at any game status -- may reopen a finished game or finish an active one. */

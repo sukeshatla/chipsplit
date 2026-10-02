@@ -45,16 +45,16 @@ const num = (v: any) => Number(v ?? 0);
 // has a second FK to it (winner_player_id) -- without this, PostgREST can't tell which
 // relationship to embed and the query fails outright.
 const RUMMY_SELECT = `
-  id, group_id, name, point_limit, status, scorer_id, winner_player_id, created_at, finished_at,
-  rummy_players!rummy_players_rummy_game_id_fkey ( id, rummy_game_id, user_id, name ),
+  id, group_id, name, point_limit, buy_in_cents, session_id, status, scorer_id, winner_player_id, created_at, finished_at,
+  rummy_players!rummy_players_rummy_game_id_fkey ( id, rummy_game_id, user_id, name, rejoins, score_offset ),
   rummy_rounds ( id, round_no, created_at, rummy_round_scores ( player_id, points ) )
 `;
 
 function mapRummyGame(r: any): RummyGame {
   return {
-    id: r.id, group_id: r.group_id, name: r.name, point_limit: r.point_limit, status: r.status,
+    id: r.id, group_id: r.group_id, name: r.name, point_limit: r.point_limit, buy_in_cents: num(r.buy_in_cents), session_id: r.session_id, status: r.status,
     scorer_id: r.scorer_id, winner_player_id: r.winner_player_id, created_at: r.created_at, finished_at: r.finished_at,
-    players: (r.rummy_players ?? []).map((p: any) => ({ ...p })),
+    players: (r.rummy_players ?? []).map((p: any) => ({ ...p, rejoins: num(p.rejoins), score_offset: num(p.score_offset) })),
     rounds: (r.rummy_rounds ?? [])
       .map((rr: any) => ({
         id: rr.id, round_no: rr.round_no, created_at: rr.created_at,
@@ -361,9 +361,9 @@ export const supabaseApi: DataApi = {
     return game;
   },
 
-  async createRummyGame({ groupId, name, pointLimit, players }) {
+  async createRummyGame({ groupId, name, pointLimit, buyInCents, players }) {
     return check(await db().rpc('create_rummy_game', {
-      p_group_id: groupId, p_name: name, p_point_limit: pointLimit,
+      p_group_id: groupId, p_name: name, p_point_limit: pointLimit, p_buy_in_cents: buyInCents,
       p_players: players.map((p) => ({ name: p.name, user_id: p.userId })),
     })) as string;
   },
@@ -380,6 +380,14 @@ export const supabaseApi: DataApi = {
       p_round_id: roundId,
       p_scores: scores.map((s) => ({ player_id: s.playerId, points: s.points })),
     }));
+  },
+
+  async rejoinRummyPlayer(playerId) {
+    check(await db().rpc('rejoin_rummy_player', { p_player_id: playerId }));
+  },
+
+  async linkRummySession(gameId, sessionId) {
+    check(await db().rpc('link_rummy_session', { p_game_id: gameId, p_session_id: sessionId }));
   },
 
   async closeRummyGame(gameId) {
