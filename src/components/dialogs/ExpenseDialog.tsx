@@ -1,15 +1,16 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { clsx } from 'clsx';
-import { Check, Minus, Plus, UserPlus } from 'lucide-react';
+import { CalendarDays, Check, Minus, Plus, SlidersHorizontal, UserPlus } from 'lucide-react';
 import { Button, Field, IconButton, Input, Modal, MoneyInput, Select, Tabs, Avatar, enterToNext } from '../ui';
 import { useAction, useData } from '../../app/data';
-import { centsToInput, equalPercents, formatMoney, parseMoney, splitByWeights, splitEqual, todayISO } from '../../lib/money';
-import { myMemberId } from '../../lib/ledger';
+import { centsToInput, equalPercents, formatDate, formatMoney, parseMoney, splitByWeights, splitEqual, todayISO } from '../../lib/money';
+import { memberShort, myMemberId } from '../../lib/ledger';
 import { AddMemberDialog } from './AddMemberDialog';
 import type { Expense, Group, Split } from '../../lib/types';
 
-export const CATEGORIES = ['general', 'food', 'drinks', 'lodging', 'transport', 'housing', 'utilities', 'household', 'fun', 'club'];
 type SplitMode = 'equal' | 'shares' | 'exact' | 'percent';
+/** Two-person shortcuts, Splitwise-style: who paid, and whether it's halved or all on the other. */
+type Quick = 'meEqual' | 'meAll' | 'themEqual' | 'themAll';
 
 /** One row in the "who's in this split" list: a checkable toggle, plus the mode's own control when included. */
 function SplitRow({ name, avatarUrl, on, toggle, children }: { name: string; avatarUrl?: string | null; on: boolean; toggle(): void; children?: ReactNode }) {
@@ -41,14 +42,20 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [addingPerson, setAddingPerson] = useState(false);
+  // The full editor (several payers, shares/exact/percent, who's in) stays behind "More options";
+  // most expenses are one payer splitting equally, or one person covering the other entirely.
+  const [advanced, setAdvanced] = useState(false);
+  const [quick, setQuick] = useState<Quick>('meEqual');
+  const [editingDate, setEditingDate] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setError(null);
     if (!expense) {
-      setDescription(''); setAmount(''); setDate(todayISO()); setCategory(group.kind === 'club' ? 'food' : 'general');
+      setDescription(''); setAmount(''); setDate(todayISO()); setCategory('general');
       setMultiPay(false); setPayer(mine); setPayAmounts({});
       setMode('equal'); setIncluded(group.members.map((m) => m.id)); setValues({});
+      setAdvanced(false); setQuick('meEqual'); setEditingDate(false);
       return;
     }
     setDescription(expense.description); setAmount(centsToInput(expense.amount_cents));
@@ -61,6 +68,11 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
     setMode(isEqual ? 'equal' : 'exact');
     setIncluded(expense.shares.map((s) => s.member_id));
     setValues(Object.fromEntries(expense.shares.map((s) => [s.member_id, centsToInput(s.amount_cents)])));
+    setEditingDate(false);
+    // Reopen in the simple view only if the expense is one of its shapes; otherwise the full editor.
+    const shape = quickShape(expense);
+    setAdvanced(shape === null);
+    if (shape && shape !== 'equalAll') setQuick(shape);
     // Initialize only when the dialog opens, so a background refresh can't wipe a half-filled form.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, expense?.id]);
@@ -69,6 +81,37 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
   const exactSum = included.reduce((a, id) => a + (parseMoney(values[id]) ?? 0), 0);
   const pctSum = included.reduce((a, id) => a + (Number(values[id]) || 0), 0);
   const paySum = group.members.reduce((a, m) => a + (parseMoney(payAmounts[m.id]) ?? 0), 0);
+
+  const twoPeople = group.members.length === 2;
+  const other = group.members.find((m) => m.id !== mine)?.id ?? '';
+  const isMe = (id: string) => group.members.find((m) => m.id === id)?.user_id === me.id;
+  const label = (id: string) => (isMe(id) ? 'You' : memberShort(group, id));
+
+  /** Which simple view an existing expense fits, if any. */
+  function quickShape(e: Expense): Quick | 'equalAll' | null {
+    if (e.payers.length !== 1) return null;
+    const paidByMe = e.payers[0]!.member_id === mine;
+    const amts = e.shares.map((s) => s.amount_cents);
+    const equal = amts.length > 0 && Math.max(...amts) - Math.min(...amts) <= 1;
+    if (twoPeople) {
+      if (e.shares.length === 2 && equal) return paidByMe ? 'meEqual' : 'themEqual';
+      if (e.shares.length === 1 && e.shares[0]!.member_id !== e.payers[0]!.member_id) return paidByMe ? 'meAll' : 'themAll';
+      return null;
+    }
+    return equal && e.shares.length === group.members.length ? 'equalAll' : null;
+  }
+
+  function quickSplit(): { payers: Split[]; shares: Split[] } {
+    if (twoPeople) {
+      const by = quick.startsWith('me') ? mine : other;
+      const owes = by === mine ? other : mine;
+      return {
+        payers: [{ member_id: by, amount_cents: total }],
+        shares: quick.endsWith('Equal') ? splitEqual(total, [mine, other]) : [{ member_id: owes, amount_cents: total }],
+      };
+    }
+    return { payers: [{ member_id: payer, amount_cents: total }], shares: splitEqual(total, group.members.map((m) => m.id)) };
+  }
 
   function buildShares(): Split[] | string {
     if (included.length === 0) return 'Pick at least one person to split with';
@@ -91,10 +134,11 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
   const submit = async () => {
     if (!description.trim()) { setError('Add a description'); return; }
     if (total <= 0) { setError('Enter an amount'); return; }
-    const payers = buildPayers();
-    if (typeof payers === 'string') { setError(payers); return; }
-    const shares = buildShares();
-    if (typeof shares === 'string') { setError(shares); return; }
+    const q = advanced ? null : quickSplit();
+    const payers = q ? q.payers : buildPayers();
+    if (typeof payers === 'string') { setError(payers); setAdvanced(true); return; }
+    const shares = q ? q.shares : buildShares();
+    if (typeof shares === 'string') { setError(shares); setAdvanced(true); return; }
     const ok = await run((api) => api.saveExpense({
       group_id: group.id, description: description.trim(), category, amount_cents: total, spent_on: date, payers, shares,
     }, expense?.id), expense ? 'Expense updated' : 'Expense added');
@@ -106,19 +150,48 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
   return (
     <Modal open={open} onClose={onClose} title={expense ? 'Edit expense' : 'Add an expense'} wide
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} onClick={submit}>{expense ? 'Save changes' : 'Add expense'}</Button></>}>
-      <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Field label="Description" className="col-span-2">
-            <Input autoFocus value={description} placeholder="Pizza and drinks" onChange={(e) => setDescription(e.target.value)} />
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_11rem]">
+          <Field label="What was it for?">
+            <Input value={description} placeholder="Pizza and drinks" enterKeyHint="next" onChange={(e) => setDescription(e.target.value)} />
           </Field>
-          <Field label="Amount"><MoneyInput currency={group.currency} value={amount} placeholder="0.00" onChange={(e) => setAmount(e.target.value)} /></Field>
+          <Field label="Amount"><MoneyInput currency={group.currency} value={amount} placeholder="0.00" enterKeyHint="done" onChange={(e) => setAmount(e.target.value)} /></Field>
+        </div>
+        {editingDate ? (
           <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          <Field label="Category" className="col-span-2 md:col-span-1">
-            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c[0]!.toUpperCase() + c.slice(1)}</option>)}
-            </Select>
-          </Field>
-          <Field label="Paid by" className="col-span-2 md:col-span-3">
+        ) : (
+          <button type="button" className="-mt-1 inline-flex items-center gap-1 text-[12px] font-semibold text-ink-2 hover:text-ink" onClick={() => setEditingDate(true)}>
+            <CalendarDays size={13} aria-hidden="true" />{date === todayISO() ? 'Today' : formatDate(date)} · Change date
+          </button>
+        )}
+
+        {!advanced ? (
+          twoPeople ? (
+            <div role="radiogroup" aria-label="Who paid, and how it splits" className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              {([
+                ['meEqual', `${label(mine)} paid, split equally`],
+                ['meAll', `${label(mine)} paid, ${isMe(other) ? 'you owe' : `${label(other)} owes`} the full amount`],
+                ['themEqual', `${label(other)} paid, split equally`],
+                ['themAll', `${label(other)} paid, ${isMe(mine) ? 'you owe' : `${label(mine)} owes`} the full amount`],
+              ] as [Quick, string][]).map(([v, text]) => (
+                <button key={v} type="button" role="radio" aria-checked={quick === v} onClick={() => setQuick(v)}
+                  className={clsx('flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm', quick === v ? 'border-felt bg-felt/10 font-semibold' : 'border-line text-ink-2')}>
+                  <span className={clsx('h-3.5 w-3.5 shrink-0 rounded-full border-2', quick === v ? 'border-felt bg-felt dark:border-gain dark:bg-gain' : 'border-line')} />
+                  <span className="min-w-0">{text}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
+              <span className="text-ink-2">Paid by</span>
+              <Select aria-label="Paid by" className="h-9 w-auto max-w-[11rem]" value={payer} onChange={(e) => setPayer(e.target.value)}>
+                {group.members.map((m) => <option key={m.id} value={m.id}>{isMe(m.id) ? 'You' : m.name}</option>)}
+              </Select>
+              <span className="text-ink-2">split equally among all {group.members.length}</span>
+            </div>
+          )
+        ) : (<>
+          <Field label="Paid by">
             <div className="flex gap-2">
               {!multiPay && (
                 <Select value={payer} onChange={(e) => setPayer(e.target.value)}>
@@ -130,7 +203,6 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
               </Button>
             </div>
           </Field>
-        </div>
 
         {multiPay && (
           <div className="rounded-xl border border-line p-3">
@@ -216,6 +288,16 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
             </p>
           )}
         </div>
+        </>)}
+        {!advanced && (
+          <button type="button" className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink-2 hover:text-ink" onClick={() => {
+            // Carry the simple choice into the full editor so nothing jumps.
+            if (twoPeople) { setPayer(quick.startsWith('me') ? mine : other); setIncluded(quick.endsWith('Equal') ? [mine, other] : [quick.startsWith('me') ? other : mine]); }
+            setMode('equal'); setAdvanced(true);
+          }}>
+            <SlidersHorizontal size={13} aria-hidden="true" />More options: several payers, shares, exact amounts
+          </button>
+        )}
         {error && <p className="rounded-lg bg-loss/10 px-3 py-2 text-[13px] text-loss">{error}</p>}
       </div>
       <AddMemberDialog group={group} open={addingPerson} onClose={() => setAddingPerson(false)}
