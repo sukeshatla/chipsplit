@@ -4,7 +4,7 @@ import { ChevronRight, HandCoins, Receipt, Trash2, UserX } from 'lucide-react';
 import { useData, useAction } from '../app/data';
 import { friendsList, isGroupAdmin, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
-import { Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, MonthHeader, Row } from '../components/ui';
+import { Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, LIST_STEP, MonthHeader, Row, ShowMore } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { GroupIcon } from './GroupsPage';
 import { SettleDialog, type SettleDraft } from '../components/dialogs/SettleDialog';
@@ -29,6 +29,7 @@ export function FriendDetailPage() {
   const [params, setParams] = useSearchParams();
   const f = friendsList(data).find((x) => x.key === decodeURIComponent(key ?? ''));
   const [settle, setSettle] = useState<{ group: Group; draft: SettleDraft } | null>(null);
+  const [shown, setShown] = useState(LIST_STEP);
   const [deletingPayment, setDeletingPayment] = useState<{ st: Settlement; g: Group } | null>(null);
   const [editing, setEditing] = useState<{ group: Group; expense: Expense | null } | null>(null);
   if (!f) return <Navigate to="/friends" replace />;
@@ -46,6 +47,8 @@ export function FriendDetailPage() {
     ...directGroups.flatMap((fg) => fg.group.settlements.map((st) => ({ kind: 'payment' as const, date: st.settled_on, at: st.created_at, st, g: fg.group }))),
   ].sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
   const openId = params.get('expense');
+  const openIndex = timeline.findIndex((x) => x.kind === 'expense' && x.e.id === openId);
+  if (openIndex >= shown) setShown(openIndex + 1);
   const open = directExpenses.find((x) => x.e.id === openId) ?? null;
   const setOpen = (id: string | null) => setParams(id ? { expense: id } : {}, { replace: true });
 
@@ -96,7 +99,7 @@ export function FriendDetailPage() {
           ))}
           {timeline.length === 0 ? (
             <p className="px-4 pb-4 pt-3 text-sm text-ink-2 md:px-5">Expenses you add here stay between you and {f.name}, outside any group.</p>
-          ) : byMonth(timeline, (x) => x.date).map(([month, items]) => (
+          ) : byMonth(timeline.slice(0, shown), (x) => x.date).map(([month, items]) => (
             <div key={month}>
               <MonthHeader month={month} />
               {items.map((x) => {
@@ -137,6 +140,7 @@ export function FriendDetailPage() {
               })}
             </div>
           ))}
+          <ShowMore shown={shown} total={timeline.length} onMore={() => setShown((n) => n + LIST_STEP)} onAll={() => setShown(timeline.length)} />
         </Card>
 
         <Card>

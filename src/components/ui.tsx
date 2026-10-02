@@ -263,6 +263,20 @@ export function byMonth<T>(items: T[], date: (x: T) => string): [string, T[]][] 
   return [...m];
 }
 
+/** Long lists start short: the first `step` items, then "Show more" adds another `step`. */
+export const LIST_STEP = 15;
+export function ShowMore({ shown, total, onMore, onAll }: { shown: number; total: number; onMore(): void; onAll(): void }) {
+  if (shown >= total) return null;
+  return (
+    <div className="flex items-center justify-center gap-4 border-t border-line px-4 py-2.5">
+      <button type="button" className="text-[13px] font-semibold text-felt hover:underline dark:text-gain" onClick={onMore}>
+        Show {Math.min(LIST_STEP, total - shown)} more
+      </button>
+      <button type="button" className="text-[13px] font-semibold text-ink-2 hover:text-ink" onClick={onAll}>Show all {total}</button>
+    </div>
+  );
+}
+
 export function Spinner() {
   return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-felt" size={28} /></div>;
 }

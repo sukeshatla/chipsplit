@@ -4,7 +4,7 @@ import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, Chev
 import { useAction, useData } from '../app/data';
 import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Avatar, AvatarButton, BackLink, byMonth, DateTile, MonthHeader, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
+import { Amount, Avatar, AvatarButton, BackLink, byMonth, DateTile, LIST_STEP, MonthHeader, ShowMore, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KIND_LABEL } from './GroupsPage';
@@ -220,6 +220,7 @@ function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMem
   const detail = g.expenses.find((e) => e.id === params.get('expense')) ?? null;
   const openDetail = (id: string | null) => setParams(id ? { tab: 'expenses', expense: id } : { tab: 'expenses' }, { replace: true });
   const list = g.expenses.slice().sort((a, b) => b.spent_on.localeCompare(a.spent_on) || b.created_at.localeCompare(a.created_at));
+  const [shown, setShown] = useState(LIST_STEP);
   if (list.length === 0) {
     return <Card><EmptyState icon={<Receipt size={28} />} title={admin ? 'Log the first expense' : 'No expenses yet'}
       body={admin ? 'Add costs as they happen, or bring in a spreadsheet you already keep.' : 'A group admin can add expenses here.'}
@@ -231,7 +232,7 @@ function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMem
     <Card>
       <CardHeader title={`${list.length} expenses`} action={<span className="amount text-sm text-ink-2">{formatMoney(total, g.currency)} total</span>} />
       <div className="mt-2">
-        {byMonth(list, (e) => e.spent_on).map(([month, items]) => (
+        {byMonth(list.slice(0, shown), (e) => e.spent_on).map(([month, items]) => (
           <div key={month}>
             <MonthHeader month={month} />
             {items.map((e) => {
@@ -257,6 +258,7 @@ function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMem
           </div>
         ))}
       </div>
+      <ShowMore shown={shown} total={list.length} onMore={() => setShown((n) => n + LIST_STEP)} onAll={() => setShown(list.length)} />
       <ExpenseDetailDialog group={g} expense={detail} onClose={() => openDetail(null)}
         onEdit={(e) => { openDetail(null); onEdit(e); }} />
     </Card>
