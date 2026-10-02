@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useRef, type ButtonHTMLAttributes, type Keyboard
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ArrowLeft, X, Loader2 } from 'lucide-react';
-import { currencySymbol, formatMoney } from '../lib/money';
+import { currencySymbol, formatDate, formatMoney } from '../lib/money';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -235,6 +235,32 @@ export function Row({ children, className, onClick }: { children: ReactNode; cla
       {children}
     </Comp>
   );
+}
+
+/** "SEPTEMBER 2026" divider for month-grouped lists. `month` is YYYY-MM. */
+export function MonthHeader({ month }: { month: string }) {
+  return (
+    <p className="bg-surface-2/60 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-2 md:px-5">
+      {formatDate(`${month}-01`, { month: 'long', year: 'numeric' })}
+    </p>
+  );
+}
+
+/** Stacked "SEP / 16" date at the start of a list row. */
+export function DateTile({ date }: { date: string }) {
+  return (
+    <div className="w-9 shrink-0 text-center leading-none">
+      <p className="text-[10px] font-semibold uppercase text-ink-2">{formatDate(date, { month: 'short' })}</p>
+      <p className="mt-0.5 font-display text-lg font-medium">{formatDate(date, { day: 'numeric' })}</p>
+    </div>
+  );
+}
+
+/** Group dated items into months, newest month first, keeping each month's item order. */
+export function byMonth<T>(items: T[], date: (x: T) => string): [string, T[]][] {
+  const m = new Map<string, T[]>();
+  items.forEach((x) => { const k = date(x).slice(0, 7); m.set(k, [...(m.get(k) ?? []), x]); });
+  return [...m];
 }
 
 export function Spinner() {

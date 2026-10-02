@@ -4,7 +4,7 @@ import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, Chev
 import { useAction, useData } from '../app/data';
 import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Avatar, AvatarButton, BackLink, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
+import { Amount, Avatar, AvatarButton, BackLink, byMonth, DateTile, MonthHeader, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KIND_LABEL } from './GroupsPage';
@@ -225,26 +225,22 @@ function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMem
       body={admin ? 'Add costs as they happen, or bring in a spreadsheet you already keep.' : 'A group admin can add expenses here.'}
       action={admin && <div className="flex gap-2"><Button onClick={onImport}>Import sheet</Button><Button variant="primary" onClick={() => onEdit('new')}>Add expense</Button></div>} /></Card>;
   }
-  const byMonth = new Map<string, Expense[]>();
-  list.forEach((e) => { const k = e.spent_on.slice(0, 7); byMonth.set(k, [...(byMonth.get(k) ?? []), e]); });
   const total = list.reduce((a, e) => a + e.amount_cents, 0);
 
   return (
     <Card>
       <CardHeader title={`${list.length} expenses`} action={<span className="amount text-sm text-ink-2">{formatMoney(total, g.currency)} total</span>} />
       <div className="mt-2">
-        {[...byMonth].map(([month, items]) => (
+        {byMonth(list, (e) => e.spent_on).map(([month, items]) => (
           <div key={month}>
-            <p className="bg-surface-2/60 px-4 py-1.5 text-[12px] font-semibold text-ink-2 md:px-5">{formatDate(`${month}-01`, { month: 'long', year: 'numeric' })}</p>
+            <MonthHeader month={month} />
             {items.map((e) => {
               const paid = e.payers.find((p) => p.member_id === meMember)?.amount_cents ?? 0;
               const share = e.shares.find((s) => s.member_id === meMember)?.amount_cents ?? 0;
               const impact = paid - share;
               return (
                 <Row key={e.id} onClick={() => openDetail(e.id)}>
-                  <div className="w-8 shrink-0 text-center">
-                    <p className="font-display text-lg font-medium leading-none">{formatDate(e.spent_on, { day: 'numeric' })}</p>
-                  </div>
+                  <DateTile date={e.spent_on} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{e.description}</p>
                     <p className="truncate text-[12px] text-ink-2">
