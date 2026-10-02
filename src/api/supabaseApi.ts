@@ -139,12 +139,9 @@ export const supabaseApi: DataApi = {
 
   async updateProfile(patch) {
     const user = await currentUser();
+    // A database trigger (0020) carries a new display name to every group, friends list, and
+    // rummy game you're linked in, so it's one name everywhere.
     check(await db().from('profiles').update(patch).eq('id', user.id));
-    // group_members.name is a snapshot taken when you were added, not a live reference to
-    // your profile, so every membership needs to be updated alongside it.
-    if (patch.display_name) {
-      check(await db().from('group_members').update({ name: patch.display_name }).eq('user_id', user.id));
-    }
   },
 
   async uploadAvatar(blob) {

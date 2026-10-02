@@ -69,7 +69,7 @@ export function ProfilePage() {
             </div>
           </div>
           <div className="space-y-4">
-            <Field label="Display name" hint="New groups you create will use this name for you.">
+            <Field label="Display name" hint="Everyone sees this name for you, in every group and friends list.">
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
             <Field label="Currency for totals">

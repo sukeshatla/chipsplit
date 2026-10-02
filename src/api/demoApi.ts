@@ -114,8 +114,12 @@ export const demoApi: DataApi = {
 
   updateProfile: (patch) => mutate((d) => {
     d.me = { ...d.me, ...patch };
+    // Same as the server's 0020 triggers: your name follows you into every linked row.
     if (patch.display_name) {
-      d.groups.forEach((g) => g.members.forEach((m) => { if (m.user_id === d.me.id) m.name = patch.display_name!; }));
+      const n = patch.display_name;
+      d.groups.forEach((g) => g.members.forEach((m) => { if (m.user_id === d.me.id) m.name = n; }));
+      d.contacts.forEach((c) => { if (c.user_id === d.me.id) c.name = n; });
+      d.rummyGames.forEach((g) => g.players.forEach((p) => { if (p.user_id === d.me.id) p.name = n; }));
     }
   }),
 
