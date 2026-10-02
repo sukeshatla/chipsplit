@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { X, Loader2 } from 'lucide-react';
+import { ArrowLeft, X, Loader2 } from 'lucide-react';
 import { formatMoney } from '../lib/money';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -138,7 +139,7 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
       <div role="dialog" aria-modal="true" aria-label={title}
         className={clsx('sheet-in flex max-h-[92dvh] w-full flex-col rounded-t-2xl border border-line bg-surface shadow-2xl md:rounded-2xl', wide ? 'md:max-w-2xl' : 'md:max-w-lg')}>
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-          <h2 className="font-display text-lg font-medium text-ink">{title}</h2>
+          <h2 className="font-display text-base font-medium text-ink md:text-lg">{title}</h2>
           <IconButton label="Close" onClick={onClose}><X size={18} /></IconButton>
         </div>
         <div className="overflow-y-auto px-5 py-4">{children}</div>
@@ -173,12 +174,22 @@ export function EmptyState({ icon, title, body, action }: { icon: ReactNode; tit
   );
 }
 
+/** "Back to …" link above a page title. Sized as a real tap target, not just an arrow glyph. */
+export function BackLink({ to, label, className }: { to: string; label: ReactNode; className?: string }) {
+  return (
+    <Link to={to}
+      className={clsx('-ml-2 mb-2 inline-flex h-10 max-w-full items-center gap-1.5 rounded-lg pl-1.5 pr-3 text-sm font-semibold text-ink-2 hover:bg-surface-2 hover:text-ink active:bg-surface-2', className)}>
+      <ArrowLeft size={20} className="shrink-0" aria-hidden="true" /><span className="truncate">{label}</span>
+    </Link>
+  );
+}
+
 export function PageHeader({ title, subtitle, actions, back }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; back?: ReactNode }) {
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <header className="mb-4 flex flex-wrap items-end justify-between gap-3 md:mb-5">
       <div className="min-w-0">
         {back}
-        <h1 className="truncate font-display text-[26px] font-medium leading-tight tracking-tight text-ink md:text-[30px]">{title}</h1>
+        <h1 className="truncate font-display text-[22px] font-medium leading-tight tracking-tight text-ink md:text-[30px]">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-ink-2">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}

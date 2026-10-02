@@ -20,12 +20,12 @@ export function GamesPage() {
       {stats.games > 0 && (
         <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
-            { label: 'Your card game total', value: <Amount cents={stats.net} currency={currency} sign className="text-2xl" /> },
-            { label: 'Games played', value: <span className="font-display text-2xl font-medium">{stats.games}</span> },
-            { label: 'Winning nights', value: <span className="font-display text-2xl font-medium">{stats.winRate}%</span> },
-            { label: 'Best night', value: <Amount cents={stats.best} currency={currency} sign className="text-2xl" /> },
+            { label: 'Your card game total', value: <Amount cents={stats.net} currency={currency} sign className="text-xl md:text-2xl" /> },
+            { label: 'Games played', value: <span className="font-display text-xl font-medium md:text-2xl">{stats.games}</span> },
+            { label: 'Winning nights', value: <span className="font-display text-xl font-medium md:text-2xl">{stats.winRate}%</span> },
+            { label: 'Best night', value: <Amount cents={stats.best} currency={currency} sign className="text-xl md:text-2xl" /> },
           ].map((x) => (
-            <div key={x.label} className="rounded-2xl bg-surface-2 p-4">
+            <div key={x.label} className="rounded-2xl bg-surface-2 p-3 md:p-4">
               <p className="text-[13px] text-ink-2">{x.label}</p>
               <div className="mt-1">{x.value}</div>
             </div>

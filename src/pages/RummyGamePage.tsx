@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Lock, Spade, Trash2, Trophy } from 'lucide-react';
+import { Lock, Spade, Trash2, Trophy } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { rummyStandings } from '../lib/rummy';
 import { formatDate } from '../lib/money';
-import { Avatar, Badge, Button, Card, CardHeader, Input, PageHeader, Row, Spinner } from '../components/ui';
+import { Avatar, BackLink, Badge, Button, Card, CardHeader, Input, PageHeader, Row, Spinner } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function RummyGamePage() {
@@ -79,11 +79,7 @@ export function RummyGamePage() {
   return (
     <>
       <PageHeader
-        back={
-          <Link to={group ? `/groups/${group.id}?tab=rummy` : '/rummy'} className="mb-2 inline-flex items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-ink">
-            <ArrowLeft size={14} aria-hidden="true" />{group ? group.name : 'Rummy'}
-          </Link>
-        }
+        back={<BackLink to={group ? `/groups/${group.id}?tab=rummy` : '/rummy'} label={group ? group.name : 'Rummy'} />}
         title={game.name || 'Rummy'}
         subtitle={<span className="flex flex-wrap items-center gap-2">
           <Badge tone={game.status === 'active' ? 'felt' : 'neutral'}>{game.status === 'active' ? 'Active' : 'Finished'}</Badge>

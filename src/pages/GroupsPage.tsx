@@ -51,12 +51,12 @@ export function GroupsPage() {
                     <div className="flex items-start gap-3">
                       <GroupIcon kind={g.kind} size={44} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-display text-lg font-medium">{g.name}</p>
+                        <p className="truncate font-display text-base font-medium md:text-lg">{g.name}</p>
                         <Badge tone={g.kind === 'club' ? 'felt' : 'neutral'}>{KIND_LABEL[g.kind]}</Badge>
                       </div>
                       <div className="text-right">
                         <p className="text-[12px] text-ink-2">{bal === 0 ? 'Settled' : bal > 0 ? "You're owed" : 'You owe'}</p>
-                        <Amount cents={Math.abs(bal) * Math.sign(bal)} currency={g.currency} className="text-lg" />
+                        <Amount cents={Math.abs(bal) * Math.sign(bal)} currency={g.currency} className="text-base md:text-lg" />
                       </div>
                     </div>
                     <div className="mt-4 flex items-center justify-between">

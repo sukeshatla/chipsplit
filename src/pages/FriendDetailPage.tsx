@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, HandCoins, UserX } from 'lucide-react';
+import { HandCoins, UserX } from 'lucide-react';
 import { useData, useAction } from '../app/data';
 import { friendsList, STATUS_LABEL } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
-import { Avatar, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Row } from '../components/ui';
+import { Avatar, BackLink, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Row } from '../components/ui';
 import { GroupIcon } from './GroupsPage';
 import { SettleDialog, type SettleDraft } from '../components/dialogs/SettleDialog';
 import type { Group } from '../lib/types';
@@ -27,19 +27,19 @@ export function FriendDetailPage() {
 
   return (
     <>
-      <Link to="/friends" className="mb-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-ink"><ArrowLeft size={14} aria-hidden="true" />Friends</Link>
+      <BackLink to="/friends" label="Friends" />
       <section className="mb-5 flex flex-wrap items-center gap-4">
         <Avatar name={f.name} src={f.avatar_url} size={64} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="truncate font-display text-[28px] font-medium leading-tight">{f.name}</h1>
+            <h1 className="truncate font-display text-[22px] font-medium md:text-[28px] leading-tight">{f.name}</h1>
             <Badge tone={f.status === 'friend' ? 'felt' : f.status === 'invited' ? 'brass' : 'neutral'}>{STATUS_LABEL[f.status]}</Badge>
           </div>
           <p className="text-sm text-ink-2">{f.email ?? 'No email on file'}</p>
         </div>
         <div className="rounded-2xl bg-surface-2 px-5 py-3 text-right">
           <p className="text-[13px] text-ink-2">{f.net === 0 ? 'All square' : f.net > 0 ? `${f.name} owes you` : `You owe ${f.name}`}</p>
-          <p className={`amount font-display text-3xl font-medium ${f.net > 0 ? 'text-gain' : f.net < 0 ? 'text-loss' : ''}`}>{formatMoney(Math.abs(f.net), currency)}</p>
+          <p className={`amount font-display text-2xl font-medium md:text-3xl ${f.net > 0 ? 'text-gain' : f.net < 0 ? 'text-loss' : ''}`}>{formatMoney(Math.abs(f.net), currency)}</p>
         </div>
       </section>
 

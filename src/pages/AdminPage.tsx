@@ -11,7 +11,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-line bg-surface p-4">
       <p className="text-[12px] text-ink-2">{label}</p>
-      <p className="mt-1 font-display text-2xl font-medium">{value}</p>
+      <p className="mt-1 font-display text-xl font-medium md:text-2xl">{value}</p>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { NavLink, Outlet, Link } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { LayoutDashboard, Users, Spade, HeartHandshake, UserRound, FlaskConical, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Spade, HeartHandshake, UserRound, FlaskConical, ShieldCheck, LogOut } from 'lucide-react';
 import { DataProvider, useAppQuery } from '../app/data';
 import { useAuth } from '../app/auth';
 import { isAppAdmin } from '../lib/admin';
@@ -65,9 +65,13 @@ export function Layout() {
 
         <div className="min-w-0 flex-1">
           {mode === 'demo' && (
-            <div className="flex items-center justify-center gap-2 border-b border-brass/30 bg-brass/10 px-4 py-2 text-[13px] text-brass">
-              <FlaskConical size={14} aria-hidden="true" />
-              Demo mode. Data stays in this browser.
+            <div className="flex items-center justify-center gap-2 border-b border-brass/30 bg-brass/10 px-4 py-1.5 text-[13px] text-brass">
+              <FlaskConical size={14} className="shrink-0" aria-hidden="true" />
+              <span className="min-w-0">Demo mode<span className="hidden sm:inline">. Data stays in this browser.</span></span>
+              <button type="button" onClick={() => signOut()}
+                className="ml-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-brass/40 px-2.5 font-semibold hover:bg-brass/15">
+                <LogOut size={14} aria-hidden="true" />Exit demo
+              </button>
             </div>
           )}
           <header className="flex items-center justify-between px-4 pb-1 pt-4 md:hidden">

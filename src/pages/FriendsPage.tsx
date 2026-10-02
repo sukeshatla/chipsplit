@@ -22,8 +22,8 @@ export function FriendsPage() {
       <PageHeader title="Friends" subtitle="What you and each person owe across every group you share."
         actions={<Button variant="primary" onClick={() => setAdding(true)}><UserPlus size={16} aria-hidden="true" />Add friend</Button>} />
       <div className="mb-4 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-surface-2 p-4"><p className="text-[13px] text-ink-2">Owed to you</p><p className="amount font-display text-2xl font-medium text-gain">{formatMoney(t.owed, currency)}</p></div>
-        <div className="rounded-2xl bg-surface-2 p-4"><p className="text-[13px] text-ink-2">You owe</p><p className="amount font-display text-2xl font-medium text-loss">{formatMoney(t.owe, currency)}</p></div>
+        <div className="rounded-2xl bg-surface-2 p-4"><p className="text-[13px] text-ink-2">Owed to you</p><p className="amount font-display text-xl font-medium md:text-2xl text-gain">{formatMoney(t.owed, currency)}</p></div>
+        <div className="rounded-2xl bg-surface-2 p-4"><p className="text-[13px] text-ink-2">You owe</p><p className="amount font-display text-xl font-medium md:text-2xl text-loss">{formatMoney(t.owe, currency)}</p></div>
       </div>
       <div className="relative mb-4">
         <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-2" aria-hidden="true" />

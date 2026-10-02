@@ -33,6 +33,12 @@
   }
   html { -webkit-tap-highlight-color: transparent; }
   body { @apply bg-bg font-sans text-ink antialiased; }
+  /* iOS Safari zooms the whole page in when a focused field's text is under 16px, and doesn't
+     zoom back out -- so entering a buy-in left the game page stuck magnified. 16px on phones
+     stops that; desktop keeps the tighter 14px from the components. */
+  @media (max-width: 767px) {
+    input, select, textarea { font-size: 16px !important; }
+  }
   :focus-visible { outline: 2px solid rgb(var(--felt)); outline-offset: 2px; }
   .dark :focus-visible { outline-color: rgb(var(--gain)); }
 }

@@ -60,7 +60,7 @@ export function ProfilePage() {
                 onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void handlePhoto(f); }} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-display text-xl font-medium">{me.display_name}</p>
+              <p className="truncate font-display text-lg font-medium md:text-xl">{me.display_name}</p>
               <p className="truncate text-sm text-ink-2">{me.email}{mode === 'supabase' && ', signed in with Google'}</p>
               {me.avatar_url && (
                 <button type="button" disabled={busy} onClick={() => run((api) => api.removeAvatar(), 'Profile photo removed')}
@@ -91,10 +91,10 @@ export function ProfilePage() {
             <h2 className="mb-3 font-display text-base font-medium">Your card games</h2>
             {stats.games === 0 ? <p className="text-sm text-ink-2">Play a finalized game to see your numbers.</p> : (
               <dl className="grid grid-cols-2 gap-y-4">
-                <div><dt className="text-[13px] text-ink-2">All-time</dt><dd><Amount cents={stats.net} currency={currency} sign className="text-xl" /></dd></div>
-                <div><dt className="text-[13px] text-ink-2">Winning nights</dt><dd className="font-display text-xl font-medium">{stats.wins} of {stats.games}</dd></div>
-                <div><dt className="text-[13px] text-ink-2">Best night</dt><dd><Amount cents={stats.best} currency={currency} sign className="text-xl" /></dd></div>
-                <div><dt className="text-[13px] text-ink-2">Worst night</dt><dd><Amount cents={stats.worst} currency={currency} sign className="text-xl" /></dd></div>
+                <div><dt className="text-[13px] text-ink-2">All-time</dt><dd><Amount cents={stats.net} currency={currency} sign className="text-lg md:text-xl" /></dd></div>
+                <div><dt className="text-[13px] text-ink-2">Winning nights</dt><dd className="font-display text-lg font-medium md:text-xl">{stats.wins} of {stats.games}</dd></div>
+                <div><dt className="text-[13px] text-ink-2">Best night</dt><dd><Amount cents={stats.best} currency={currency} sign className="text-lg md:text-xl" /></dd></div>
+                <div><dt className="text-[13px] text-ink-2">Worst night</dt><dd><Amount cents={stats.worst} currency={currency} sign className="text-lg md:text-xl" /></dd></div>
               </dl>
             )}
           </Card>

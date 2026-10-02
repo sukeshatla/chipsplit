@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
 import { rummyStandings } from '../lib/rummy';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Avatar, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Spinner, Tabs } from '../components/ui';
+import { Amount, Avatar, BackLink, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Spinner, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KIND_LABEL } from './GroupsPage';
@@ -51,7 +51,7 @@ export function GroupPage() {
   return (
     <>
       <PageHeader
-        back={<Link to="/groups" className="mb-2 inline-flex items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-ink"><ArrowLeft size={14} aria-hidden="true" />Groups</Link>}
+        back={<BackLink to="/groups" label="Groups" />}
         title={g.name}
         subtitle={<span className="flex flex-wrap items-center gap-2">
           <Badge tone={g.kind === 'club' ? 'felt' : 'neutral'}>{KIND_LABEL[g.kind]}</Badge>

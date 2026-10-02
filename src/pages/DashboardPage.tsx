@@ -32,17 +32,17 @@ export function DashboardPage() {
           <Button variant="primary" onClick={() => setNewGroup(true)}><Plus size={16} aria-hidden="true" />New group</Button>
         </>} />
 
-      <section className="felt mb-5 rounded-2xl p-5 md:p-7">
+      <section className="felt mb-5 rounded-2xl p-4 md:p-7">
         <p className="text-sm opacity-80">{t.net === 0 ? "You're all square" : t.net > 0 ? 'Overall, you are owed' : 'Overall, you owe'}</p>
-        <p className="amount mt-1 font-display text-5xl font-medium tracking-tight md:text-6xl">{formatMoney(Math.abs(t.net), currency)}</p>
-        <div className="mt-5 flex gap-8 border-t border-felt-ink/15 pt-4 text-sm">
+        <p className="amount mt-1 font-display text-4xl font-medium tracking-tight md:text-6xl">{formatMoney(Math.abs(t.net), currency)}</p>
+        <div className="mt-4 flex gap-6 border-t md:mt-5 md:gap-8 border-felt-ink/15 pt-4 text-sm">
           <div>
             <p className="flex items-center gap-1 opacity-75"><ArrowUpRight size={14} className="text-brass" aria-hidden="true" />Owed to you</p>
-            <p className="amount font-display text-xl text-brass">{formatMoney(t.owed, currency)}</p>
+            <p className="amount font-display text-lg text-brass md:text-xl">{formatMoney(t.owed, currency)}</p>
           </div>
           <div>
             <p className="flex items-center gap-1 opacity-75"><ArrowDownRight size={14} className="text-loss" aria-hidden="true" />You owe</p>
-            <p className="amount font-display text-xl text-loss">{formatMoney(t.owe, currency)}</p>
+            <p className="amount font-display text-lg text-loss md:text-xl">{formatMoney(t.owe, currency)}</p>
           </div>
           {poker.games > 0 && (
             <div className="hidden sm:block"><p className="opacity-75">Clubs, all time</p><p className="amount font-display text-xl">{formatMoney(poker.net, currency, { sign: true })}</p></div>

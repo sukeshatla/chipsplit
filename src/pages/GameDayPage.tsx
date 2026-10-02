@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { ArrowLeft, ArrowRight, Check, Lock, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
+import { ArrowRight, Check, Lock, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, myMemberId, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
-import { Amount, Avatar, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Textarea } from '../components/ui';
+import { Amount, Avatar, BackLink, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Textarea } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
@@ -93,7 +93,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   return (
     <>
       <PageHeader
-        back={<Link to={`/groups/${g.id}?tab=games`} className="mb-2 inline-flex items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-ink"><ArrowLeft size={14} aria-hidden="true" />{g.name}</Link>}
+        back={<BackLink to={`/groups/${g.id}?tab=games`} label={g.name} />}
         title={formatDate(s.played_on, { weekday: 'long', month: 'long', day: 'numeric' })}
         subtitle={<span className="flex flex-wrap items-center gap-2">
           {final ? <Badge tone="gain"><Lock size={12} aria-hidden="true" />Final</Badge> : <Badge tone="brass">In progress</Badge>}
@@ -111,11 +111,11 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         </>}
       />
 
-      <section className={clsx('mb-5 rounded-2xl p-5', balanced ? 'felt' : 'border border-line bg-surface')}>
+      <section className={clsx('mb-5 rounded-2xl p-4 md:p-5', balanced ? 'felt' : 'border border-line bg-surface')}>
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex gap-8">
-            <div><p className="text-sm opacity-80">Bought in</p><p className="amount font-display text-3xl font-medium">{formatMoney(totalIn, g.currency)}</p></div>
-            <div><p className="text-sm opacity-80">Cashed out</p><p className="amount font-display text-3xl font-medium">{formatMoney(totalOut, g.currency)}</p></div>
+          <div className="flex gap-6 md:gap-8">
+            <div><p className="text-sm opacity-80">Bought in</p><p className="amount font-display text-2xl font-medium md:text-3xl">{formatMoney(totalIn, g.currency)}</p></div>
+            <div><p className="text-sm opacity-80">Cashed out</p><p className="amount font-display text-2xl font-medium md:text-3xl">{formatMoney(totalOut, g.currency)}</p></div>
           </div>
           <p className={clsx('text-sm font-semibold', !balanced && (diff === 0 || totalOut === 0 ? 'text-ink-2' : 'text-loss'))}>
             {balanced ? 'The table balances.' : lines.length < 2 ? 'Add at least two players.'
