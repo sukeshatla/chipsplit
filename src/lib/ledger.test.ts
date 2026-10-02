@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { settle } from './settle';
 import { splitByWeights, splitEqual, parseMoney, equalPercents } from './money';
 import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink, shortName, listedGroups, directFriendKey, activity } from './ledger';
-import type { AppData, Group } from './types';
+import type { AppData, GameSession, Group } from './types';
 
 describe('settle', () => {
   it('settles the sample game in 4 payments', () => {
@@ -330,5 +330,33 @@ describe('direct (friend-only) groups', () => {
     expect(directFriendKey(direct, 'me')).toBe('e:kiran@x.com');
     expect(directFriendKey(club, 'me')).toBeNull();
     expect(activity(data).find((a) => a.id === 'e1')!.link).toBe('/friends/e%3Akiran%40x.com?expense=e1');
+  });
+});
+
+describe('group vs game settlement', () => {
+  // A finalized game (a +30, b -30) and an expense (a paid 20, split evenly: a +10, b -10).
+  // b settles the whole $40 from the Balances tab, so the payment isn't tied to the game.
+  const mem = (id: string) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id, email: null, email_opt_out: false, is_admin: true });
+  const game: GameSession = { id: 's', group_id: 'g', played_on: '2026-10-01', location: null, notes: null, status: 'final', default_buy_in_cents: 5000, created_at: '',
+    results: [{ member_id: 'a', buy_in_cents: 5000, cash_out_cents: 8000 }, { member_id: 'b', buy_in_cents: 5000, cash_out_cents: 2000 }] };
+  const g: Group = {
+    id: 'g', name: 'Club', kind: 'club', currency: 'USD', created_by: null, created_at: '', members: [mem('a'), mem('b')], sessions: [game],
+    expenses: [{ id: 'e', group_id: 'g', description: 'Pizza', category: 'food', amount_cents: 2000, spent_on: '2026-10-01', created_by: null, created_at: '',
+      payers: [{ member_id: 'a', amount_cents: 2000 }], shares: [{ member_id: 'a', amount_cents: 1000 }, { member_id: 'b', amount_cents: 1000 }] }],
+    settlements: [{ id: 'p', group_id: 'g', from_member: 'b', to_member: 'a', amount_cents: 4000, method: null, note: null, session_id: null, settled_on: '2026-10-02', created_at: '' }],
+  };
+
+  it('balances count finalized games and expenses together', () => {
+    const before = groupBalances({ ...g, settlements: [] });
+    expect(before.get('a')).toBe(4000);
+    expect(before.get('b')).toBe(-4000);
+  });
+  it('a group settled in total can be deleted even though the game itself shows unpaid', () => {
+    expect(isGroupSettled(g)).toBe(true);
+    expect(isSessionSettled(g, game)).toBe(false);
+  });
+  it('an open game does not count toward balances yet', () => {
+    const open = groupBalances({ ...g, sessions: [{ ...game, status: 'open' }], settlements: [] });
+    expect(open.get('a')).toBe(1000);
   });
 });

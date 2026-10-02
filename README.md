@@ -20,7 +20,8 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Built for entering a full table on a phone: one line per player, a **Buy-ins / Cash-outs** switch so only one box shows at a time, and the keyboard's **Next** key jumps straight to the next player.
 - Finalize to lock the results and get the **settle-up list**: the fewest payments that clear the table.
 - Tick off each payment as **Paid** (or undo it). The game shows "3 unpaid" until everyone's square.
-- Reopen a game to fix a mistake. Edit date, location, notes, and rebuy amount any time.
+- Reopen a game to fix a mistake. Date, location, and rebuy amount are set when the game starts.
+- Deleting a game needs that game's own payments recorded; deleting the whole club only needs the club's **total** balance settled (games + expenses + every payment).
 - **Leaderboard** per club: total won or lost, games played, winning nights, best night.
 - A club can run more than one game on the same day — each is its own record, nothing is tied to a calendar day.
 - A club holds expenses too (split the pizza, chip in for the venue) — it isn't games-only.

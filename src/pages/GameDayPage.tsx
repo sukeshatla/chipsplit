@@ -5,7 +5,7 @@ import { Check, Lock, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserP
 import { useAction, useData } from '../app/data';
 import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, memberShort, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
-import { Amount, AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Tabs, Textarea } from '../components/ui';
+import { Amount, AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, IconButton, MoneyInput, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
@@ -207,15 +207,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
           {!final && <p className="px-4 pb-3 text-[12px] text-ink-2 md:px-5">+ adds a {formatMoney(rebuy, g.currency)} rebuy. <span className="md:hidden">Next on the keyboard jumps to the next player; tap an avatar to remove someone.</span></p>}
         </Card>
 
-        <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
-          {final ? <Payments g={g} s={s} /> : (
-            <Card className="p-5">
-              <h2 className="font-display text-base font-medium">Settle up</h2>
-              <p className="mt-1 text-sm text-ink-2">Once the table balances, finalize the game to see who pays whom.</p>
-            </Card>
-          )}
-          <Details s={s} />
-        </div>
+        {final && <Payments g={g} s={s} />}
         <HistoryList g={g} entityId={s.id} />
       </div>
       <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)}
@@ -281,31 +273,6 @@ function Payments({ g, s }: { g: Group; s: GameSession }) {
         ))}
       </div>
       <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)} />
-    </Card>
-  );
-}
-
-function Details({ s }: { s: GameSession }) {
-  const { run, busy } = useAction();
-  const [date, setDate] = useState(s.played_on);
-  const [location, setLocation] = useState(s.location ?? '');
-  const [notes, setNotes] = useState(s.notes ?? '');
-  const [buyIn, setBuyIn] = useState(centsToInput(s.default_buy_in_cents));
-  const dirty = date !== s.played_on || location !== (s.location ?? '') || notes !== (s.notes ?? '') || buyIn !== centsToInput(s.default_buy_in_cents);
-  return (
-    <Card className="p-4 md:p-5">
-      <h2 className="mb-3 font-display text-base font-medium">Details</h2>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-        <Field label="Rebuy amount"><MoneyInput value={buyIn} onChange={(e) => setBuyIn(e.target.value)} /></Field>
-        <Field label="Where you're playing (optional)" className="col-span-2"><Input value={location} placeholder="Ravi's place" onChange={(e) => setLocation(e.target.value)} /></Field>
-        <Field label="Notes" className="col-span-2"><Textarea value={notes} placeholder="Blinds, house rules, who brought snacks" onChange={(e) => setNotes(e.target.value)} /></Field>
-      </div>
-      <div className="mt-3 flex justify-end">
-        <Button disabled={!dirty} loading={busy} onClick={() => run((api) => api.updateSession(s.id, {
-          played_on: date, location: location.trim() || null, notes: notes.trim() || null, default_buy_in_cents: parseMoney(buyIn) ?? 0,
-        }), 'Details saved')}>Save details</Button>
-      </div>
     </Card>
   );
 }
