@@ -16,6 +16,12 @@ import type { GameSession, Group, Member } from '../lib/types';
 /** One player while the game is open. `returned` (cents) is chips handed back to the bank mid-game. */
 interface Line { member_id: string; buyIn: string; cashOut: string; returned: number }
 
+function toResults(lines: Line[]) {
+  return lines.map((l) => ({
+    member_id: l.member_id, buy_in_cents: parseMoney(l.buyIn) ?? 0, cash_out_cents: parseMoney(l.cashOut) ?? 0, returned_cents: l.returned,
+  }));
+}
+
 export function GameDayPage() {
   const { groupId, gameId } = useParams();
   const { groups } = useData();
@@ -49,9 +55,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const admin = isGroupAdmin(g, me.id);
   const settled = isSessionSettled(g, s);
 
-  const parsed = useMemo(() => lines.map((l) => ({
-    member_id: l.member_id, buy_in_cents: parseMoney(l.buyIn) ?? 0, cash_out_cents: parseMoney(l.cashOut) ?? 0, returned_cents: l.returned,
-  })), [lines]);
+  const parsed = useMemo(() => toResults(lines), [lines]);
   const totalIn = parsed.reduce((a, r) => a + r.buy_in_cents, 0);
   // Chips given back left the table just like a cash-out, so they count on the "out" side.
   const totalOut = parsed.reduce((a, r) => a + r.cash_out_cents + r.returned_cents, 0);
@@ -73,6 +77,15 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
     const bad = lines.find((l) => (l.buyIn && parseMoney(l.buyIn) === null) || (l.cashOut && parseMoney(l.cashOut) === null));
     if (bad) return `Check the numbers for ${memberName(g, bad.member_id)}`;
     return null;
+  };
+  // A give-back is a real event at the table, so it's saved straight away (with whatever else
+  // is on screen) instead of waiting for Save -- leaving the page can't lose it.
+  const giveBack = async (memberId: string, cents: number) => {
+    const next = lines.map((l) => (l.member_id === memberId ? { ...l, returned: cents } : l));
+    setLines(next); setDirty(true); setError(null);
+    const bad = next.find((l) => (l.buyIn && parseMoney(l.buyIn) === null) || (l.cashOut && parseMoney(l.cashOut) === null));
+    if (bad) { setError(`Check the numbers for ${memberName(g, bad.member_id)}, then tap Save`); return; }
+    await run((api) => api.saveSessionResults(s.id, toResults(next)), cents ? 'Give-back saved' : 'Give-back cleared');
   };
   const save = async () => {
     const v = validate();
@@ -226,7 +239,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
       {givingBack && (
         <GiveBackDialog name={memberShort(g, givingBack)} currency={g.currency} rebuy={rebuy}
           returned={lines.find((l) => l.member_id === givingBack)?.returned ?? 0}
-          onSet={(cents) => { edit(givingBack, { returned: cents }); }} onClose={() => setGivingBack(null)} />
+          onSet={(cents) => { void giveBack(givingBack, cents); }} onClose={() => setGivingBack(null)} />
       )}
       <AddMemberDialog group={g} open={newPerson} onClose={() => setNewPerson(false)} onAdded={(id) => addLine(id)} />
       {admin && (
