@@ -289,30 +289,37 @@ function Payments({ g, s }: { g: Group; s: GameSession }) {
   );
 }
 
-/** Chips a player hands back to the bank mid-game (so someone else can buy in). Adds to their
- *  running "given back" total; that counts like cash already taken out. Can be cleared to fix
- *  a mistake. */
+/** Chips a player hands back to the bank mid-game (so someone else can buy in). Opens as a
+ *  one-tap confirm for the rebuy amount -- no keyboard -- and only shows an amount box if you
+ *  tap Change. Adds to their running "given back" total, which can be cleared to fix a mistake. */
 function GiveBackDialog({ name, currency, rebuy, returned, onSet, onClose }: {
   name: string; currency: string; rebuy: number; returned: number; onSet(cents: number): void; onClose(): void;
 }) {
+  const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(centsToInput(rebuy));
   const cents = parseMoney(amount);
   const valid = cents !== null && cents > 0;
   return (
-    <Modal open onClose={onClose} title={`${name} gives chips back`}
+    <Modal open onClose={onClose} title={`${name} gives back`}
       footer={<>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
         <Button variant="primary" disabled={!valid} onClick={() => { onSet(returned + cents!); onClose(); }}>
           <Minus size={16} aria-hidden="true" />Give back{valid ? ` ${formatMoney(cents!, currency)}` : ''}
         </Button>
       </>}>
-      <p className="text-sm text-ink-2">Chips {name} hands back to the bank so others can buy in. It counts like cash they've already taken out.</p>
-      <MoneyInput className="mt-3" autoFocus value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value)} />
-      {returned > 0 && (
-        <div className="mt-3 flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2 text-[13px]">
-          <span>Given back so far: <b className="amount">{formatMoney(returned, currency)}</b></span>
-          <button type="button" className="font-semibold text-loss hover:underline" onClick={() => { onSet(0); onClose(); }}>Clear</button>
+      {editing ? (
+        <MoneyInput autoFocus aria-label="Amount given back" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value)} />
+      ) : (
+        <div className="flex items-center justify-between">
+          <span className="amount font-display text-2xl font-medium">{valid ? formatMoney(cents!, currency) : '—'}</span>
+          <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>Change</Button>
         </div>
+      )}
+      {returned > 0 && (
+        <p className="mt-2 text-[13px] text-ink-2">
+          Already gave back <b className="amount">{formatMoney(returned, currency)}</b> ·{' '}
+          <button type="button" className="font-semibold text-loss hover:underline" onClick={() => { onSet(0); onClose(); }}>Clear</button>
+        </p>
       )}
     </Modal>
   );
