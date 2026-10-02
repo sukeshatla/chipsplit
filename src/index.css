@@ -44,6 +44,8 @@
 }
 
 .amount { font-variant-numeric: tabular-nums; }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* The felt: the one bold surface in the app, used for your overall standing and the table check. */
 .felt {

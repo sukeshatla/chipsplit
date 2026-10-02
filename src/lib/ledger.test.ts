@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { settle } from './settle';
 import { splitByWeights, splitEqual, parseMoney, equalPercents } from './money';
-import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink } from './ledger';
+import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink, shortName } from './ledger';
 import type { AppData, Group } from './types';
 
 describe('settle', () => {
@@ -291,5 +291,21 @@ describe('friendsList', async () => {
     const rows = friendsList(data).filter((f) => f.name === 'Ravi');
     expect(rows).toHaveLength(1);
     expect(rows[0]!.contactId).toBe('c1');
+  });
+});
+
+describe('shortName', () => {
+  it('keeps the first name and the last name initial', () => {
+    expect(shortName('Srinath Pinnaka')).toBe('Srinath P.');
+    expect(shortName('Jagan Mohan Rao')).toBe('Jagan R.');
+  });
+  it('leaves single names alone', () => {
+    expect(shortName('Rakesh')).toBe('Rakesh');
+    expect(shortName('  Sindhu ')).toBe('Sindhu');
+  });
+  it('falls back to the full name when two people would shorten the same way', () => {
+    const others = ['Srinath Pinnaka', 'Srinath Patel', 'Srija Poreddy'];
+    expect(shortName('Srinath Pinnaka', others)).toBe('Srinath Pinnaka');
+    expect(shortName('Srija Poreddy', others)).toBe('Srija P.');
   });
 });

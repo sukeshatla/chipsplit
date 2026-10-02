@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ArrowRight, Check, Lock, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, myMemberId, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
+import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, memberShort, myMemberId, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
 import { Amount, Avatar, BackLink, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Textarea } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -142,7 +142,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
                 <div key={l.member_id} className="grid grid-cols-2 items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,1fr)_170px_140px_90px_36px] md:px-5">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <Avatar name={name} src={memberAvatar(g, l.member_id)} size={30} />
-                    <span className="truncate text-sm font-semibold">{name}</span>
+                    <span className="truncate text-sm font-semibold">{memberShort(g, l.member_id)}</span>
                   </div>
                   <div className="flex items-center justify-end gap-1 md:order-4">
                     {final || l.cashOut ? <Amount cents={net} currency={g.currency} sign /> : <span className="text-[13px] text-ink-2">playing</span>}
@@ -234,12 +234,15 @@ function Payments({ g, s }: { g: Group; s: GameSession }) {
         {pays.length === 0 && <p className="px-5 pb-5 text-sm text-ink-2">Everyone broke even.</p>}
         {pays.map((p) => (
           <Row key={`${p.from}-${p.to}`} className={p.settlementId ? 'opacity-60' : ''}>
-            <span className="min-w-0 flex-1 truncate text-sm">
-              <b className="font-semibold">{memberName(g, p.from)}</b>
-              <ArrowRight size={14} className="mx-1.5 inline text-ink-2" aria-label="pays" />
-              <b className="font-semibold">{memberName(g, p.to)}</b>
-            </span>
-            <span className={clsx('amount font-display font-medium', p.settlementId && 'line-through')}>{formatMoney(p.cents, g.currency)}</span>
+            <Avatar name={memberName(g, p.from)} src={memberAvatar(g, p.from)} size={32} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm">
+                <b className="font-semibold text-loss">{memberShort(g, p.from)}</b>
+                <ArrowRight size={14} className="mx-1 inline text-ink-2" aria-label="pays" />
+                <b className="font-semibold text-gain">{memberShort(g, p.to)}</b>
+              </p>
+              <p className={clsx('amount font-display text-[15px] font-medium leading-tight', p.settlementId && 'line-through')}>{formatMoney(p.cents, g.currency)}</p>
+            </div>
             {!p.settlementId && reminderMailto(g, p) && (
               <IconButton label={`Remind ${memberName(g, p.from)}`} title="Email a settle-up reminder"
                 onClick={() => { window.location.href = reminderMailto(g, p)!; }}><Mail size={16} /></IconButton>

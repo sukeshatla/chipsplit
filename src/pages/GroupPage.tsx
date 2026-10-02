@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
-import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
+import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
 import { rummyStandings } from '../lib/rummy';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, BackLink, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Spinner, Tabs } from '../components/ui';
@@ -103,7 +103,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
                   onClick={() => setCardMember(g.members.find((m) => m.id === r.memberId) ?? null)}>
                   <Avatar name={r.name} src={r.avatar_url} size={32} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{r.name}</p>
+                    <p className="truncate text-sm font-semibold">{memberShort(g, r.memberId)}</p>
                     <p className="text-[12px] text-ink-2">{r.games} games, won {r.wins}, best {formatMoney(r.best, g.currency)}</p>
                   </div>
                 </button>
@@ -181,7 +181,7 @@ function RummyTab({ g }: { g: Group }) {
                     <p className="truncate text-[12px] text-ink-2">{rg.players.length} players, out at {rg.point_limit}, {formatDate(rg.created_at)}</p>
                   </div>
                   <Badge tone={rg.status === 'active' ? 'felt' : 'neutral'}>{rg.status === 'active' ? 'Active' : 'Finished'}</Badge>
-                  {leader && <span className="hidden text-[12px] text-ink-2 sm:inline">{leader.player.name} leads</span>}
+                  {leader && <span className="hidden text-[12px] text-ink-2 sm:inline">{shortName(leader.player.name, rg.players.map((x) => x.name))} leads</span>}
                   <ChevronRight size={16} className="text-ink-2" aria-hidden="true" />
                 </Row>
               </Link>
@@ -213,25 +213,22 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
           <div className="mt-2">
             {transfers.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Everyone is settled up.</p> :
               transfers.map((t) => (
-                <div key={`${t.from}-${t.to}`}
-                  className="flex flex-col gap-2 border-b border-line px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3 md:px-5">
-                  <div className="flex min-w-0 items-center gap-3 sm:flex-1">
-                    <Avatar name={memberName(g, t.from)} src={memberAvatar(g, t.from)} size={28} />
-                    <span className="min-w-0 flex-1 truncate text-sm">
-                      <button type="button" className="font-semibold text-loss hover:underline" onClick={() => setCardMember(memberById(t.from))}>{memberName(g, t.from)}</button>
-                      <ArrowRight size={14} className="mx-1.5 inline text-ink-2" aria-label="pays" />
-                      <button type="button" className="font-semibold text-gain hover:underline" onClick={() => setCardMember(memberById(t.to))}>{memberName(g, t.to)}</button>
-                    </span>
+                <Row key={`${t.from}-${t.to}`}>
+                  <Avatar name={memberName(g, t.from)} src={memberAvatar(g, t.from)} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm">
+                      <button type="button" className="font-semibold text-loss hover:underline" onClick={() => setCardMember(memberById(t.from))}>{memberShort(g, t.from)}</button>
+                      <ArrowRight size={14} className="mx-1 inline text-ink-2" aria-label="pays" />
+                      <button type="button" className="font-semibold text-gain hover:underline" onClick={() => setCardMember(memberById(t.to))}>{memberShort(g, t.to)}</button>
+                    </p>
+                    <p className="amount font-display text-[15px] font-medium leading-tight">{formatMoney(t.cents, g.currency)}</p>
                   </div>
-                  <div className="flex shrink-0 items-center justify-end gap-2">
-                    <span className="amount font-display font-medium">{formatMoney(t.cents, g.currency)}</span>
-                    {reminderMailto(g, t) && (
-                      <IconButton label={`Remind ${memberName(g, t.from)}`} title="Email a settle-up reminder"
-                        onClick={() => { window.location.href = reminderMailto(g, t)!; }}><Mail size={16} /></IconButton>
-                    )}
-                    <Button size="sm" onClick={() => onSettle({ from: t.from, to: t.to, cents: t.cents })}>Record</Button>
-                  </div>
-                </div>
+                  {reminderMailto(g, t) && (
+                    <IconButton label={`Remind ${memberName(g, t.from)}`} title="Email a settle-up reminder"
+                      onClick={() => { window.location.href = reminderMailto(g, t)!; }}><Mail size={16} /></IconButton>
+                  )}
+                  <Button size="sm" onClick={() => onSettle({ from: t.from, to: t.to, cents: t.cents })}>Record</Button>
+                </Row>
               ))}
           </div>
         </Card>
@@ -242,7 +239,7 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
               <Row key={m.id}>
                 <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setCardMember(m)}>
                   <Avatar name={m.name} src={m.avatar_url} size={32} />
-                  <span className="flex-1 truncate text-sm font-semibold">{m.name}</span>
+                  <span className="flex-1 truncate text-sm font-semibold">{shortName(m.name, g.members.map((x) => x.name))}</span>
                 </button>
                 <BalanceText cents={bal.get(m.id) ?? 0} currency={g.currency} perspective="them" />
               </Row>
@@ -256,9 +253,9 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
           {history.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Payments you record show up here.</p> :
             history.map((s) => (
               <Row key={s.id}>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gain/10 text-gain"><HandCoins size={16} aria-hidden="true" /></span>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gain/10 text-gain"><HandCoins size={16} aria-hidden="true" /></span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{memberName(g, s.from_member)} paid {memberName(g, s.to_member)}</p>
+                  <p className="truncate text-sm font-semibold">{memberShort(g, s.from_member)} paid {memberShort(g, s.to_member)}</p>
                   <p className="truncate text-[12px] text-ink-2">{formatDate(s.settled_on)}{s.method ? `, ${s.method}` : ''}{s.session_id ? ', game' : ''}{s.note ? `, ${s.note}` : ''}</p>
                 </div>
                 <span className="amount font-display font-medium">{formatMoney(s.amount_cents, g.currency)}</span>
@@ -310,7 +307,7 @@ function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMem
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{e.description}</p>
                       <p className="truncate text-[12px] text-ink-2">
-                        {e.payers.map((p) => memberName(g, p.member_id)).join(' and ')} paid {formatMoney(e.amount_cents, g.currency)}, split {e.shares.length} ways
+                        {e.payers.map((p) => memberShort(g, p.member_id)).join(' and ')} paid {formatMoney(e.amount_cents, g.currency)}, split {e.shares.length} ways
                       </p>
                     </div>
                     <div className="text-right">

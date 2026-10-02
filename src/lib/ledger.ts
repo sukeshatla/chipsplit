@@ -68,6 +68,26 @@ export function memberName(g: Group, id: string) {
   return g.members.find((m) => m.id === id)?.name ?? 'Unknown';
 }
 
+/** "Srinath Pinnaka" -> "Srinath P." for compact rows. Single names stay as-is, and if the short
+ *  form would collide with someone else's in `others` (two "Srinath P."s), the full name is kept. */
+export function shortName(name: string, others: string[] = []): string {
+  const short = abbreviate(name);
+  if (short === name) return name;
+  const clash = others.some((o) => o !== name && abbreviate(o) === short);
+  return clash ? name : short;
+}
+
+function abbreviate(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name.trim();
+  return `${parts[0]} ${parts[parts.length - 1]![0]!.toUpperCase()}.`;
+}
+
+/** memberName, shortened for list rows; full names stay in headings, pickers, and the Members tab. */
+export function memberShort(g: Group, id: string) {
+  return shortName(memberName(g, id), g.members.map((m) => m.name));
+}
+
 export function memberAvatar(g: Group, id: string): string | null {
   return g.members.find((m) => m.id === id)?.avatar_url ?? null;
 }

@@ -5,6 +5,7 @@ import { Lock, Spade, Trash2, Trophy } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { rummyStandings } from '../lib/rummy';
+import { shortName } from '../lib/ledger';
 import { formatDate } from '../lib/money';
 import { Avatar, BackLink, Badge, Button, Card, CardHeader, Input, PageHeader, Row, Spinner } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -42,6 +43,8 @@ export function RummyGamePage() {
   const standings = rummyStandings(game);
   const active = standings.filter((s) => !s.eliminated);
   const isScorer = game.scorer_id === me.id;
+  const allNames = game.players.map((p) => p.name);
+  const short = (name: string) => shortName(name, allNames);
   const winner = game.winner_player_id ? game.players.find((p) => p.id === game.winner_player_id) : null;
 
   const editingRound = editingRoundId ? game.rounds.find((r) => r.id === editingRoundId) ?? null : null;
@@ -114,10 +117,10 @@ export function RummyGamePage() {
                 <span className="amount w-5 text-center text-sm text-ink-2">{i + 1}</span>
                 <Avatar name={s.player.name} src={s.player.avatar_url} size={32} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{s.player.name}{s.player.user_id === me.id && <span className="font-normal text-ink-2"> (you)</span>}</p>
+                  <p className="truncate text-sm font-semibold">{short(s.player.name)}{s.player.user_id === me.id && <span className="font-normal text-ink-2"> (you)</span>}</p>
                   {s.eliminated && <p className="text-[12px] font-semibold text-loss">Out</p>}
                 </div>
-                <span className={`amount font-display text-lg font-medium ${s.eliminated ? 'text-loss' : ''}`}>{s.total}</span>
+                <span className={`amount font-display text-base font-medium ${s.eliminated ? 'text-loss' : ''}`}>{s.total}</span>
               </Row>
             ))}
           </div>
@@ -134,7 +137,7 @@ export function RummyGamePage() {
                 {panelPlayers.map((p) => (
                   <div key={p.id} className="flex items-center gap-3">
                     <Avatar name={p.name} src={p.avatar_url} size={26} />
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">{p.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">{short(p.name)}</span>
                     <div className="w-20 shrink-0">
                       <Input inputMode="numeric" className="text-right" placeholder="0"
                         value={inputs[p.id] ?? ''} onChange={(e) => { setInputs((v) => ({ ...v, [p.id]: e.target.value.replace(/\D/g, '') })); setRoundError(null); }} />
@@ -169,7 +172,7 @@ export function RummyGamePage() {
                         if (!p) return null;
                         return (
                           <div key={s.player_id} className="flex items-center justify-between gap-2 text-sm">
-                            <span className="min-w-0 truncate text-ink-2">{p.name}</span>
+                            <span className="min-w-0 truncate text-ink-2">{short(p.name)}</span>
                             <span className="amount font-semibold">{s.points}</span>
                           </div>
                         );

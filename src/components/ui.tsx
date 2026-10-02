@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { forwardRef, useEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ArrowLeft, X, Loader2 } from 'lucide-react';
@@ -150,11 +150,18 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
 }
 
 export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { value: T; label: string }[]; value: T; onChange(v: T): void }) {
+  const list = useRef<HTMLDivElement>(null);
+  // When the tabs overflow on a phone, keep the selected one scrolled into view (horizontally only).
+  useEffect(() => {
+    const c = list.current;
+    const el = c?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (c && el && c.scrollWidth > c.clientWidth) c.scrollLeft = el.offsetLeft - (c.clientWidth - el.offsetWidth) / 2;
+  }, [value]);
   return (
-    <div role="tablist" className="flex gap-1 overflow-x-auto rounded-xl bg-surface-2 p-1">
+    <div ref={list} role="tablist" className="no-scrollbar flex gap-1 overflow-x-auto rounded-xl bg-surface-2 p-1">
       {tabs.map((t) => (
         <button key={t.value} role="tab" aria-selected={value === t.value} onClick={() => onChange(t.value)}
-          className={clsx('h-8 flex-1 whitespace-nowrap rounded-lg px-3 text-[13px] font-semibold transition-colors',
+          className={clsx('h-11 flex-1 whitespace-nowrap rounded-lg px-3 text-sm font-semibold transition-colors md:h-9 md:text-[13px]',
             value === t.value ? 'bg-surface text-ink shadow-sm' : 'text-ink-2 hover:text-ink')}>
           {t.label}
         </button>

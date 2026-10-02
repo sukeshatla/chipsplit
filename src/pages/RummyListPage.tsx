@@ -5,6 +5,7 @@ import { Plus, Spade } from 'lucide-react';
 import { useAuth } from '../app/auth';
 import { formatDate } from '../lib/money';
 import { rummyStandings } from '../lib/rummy';
+import { shortName } from '../lib/ledger';
 import { Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../components/ui';
 import { NewRummyGameDialog } from '../components/dialogs/NewRummyGameDialog';
 
@@ -41,7 +42,7 @@ export function RummyListPage() {
                     </div>
                     <div className="shrink-0 text-right">
                       <Badge tone={g.status === 'active' ? 'felt' : 'neutral'}>{g.status === 'active' ? 'Active' : 'Finished'}</Badge>
-                      {leader && <p className="mt-1 text-[12px] text-ink-2">{leader.player.name} leads</p>}
+                      {leader && <p className="mt-1 text-[12px] text-ink-2">{shortName(leader.player.name, g.players.map((x) => x.name))} leads</p>}
                     </div>
                   </Link>
                 );
