@@ -32,7 +32,7 @@ async function log(groupId: string, entityType: ChangeLogEntry['entity_type'], e
 const GROUP_SELECT = `
   id, name, kind, currency, created_by, created_at,
   group_members ( id, group_id, user_id, contact_id, name, email, email_opt_out, is_admin ),
-  expenses ( id, group_id, description, category, amount_cents, spent_on, created_by, created_at,
+  expenses ( id, group_id, description, category, amount_cents, spent_on, created_by, created_at, deleted_at,
     expense_payers ( member_id, amount_cents ), expense_shares ( member_id, amount_cents ) ),
   game_sessions ( id, group_id, played_on, location, notes, status, default_buy_in_cents, created_at,
     session_results ( member_id, buy_in_cents, cash_out_cents ) ),
@@ -74,16 +74,22 @@ async function attachRummyAvatars(games: RummyGame[]) {
   games.forEach((g) => g.players.forEach((p) => { if (p.user_id) p.avatar_url = map.get(p.user_id) ?? null; }));
 }
 
+function mapExpense(e: any) {
+  return {
+    id: e.id, group_id: e.group_id, description: e.description, category: e.category,
+    amount_cents: num(e.amount_cents), spent_on: e.spent_on, created_by: e.created_by, created_at: e.created_at, deleted_at: e.deleted_at,
+    payers: (e.expense_payers ?? []).map((p: any) => ({ member_id: p.member_id, amount_cents: num(p.amount_cents) })),
+    shares: (e.expense_shares ?? []).map((p: any) => ({ member_id: p.member_id, amount_cents: num(p.amount_cents) })),
+  };
+}
+
 function mapGroup(r: any): Group {
+  const expenses = (r.expenses ?? []).map(mapExpense);
   return {
     id: r.id, name: r.name, kind: r.kind, currency: r.currency, created_by: r.created_by, created_at: r.created_at,
     members: (r.group_members ?? []).map((m: any) => ({ ...m })),
-    expenses: (r.expenses ?? []).map((e: any) => ({
-      id: e.id, group_id: e.group_id, description: e.description, category: e.category,
-      amount_cents: num(e.amount_cents), spent_on: e.spent_on, created_by: e.created_by, created_at: e.created_at,
-      payers: (e.expense_payers ?? []).map((p: any) => ({ member_id: p.member_id, amount_cents: num(p.amount_cents) })),
-      shares: (e.expense_shares ?? []).map((p: any) => ({ member_id: p.member_id, amount_cents: num(p.amount_cents) })),
-    })),
+    expenses: expenses.filter((e: any) => !e.deleted_at),
+    deleted_expenses: expenses.filter((e: any) => e.deleted_at),
     sessions: (r.game_sessions ?? []).map((s: any) => ({
       id: s.id, group_id: s.group_id, played_on: s.played_on, location: s.location, notes: s.notes, status: s.status,
       default_buy_in_cents: num(s.default_buy_in_cents), created_at: s.created_at,
@@ -224,7 +230,8 @@ export const supabaseApi: DataApi = {
     };
     let expenseId = id;
     if (id) {
-      check(await db().from('expenses').update(fields).eq('id', id));
+      const rows = check(await db().from('expenses').update(fields).eq('id', id).select('id')) as { id: string }[];
+      if (!rows.length) throw new Error('Only a group admin can edit expenses');
       check(await db().from('expense_payers').delete().eq('expense_id', id));
       check(await db().from('expense_shares').delete().eq('expense_id', id));
     } else {
@@ -244,8 +251,20 @@ export const supabaseApi: DataApi = {
 
   async deleteExpense(id) {
     const before = check(await db().from('expenses').select('group_id, description').eq('id', id).maybeSingle()) as { group_id: string; description: string } | null;
-    check(await db().from('expenses').delete().eq('id', id));
-    if (before) await log(before.group_id, 'expense', id, `Deleted expense "${before.description}"`);
+    if (!before) throw new Error('That expense no longer exists');
+    // RLS silently skips rows the caller can't update, so ask for the row back to tell "not
+    // allowed" apart from success.
+    const rows = check(await db().from('expenses').update({ deleted_at: new Date().toISOString() }).eq('id', id).select('id')) as { id: string }[];
+    if (!rows.length) throw new Error('Only a group admin can delete expenses');
+    await log(before.group_id, 'expense', id, `Deleted expense "${before.description}"`);
+  },
+
+  async restoreExpense(id) {
+    const before = check(await db().from('expenses').select('group_id, description').eq('id', id).maybeSingle()) as { group_id: string; description: string } | null;
+    if (!before) throw new Error('That expense no longer exists');
+    const rows = check(await db().from('expenses').update({ deleted_at: null }).eq('id', id).select('id')) as { id: string }[];
+    if (!rows.length) throw new Error('Only a group admin can restore expenses');
+    await log(before.group_id, 'expense', id, `Restored expense "${before.description}"`);
   },
 
   async createSession(s) {

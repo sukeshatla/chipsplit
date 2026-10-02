@@ -20,6 +20,7 @@ function load(): DemoStore {
       const d = JSON.parse(raw) as DemoStore;
       d.changeLog ??= [];
       d.rummyGames ??= [];
+      d.groups.forEach((g) => { g.deleted_expenses ??= []; });
       return d;
     }
   } catch { /* fall through to a fresh seed */ }
@@ -131,7 +132,7 @@ export const demoApi: DataApi = {
     d.groups.push({
       id, name, kind, currency, created_by: d.me.id, created_at: now(),
       members: [{ id: uid(), group_id: id, user_id: d.me.id, contact_id: null, name: d.me.display_name, email: d.me.email, email_opt_out: false, is_admin: true }],
-      expenses: [], sessions: [], settlements: [],
+      expenses: [], deleted_expenses: [], sessions: [], settlements: [],
     });
     return id;
   }),
@@ -213,6 +214,7 @@ export const demoApi: DataApi = {
 
   saveExpense: (e, id) => mutate((d) => {
     const g = group(d, e.group_id);
+    assertAdmin(d, g, id ? 'Only a group admin can edit expenses' : 'Only a group admin can add expenses');
     if (id) {
       const i = g.expenses.findIndex((x) => x.id === id);
       if (i < 0) throw new Error('That expense no longer exists');
@@ -228,9 +230,19 @@ export const demoApi: DataApi = {
   deleteExpense: (id) => mutate((d) => {
     const g = groupOf(d, (x) => x.expenses.some((e) => e.id === id));
     assertAdmin(d, g, 'Only a group admin can delete expenses');
-    const description = g.expenses.find((e) => e.id === id)!.description;
-    g.expenses = g.expenses.filter((e) => e.id !== id);
-    log(d, g.id, 'expense', id, `Deleted expense "${description}"`);
+    const e = g.expenses.find((x) => x.id === id)!;
+    g.expenses = g.expenses.filter((x) => x.id !== id);
+    (g.deleted_expenses ??= []).push({ ...e, deleted_at: now() });
+    log(d, g.id, 'expense', id, `Deleted expense "${e.description}"`);
+  }),
+
+  restoreExpense: (id) => mutate((d) => {
+    const g = groupOf(d, (x) => (x.deleted_expenses ?? []).some((e) => e.id === id));
+    assertAdmin(d, g, 'Only a group admin can restore expenses');
+    const e = g.deleted_expenses!.find((x) => x.id === id)!;
+    g.deleted_expenses = g.deleted_expenses!.filter((x) => x.id !== id);
+    g.expenses.push({ ...e, deleted_at: null });
+    log(d, g.id, 'expense', id, `Restored expense "${e.description}"`);
   }),
 
   createSession: (s) => mutate((d) => {

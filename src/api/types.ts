@@ -31,8 +31,12 @@ export interface DataApi {
   addContact(name: string, email: string | null): Promise<string>;
   renameContact(contactId: string, name: string): Promise<void>;
   deleteContact(contactId: string): Promise<void>;
+  /** Admin-only, like every expense write. */
   saveExpense(e: NewExpense, id?: string): Promise<void>;
+  /** Admin-only. Soft delete: the expense drops out of balances but can be restored. */
   deleteExpense(id: string): Promise<void>;
+  /** Admin-only. Brings a deleted expense back exactly as it was. */
+  restoreExpense(id: string): Promise<void>;
   createSession(s: NewSession): Promise<string>;
   updateSession(id: string, patch: Partial<Pick<GameSession, 'played_on' | 'location' | 'notes' | 'status' | 'default_buy_in_cents'>>): Promise<void>;
   saveSessionResults(id: string, results: SessionResult[]): Promise<void>;

@@ -5,7 +5,7 @@ import { Search, Users } from 'lucide-react';
 import { Avatar, Badge, Button, EmptyState, Input, Modal } from '../ui';
 import { useAction, useData } from '../../app/data';
 import { useAuth } from '../../app/auth';
-import { friendKey, friendsList, STATUS_LABEL, type FriendStatus } from '../../lib/ledger';
+import { friendKey, friendsList, isGroupAdmin, STATUS_LABEL, type FriendStatus } from '../../lib/ledger';
 import { AddFriendDialog } from './AddFriendDialog';
 import { ExpenseDialog } from './ExpenseDialog';
 import type { AppData, Group } from '../../lib/types';
@@ -45,8 +45,10 @@ export function QuickExpenseDialog({ open, onClose }: { open: boolean; onClose()
     if (picked.length === 0) { setError('Pick at least one friend'); return; }
     const wanted = new Set([meKey, ...picked]);
     // Reuse any existing group (club or expenses) with exactly this set of people -- a club
-    // already supports expenses, so there's no reason to spin up a redundant new group.
-    const existing = data.groups.find((g) => g.members.length === wanted.size && g.members.every((m) => wanted.has(friendKey(m))));
+    // already supports expenses, so there's no reason to spin up a redundant new group. Only
+    // admins can add expenses, so a group you aren't an admin of doesn't count.
+    const existing = data.groups.find((g) => isGroupAdmin(g, data.me.id)
+      && g.members.length === wanted.size && g.members.every((m) => wanted.has(friendKey(m))));
     if (existing) { setGroup(existing); return; }
 
     const selected = friends.filter((f) => picked.includes(f.key));

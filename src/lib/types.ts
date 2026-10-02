@@ -49,6 +49,7 @@ export interface Expense {
   created_at: string;
   payers: Split[];
   shares: Split[];
+  deleted_at?: string | null; // set only on entries in Group.deleted_expenses
 }
 
 export interface SessionResult {
@@ -91,6 +92,8 @@ export interface Group {
   created_at: string;
   members: Member[];
   expenses: Expense[];
+  /** Soft-deleted expenses: left out of every balance, kept so History can restore them. */
+  deleted_expenses?: Expense[];
   sessions: GameSession[];
   settlements: Settlement[];
 }
@@ -112,7 +115,7 @@ export interface ChangeLogEntry {
   created_at: string;
 }
 
-export type NewExpense = Omit<Expense, 'id' | 'created_at' | 'created_by'>;
+export type NewExpense = Omit<Expense, 'id' | 'created_at' | 'created_by' | 'deleted_at'>;
 export type NewSettlement = Omit<Settlement, 'id' | 'created_at'>;
 export interface NewSession {
   group_id: string;

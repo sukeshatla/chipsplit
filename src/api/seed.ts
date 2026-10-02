@@ -44,7 +44,7 @@ export function seedDemo(): AppData {
       id: uid(), group_id: id, user_id: n === 'Suki' ? me.id : n === 'Ravi' ? RAVI_USER_ID : null, contact_id: contactId(n), name: n,
       email: `${n.toLowerCase()}@example.com`, email_opt_out: false, is_admin: true,
     }));
-    return { id, name, kind, currency: 'USD', created_by: me.id, created_at: `${daysAgo(age)}T12:00:00Z`, members, expenses: [], sessions: [], settlements: [] };
+    return { id, name, kind, currency: 'USD', created_by: me.id, created_at: `${daysAgo(age)}T12:00:00Z`, members, expenses: [], deleted_expenses: [], sessions: [], settlements: [] };
   };
   const mid = (g: Group, n: string) => g.members.find((m) => m.name === n)!.id;
 

@@ -5,7 +5,7 @@ import { Check, Lock, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserP
 import { useAction, useData } from '../app/data';
 import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, memberShort, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
-import { Amount, AvatarButton, BackLink, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Textarea } from '../components/ui';
+import { Amount, AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Tabs, Textarea } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
@@ -41,6 +41,8 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmReopen, setConfirmReopen] = useState(false);
   const [cardMember, setCardMember] = useState<Member | null>(null);
+  // Phones show one number column at a time: buy-ins while playing, cash-outs when the table breaks.
+  const [entry, setEntry] = useState<'buyin' | 'cashout'>(() => (s.results.some((r) => r.cash_out_cents > 0) ? 'cashout' : 'buyin'));
   const rebuy = s.default_buy_in_cents || 5000;
   const admin = isGroupAdmin(g, me.id);
   const settled = isSessionSettled(g, s);
@@ -112,30 +114,35 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         </>}
       />
 
-      <section className={clsx('mb-4 rounded-xl px-4 py-2.5 md:mb-5 md:rounded-2xl md:p-5', balanced ? 'felt' : 'border border-line bg-surface')}>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-          <div className="flex items-baseline gap-4 md:gap-8">
-            <p><span className="text-[12px] opacity-80 md:block md:text-sm">In </span><span className="amount font-display text-lg font-medium md:text-3xl">{formatMoney(totalIn, g.currency)}</span></p>
-            <p><span className="text-[12px] opacity-80 md:block md:text-sm">Out </span><span className="amount font-display text-lg font-medium md:text-3xl">{formatMoney(totalOut, g.currency)}</span></p>
+      <section className={clsx('z-20 mb-4 rounded-xl px-3 py-2 md:mb-5 md:rounded-2xl md:p-5', !final && 'sticky top-1 shadow-md md:static md:shadow-none',
+        balanced ? 'felt' : 'border border-line bg-surface')}>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <div className="flex items-baseline gap-3 md:gap-8">
+            <p><span className="text-[12px] opacity-80 md:block md:text-sm">In </span><span className="amount font-display text-base font-medium md:text-3xl">{formatMoney(totalIn, g.currency)}</span></p>
+            <p><span className="text-[12px] opacity-80 md:block md:text-sm">Out </span><span className="amount font-display text-base font-medium md:text-3xl">{formatMoney(totalOut, g.currency)}</span></p>
           </div>
-          <p className={clsx('text-[13px] font-semibold md:text-sm', !balanced && (diff === 0 || totalOut === 0 ? 'text-ink-2' : 'text-loss'))}>
-            {balanced ? 'Table balances' : lines.length < 2 ? 'Add at least two players.'
-              : totalOut === 0 ? 'Enter cash-outs when the table breaks.'
-                : `${formatMoney(Math.abs(diff), g.currency)} ${diff > 0 ? 'more out than in' : 'still unaccounted for'}`}
-          </p>
+          <div className="flex min-w-0 items-center gap-2">
+            <p className={clsx('min-w-0 text-[12px] font-semibold md:text-sm', !balanced && (diff === 0 || totalOut === 0 ? 'text-ink-2' : 'text-loss'))}>
+              {balanced ? 'Balances' : lines.length < 2 ? 'Add 2+ players'
+                : totalOut === 0 ? (final ? '' : 'Playing')
+                  : `${formatMoney(Math.abs(diff), g.currency)} ${diff > 0 ? 'over' : 'short'}`}
+            </p>
+            {!final && dirty && <Button size="sm" className="md:hidden" loading={busy} onClick={save}>Save</Button>}
+            {!final && balanced && <Button size="sm" variant="secondary" className="md:hidden" loading={busy} onClick={finalize}>Finalize</Button>}
+          </div>
         </div>
       </section>
       {error && <p role="alert" className="mb-4 rounded-lg bg-loss/10 px-3 py-2 text-sm text-loss">{error}</p>}
 
       <div className="space-y-5">
         <Card>
-          <CardHeader title="Players" />
+          <CardHeader title={`Players (${lines.length})`} />
           {!final && <>
             <div className="mt-3 hidden grid-cols-[minmax(0,1fr)_170px_140px_90px_36px] gap-3 px-5 text-[12px] font-semibold text-ink-2 md:grid">
               <span>Player</span><span>Buy-in</span><span>Cash-out</span><span className="text-right">Net</span><span />
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-x-3 px-4 text-[11px] font-semibold text-ink-2 md:hidden">
-              <span>Buy-in</span><span>Cash-out</span>
+            <div className="mt-2 px-4 md:hidden">
+              <Tabs<'buyin' | 'cashout'> value={entry} onChange={setEntry} tabs={[{ value: 'buyin', label: 'Buy-ins' }, { value: 'cashout', label: 'Cash-outs' }]} />
             </div>
           </>}
           <div className="mt-1">
@@ -158,26 +165,30 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
                 );
               }
               return (
-                <div key={l.member_id} className="grid grid-cols-2 items-center gap-x-3 gap-y-1.5 border-b border-line px-4 py-2.5 last:border-b-0 md:grid-cols-[minmax(0,1fr)_170px_140px_90px_36px] md:px-5">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <AvatarButton name={name} src={memberAvatar(g, l.member_id)} size={30} onClick={openCard} />
-                    <span className="truncate text-sm font-semibold">{memberShort(g, l.member_id)}</span>
-                  </div>
-                  <div className="flex items-center justify-end gap-1 md:order-4">
-                    {l.cashOut ? <Amount cents={net} currency={g.currency} sign /> : <span className="text-[13px] text-ink-2">playing</span>}
-                    <IconButton className="md:hidden" label={`Remove ${name}`} onClick={remove}><X size={16} /></IconButton>
-                  </div>
-                  <div className="md:order-2">
-                    <div className="flex items-center gap-1">
-                      <MoneyInput aria-label={`${name} buy-in`} className="flex-1" value={l.buyIn} placeholder="0"
-                        onChange={(e) => edit(l.member_id, { buyIn: e.target.value })} />
-                      <IconButton label={`Rebuy ${formatMoney(rebuy, g.currency)} for ${name}`}
-                        onClick={() => edit(l.member_id, { buyIn: centsToInput(r.buy_in_cents + rebuy) })}><Plus size={16} /></IconButton>
+                <div key={l.member_id} className="flex items-center gap-2 border-b border-line px-4 py-1.5 last:border-b-0 md:grid md:grid-cols-[minmax(0,1fr)_170px_140px_90px_36px] md:gap-3 md:px-5 md:py-2.5">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <AvatarButton name={name} src={memberAvatar(g, l.member_id)} size={28} onClick={openCard} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold leading-tight">{memberShort(g, l.member_id)}</p>
+                      <p className="text-[11px] leading-tight text-ink-2 md:hidden">
+                        {entry === 'cashout' ? (l.cashOut ? <Amount cents={net} currency={g.currency} sign className="text-[11px]" /> : `in ${formatMoney(r.buy_in_cents, g.currency)}`) : (l.cashOut ? `out ${formatMoney(r.cash_out_cents, g.currency)}` : 'playing')}
+                      </p>
                     </div>
                   </div>
-                  <div className="md:order-3">
-                    <MoneyInput aria-label={`${name} cash-out`} value={l.cashOut} placeholder="0"
+                  <div className={clsx('w-[8.75rem] shrink-0 items-center gap-1 md:order-2 md:flex md:w-auto', entry === 'buyin' ? 'flex' : 'hidden')}>
+                    <MoneyInput compact aria-label={`${name} buy-in`} className="flex-1" value={l.buyIn} placeholder="0"
+                      data-entry="buyin" enterKeyHint="next" onKeyDown={enterToNext}
+                      onChange={(e) => edit(l.member_id, { buyIn: e.target.value })} />
+                    <IconButton label={`Rebuy ${formatMoney(rebuy, g.currency)} for ${name}`} className="h-9 w-9 shrink-0 border border-line"
+                      onClick={() => edit(l.member_id, { buyIn: centsToInput(r.buy_in_cents + rebuy) })}><Plus size={16} /></IconButton>
+                  </div>
+                  <div className={clsx('w-28 shrink-0 md:order-3 md:block md:w-auto', entry === 'cashout' ? 'block' : 'hidden')}>
+                    <MoneyInput compact aria-label={`${name} cash-out`} value={l.cashOut} placeholder="0"
+                      data-entry="cashout" enterKeyHint="next" onKeyDown={enterToNext}
                       onChange={(e) => edit(l.member_id, { cashOut: e.target.value })} />
+                  </div>
+                  <div className="hidden justify-end md:order-4 md:flex">
+                    {l.cashOut ? <Amount cents={net} currency={g.currency} sign /> : <span className="text-[13px] text-ink-2">playing</span>}
                   </div>
                   <div className="hidden md:order-5 md:block">
                     <IconButton label={`Remove ${name}`} onClick={remove}><X size={16} /></IconButton>
@@ -187,20 +198,20 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
             })}
           </div>
           {!final && (
-            <div className="flex flex-wrap gap-2 border-t border-line px-4 py-3 md:px-5">
+            <div className="flex flex-wrap gap-2 border-t border-line px-4 py-2.5 md:px-5 md:py-3">
               {notPlaying.length > 0 && (
                 <Select aria-label="Add a player" className="w-auto min-w-[160px] flex-1" value={adding} onChange={(e) => addLine(e.target.value)}>
-                  <option value="">Add a player from the group</option>
+                  <option value="">Add player</option>
                   {notPlaying.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </Select>
               )}
               <Button onClick={() => setNewPerson(true)}><UserPlus size={16} aria-hidden="true" />New person</Button>
             </div>
           )}
-          {!final && <p className="px-4 pb-4 text-[12px] text-ink-2 md:px-5">The + next to a buy-in adds a rebuy of {formatMoney(rebuy, g.currency)}.</p>}
+          {!final && <p className="px-4 pb-3 text-[12px] text-ink-2 md:px-5">+ adds a {formatMoney(rebuy, g.currency)} rebuy. <span className="md:hidden">Next on the keyboard jumps to the next player; tap an avatar to remove someone.</span></p>}
         </Card>
 
-        <div className="grid items-start gap-5 md:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
           {final ? <Payments g={g} s={s} /> : (
             <Card className="p-5">
               <h2 className="font-display text-base font-medium">Settle up</h2>
@@ -211,7 +222,12 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         </div>
         <HistoryList g={g} entityId={s.id} />
       </div>
-      <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)} />
+      <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)}
+        actions={!final && cardMember && lines.some((l) => l.member_id === cardMember.id) && (
+          <Button variant="danger" className="w-full" onClick={() => {
+            setLines((ls) => ls.filter((x) => x.member_id !== cardMember.id)); setDirty(true); setCardMember(null);
+          }}><X size={16} aria-hidden="true" />Remove from this game</Button>
+        )} />
       <AddMemberDialog group={g} open={newPerson} onClose={() => setNewPerson(false)} onAdded={(id) => addLine(id)} />
       {admin && (
         <div className="mt-8 flex justify-center">

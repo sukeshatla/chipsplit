@@ -47,7 +47,7 @@ export function ProfilePage() {
   return (
     <>
       <PageHeader title="Profile" />
-      <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.2fr_1fr]">
         <Card className="p-5">
           <div className="mb-5 flex items-center gap-4">
             <div className="relative shrink-0">

@@ -41,7 +41,7 @@ export function GroupsPage() {
           {shown.length === 0 ? (
             <Card><EmptyState icon={<Users size={28} />} title="No groups here" body="Nothing matches this filter yet." /></Card>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {shown.map((g) => {
                 const mine = myMemberId(g, me.id);
                 const bal = mine ? groupBalances(g).get(mine) ?? 0 : 0;

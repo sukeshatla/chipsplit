@@ -103,8 +103,9 @@ export function isGroupSettled(g: Group): boolean {
 }
 
 export function memberHasActivity(g: Group, memberId: string) {
+  // Deleted expenses count: they can still be restored, and the database won't remove a member they reference.
   return (
-    g.expenses.some((e) => e.payers.some((p) => p.member_id === memberId) || e.shares.some((s) => s.member_id === memberId)) ||
+    [...g.expenses, ...(g.deleted_expenses ?? [])].some((e) => e.payers.some((p) => p.member_id === memberId) || e.shares.some((s) => s.member_id === memberId)) ||
     g.sessions.some((s) => s.results.some((r) => r.member_id === memberId)) ||
     g.settlements.some((s) => s.from_member === memberId || s.to_member === memberId)
   );
@@ -219,7 +220,7 @@ export function activity(data: AppData, limit = 20, onlyGroupId?: string, onlyMi
       items.push({
         id: e.id, kind: 'expense', date: e.spent_on, createdAt: e.created_at, title: e.description,
         detail: `${payerNames} paid`, group: g, impact: paid || share ? paid - share : null,
-        link: `/groups/${g.id}?tab=expenses`,
+        link: `/groups/${g.id}?tab=expenses&expense=${e.id}`,
       });
     }
     for (const s of g.sessions) {
@@ -349,7 +350,7 @@ export function sessionPayments(g: Group, s: GameSession): SessionTransfer[] {
 /** Where a notification should take you when clicked. */
 export function notificationLink(e: ChangeLogEntry): string {
   switch (e.entity_type) {
-    case 'expense': return `/groups/${e.group_id}?tab=expenses`;
+    case 'expense': return e.entity_id ? `/groups/${e.group_id}?tab=expenses&expense=${e.entity_id}` : `/groups/${e.group_id}?tab=expenses`;
     case 'session': return e.entity_id ? `/groups/${e.group_id}/games/${e.entity_id}` : `/groups/${e.group_id}?tab=games`;
     case 'settlement': return `/groups/${e.group_id}?tab=balances`;
     case 'member': return `/groups/${e.group_id}?tab=members`;

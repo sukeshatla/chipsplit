@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { History } from 'lucide-react';
+import { History, RotateCcw } from 'lucide-react';
 import { useAuth } from '../app/auth';
-import { useData } from '../app/data';
+import { useAction, useData } from '../app/data';
+import { isGroupAdmin } from '../lib/ledger';
 import { formatDate } from '../lib/money';
-import { Card, CardHeader, EmptyState, Row, Spinner } from './ui';
+import { Button, Card, CardHeader, EmptyState, Row, Spinner } from './ui';
 import type { ChangeLogEntry, Group } from '../lib/types';
 
 /** Who to show for an entry: "You", the acting member's current name in this group, or a fallback. */
@@ -17,10 +18,26 @@ function actorName(g: Group, meId: string, entry: ChangeLogEntry) {
 export function HistoryList({ g, entityId }: { g: Group; entityId?: string }) {
   const { api } = useAuth();
   const { me } = useData();
-  const { data, isLoading } = useQuery({ queryKey: ['history', g.id], queryFn: () => api.loadHistory(g.id) });
+  const { run, busy } = useAction();
+  const { data, isLoading, refetch } = useQuery({ queryKey: ['history', g.id], queryFn: () => api.loadHistory(g.id) });
+  const admin = isGroupAdmin(g, me.id);
 
   if (isLoading) return <Spinner />;
   const filtered = (data ?? []).filter((e) => !entityId || e.entity_id === entityId);
+  // An expense that's still deleted can be restored from its newest "Deleted" entry (an expense
+  // deleted, restored, then deleted again only offers it once). Newest entries come first.
+  const deletedIds = new Set((g.deleted_expenses ?? []).map((e) => e.id));
+  const restorable = new Set<string>();
+  for (const e of filtered) {
+    if (e.entity_type === 'expense' && e.entity_id && deletedIds.has(e.entity_id) && e.summary.startsWith('Deleted')) {
+      restorable.add(e.id);
+      deletedIds.delete(e.entity_id);
+    }
+  }
+  const restore = async (expenseId: string) => {
+    const ok = await run((api) => api.restoreExpense(expenseId), 'Expense restored');
+    if (ok !== undefined) refetch();
+  };
   if (filtered.length === 0) {
     return <Card><EmptyState icon={<History size={28} />} title="No activity yet" body="Changes here show up as they happen." /></Card>;
   }
@@ -36,6 +53,9 @@ export function HistoryList({ g, entityId }: { g: Group; entityId?: string }) {
                 {formatDate(e.created_at, { month: 'short', day: 'numeric' })} at {new Date(e.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
               </p>
             </div>
+            {admin && restorable.has(e.id) && (
+              <Button size="sm" disabled={busy} onClick={() => restore(e.entity_id!)}><RotateCcw size={14} aria-hidden="true" />Restore</Button>
+            )}
           </Row>
         ))}
       </div>

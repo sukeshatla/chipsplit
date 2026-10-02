@@ -6,7 +6,7 @@ export interface CardPerson { name: string; avatar_url?: string | null; user_id:
 
 /** A quick "who is this" popup, opened by tapping someone's avatar anywhere in the app
  *  -- avatar, email, and role, plus one optional stat. */
-export function MemberCardDialog({ member, extra, onClose }: { member: CardPerson | null; extra?: { label: string; node: ReactNode }; onClose(): void }) {
+export function MemberCardDialog({ member, extra, actions, onClose }: { member: CardPerson | null; extra?: { label: string; node: ReactNode }; actions?: ReactNode; onClose(): void }) {
   if (!member) return null;
   return (
     <Modal open={!!member} onClose={onClose} title={member.name}>
@@ -25,6 +25,7 @@ export function MemberCardDialog({ member, extra, onClose }: { member: CardPerso
           {extra.node}
         </div>
       )}
+      {actions && <div className="mt-4 space-y-2">{actions}</div>}
     </Modal>
   );
 }

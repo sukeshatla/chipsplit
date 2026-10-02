@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { forwardRef, useEffect, useRef, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ArrowLeft, X, Loader2 } from 'lucide-react';
@@ -49,13 +49,25 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
   return <input ref={ref} className={clsx(field, 'h-10 px-3', className)} {...p} />;
 });
 
-export function MoneyInput({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) {
+export function MoneyInput({ className, compact, ...p }: InputHTMLAttributes<HTMLInputElement> & { compact?: boolean }) {
   return (
     <div className={clsx('relative', className)}>
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-2">$</span>
-      <input inputMode="decimal" autoComplete="off" className={clsx(field, 'amount h-10 pl-6 pr-2 text-right')} {...p} />
+      <span className={clsx('pointer-events-none absolute top-1/2 -translate-y-1/2 text-sm text-ink-2', compact ? 'left-2' : 'left-3')}>$</span>
+      <input inputMode="decimal" autoComplete="off" className={clsx(field, 'amount pr-2 text-right', compact ? 'h-9 pl-5' : 'h-10 pl-6')} {...p} />
     </div>
   );
+}
+
+/** For a column of number boxes (buy-ins, scores): give each the same `data-entry` and this as
+ *  onKeyDown, and the keyboard's Next/Enter key jumps to the next visible box in that column
+ *  instead of closing the keyboard -- no scrolling between players. The last one closes it. */
+export function enterToNext(e: ReactKeyboardEvent<HTMLInputElement>) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const entry = e.currentTarget.dataset.entry;
+  const all = [...document.querySelectorAll<HTMLInputElement>(`input[data-entry="${entry}"]`)].filter((x) => x.offsetParent !== null);
+  const next = all[all.indexOf(e.currentTarget) + 1];
+  if (next) next.focus(); else e.currentTarget.blur();
 }
 
 export function Select({ className, children, ...p }: SelectHTMLAttributes<HTMLSelectElement>) {

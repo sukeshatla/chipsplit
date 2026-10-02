@@ -50,7 +50,8 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 
 **Group admins**
 - Everyone in a group is an admin by default. Narrow it to one or two people from the Members tab if you want.
-- Only admins can change group settings, delete the group, or delete an expense. Everyone can still add expenses. Enforced server-side (Postgres RLS + triggers), so it holds even if someone bypasses the UI.
+- Only admins can add, edit, delete, or restore expenses, change group settings, or delete the group. Enforced server-side (Postgres RLS + triggers), so it holds even if someone bypasses the UI.
+- A deleted expense can be restored from the group's History tab.
 
 **Dashboard**
 - Two quick actions: **Add expense** (the quick-add flow above) and **New group**. Starting a game is a club-level action, done from inside that club.

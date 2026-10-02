@@ -180,6 +180,7 @@ describe('notificationLink', () => {
   it('routes each entity type to the right tab', () => {
     const base = { id: '1', group_id: 'g', actor_id: null, entity_id: null, summary: '', created_at: '' } as const;
     expect(notificationLink({ ...base, entity_type: 'expense' })).toBe('/groups/g?tab=expenses');
+    expect(notificationLink({ ...base, entity_type: 'expense', entity_id: 'e1' })).toBe('/groups/g?tab=expenses&expense=e1');
     expect(notificationLink({ ...base, entity_type: 'settlement' })).toBe('/groups/g?tab=balances');
     expect(notificationLink({ ...base, entity_type: 'member' })).toBe('/groups/g?tab=members');
     expect(notificationLink({ ...base, entity_type: 'session' })).toBe('/groups/g?tab=games');

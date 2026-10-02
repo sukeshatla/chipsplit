@@ -4,7 +4,7 @@ import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, Chev
 import { useAction, useData } from '../app/data';
 import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, AvatarButton, BackLink, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
+import { Amount, Avatar, AvatarButton, BackLink, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KIND_LABEL } from './GroupsPage';
@@ -13,6 +13,7 @@ import { ImportDialog } from '../components/dialogs/ImportDialog';
 import { SettleDialog, type SettleDraft } from '../components/dialogs/SettleDialog';
 import { NewGameDialog } from '../components/dialogs/NewGameDialog';
 import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
+import { ExpenseDetailDialog } from '../components/dialogs/ExpenseDetailDialog';
 import { SettleRow } from '../components/SettleRow';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
 import { CURRENCIES, KindPicker } from '../components/dialogs/CreateGroupDialog';
@@ -45,6 +46,7 @@ export function GroupPage() {
   const requested = params.get('tab') as Tab | null;
   const tab: Tab = tabs.some((t) => t.value === requested) ? requested! : tabs[0]!.value;
   const mine = myMemberId(g, me.id);
+  const admin = isGroupAdmin(g, me.id);
   const myBal = mine ? groupBalances(g).get(mine) ?? 0 : 0;
 
   return (
@@ -59,17 +61,17 @@ export function GroupPage() {
         </span>}
         actions={<>
           <Button onClick={() => { window.location.href = summaryMailto(g); }}><Send size={16} aria-hidden="true" />Send summary</Button>
-          {g.kind !== 'club' && <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Import</Button>}
+          {admin && g.kind !== 'club' && <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Import</Button>}
           {g.kind !== 'expenses' && <Button variant={g.kind === 'club' ? 'primary' : 'secondary'} onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />New game</Button>}
           {g.kind === 'club' && <Button onClick={() => nav(`/groups/${g.id}/rummy`)}><Club size={16} aria-hidden="true" />Rummy</Button>}
-          <Button variant={g.kind === 'club' ? 'secondary' : 'primary'} onClick={() => setExpense('new')}><Receipt size={16} aria-hidden="true" />Expense</Button>
+          {admin && <Button variant={g.kind === 'club' ? 'secondary' : 'primary'} onClick={() => setExpense('new')}><Receipt size={16} aria-hidden="true" />Expense</Button>}
         </>}
       />
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
       {tab === 'games' && <GamesTab g={g} onNew={() => setNewGame(true)} />}
-      {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} onAddExpense={() => setExpense('new')} />}
-      {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} admin={isGroupAdmin(g, me.id)} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
+      {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} onAddExpense={admin ? () => setExpense('new') : undefined} />}
+      {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} admin={admin} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
       {tab === 'history' && <HistoryList g={g} />}
 
@@ -90,7 +92,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
       action={<Button variant="primary" onClick={onNew}>Start game</Button>} /></Card>;
   }
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.1fr]">
       <Card>
         <CardHeader title={<span className="inline-flex items-center gap-2"><Trophy size={16} className="text-brass" aria-hidden="true" />Leaderboard</span>} />
         <div className="mt-2">
@@ -141,7 +143,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
   );
 }
 
-function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: SettleDraft): void; onAddExpense(): void }) {
+function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: SettleDraft): void; onAddExpense?: () => void }) {
   const { run, busy } = useAction();
   const [confirmingPayment, setConfirmingPayment] = useState<Settlement | null>(null);
   const [cardMember, setCardMember] = useState<Member | null>(null);
@@ -152,10 +154,10 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
   const members = g.members.slice().sort((a, b) => (bal.get(b.id) ?? 0) - (bal.get(a.id) ?? 0));
 
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       <div className="space-y-5">
         <Card>
-          <CardHeader title="Settle up" action={<Button size="sm" onClick={onAddExpense}><Receipt size={14} aria-hidden="true" />Add expense</Button>} />
+          <CardHeader title="Settle up" action={onAddExpense && <Button size="sm" onClick={onAddExpense}><Receipt size={14} aria-hidden="true" />Add expense</Button>} />
           <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">The fewest payments that square everyone in this group.</p>
           <div className="mt-2">
             {transfers.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Everyone is settled up.</p> :
@@ -213,12 +215,15 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
 }
 
 function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMember?: string; admin: boolean; onEdit(e: Expense | 'new'): void; onImport(): void }) {
-  const { run, busy } = useAction();
-  const [confirmingExpense, setConfirmingExpense] = useState<Expense | null>(null);
+  // The open summary lives in the URL (?expense=<id>) so activity and notification links can open it directly.
+  const [params, setParams] = useSearchParams();
+  const detail = g.expenses.find((e) => e.id === params.get('expense')) ?? null;
+  const openDetail = (id: string | null) => setParams(id ? { tab: 'expenses', expense: id } : { tab: 'expenses' }, { replace: true });
   const list = g.expenses.slice().sort((a, b) => b.spent_on.localeCompare(a.spent_on) || b.created_at.localeCompare(a.created_at));
   if (list.length === 0) {
-    return <Card><EmptyState icon={<Receipt size={28} />} title="Log the first expense" body="Add costs as they happen, or bring in a spreadsheet you already keep."
-      action={<div className="flex gap-2"><Button onClick={onImport}>Import sheet</Button><Button variant="primary" onClick={() => onEdit('new')}>Add expense</Button></div>} /></Card>;
+    return <Card><EmptyState icon={<Receipt size={28} />} title={admin ? 'Log the first expense' : 'No expenses yet'}
+      body={admin ? 'Add costs as they happen, or bring in a spreadsheet you already keep.' : 'A group admin can add expenses here.'}
+      action={admin && <div className="flex gap-2"><Button onClick={onImport}>Import sheet</Button><Button variant="primary" onClick={() => onEdit('new')}>Add expense</Button></div>} /></Card>;
   }
   const byMonth = new Map<string, Expense[]>();
   list.forEach((e) => { const k = e.spent_on.slice(0, 7); byMonth.set(k, [...(byMonth.get(k) ?? []), e]); });
@@ -236,36 +241,28 @@ function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMem
               const share = e.shares.find((s) => s.member_id === meMember)?.amount_cents ?? 0;
               const impact = paid - share;
               return (
-                <Row key={e.id}>
-                  <button onClick={() => onEdit(e)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                    <div className="w-9 shrink-0 text-center">
-                      <p className="font-display text-lg font-medium leading-none">{formatDate(e.spent_on, { day: 'numeric' })}</p>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{e.description}</p>
-                      <p className="truncate text-[12px] text-ink-2">
-                        {e.payers.map((p) => memberShort(g, p.member_id)).join(' and ')} paid {formatMoney(e.amount_cents, g.currency)}, split {e.shares.length} ways
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[11px] text-ink-2">{impact > 0 ? 'you lent' : impact < 0 ? 'you borrowed' : paid || share ? 'even' : 'not involved'}</p>
-                      {impact !== 0 && <Amount cents={Math.abs(impact) * Math.sign(impact)} currency={g.currency} className="text-sm" />}
-                    </div>
-                  </button>
-                  {admin && (
-                    <IconButton label={`Delete ${e.description}`} onClick={() => setConfirmingExpense(e)}>
-                      <Trash2 size={16} />
-                    </IconButton>
-                  )}
+                <Row key={e.id} onClick={() => openDetail(e.id)}>
+                  <div className="w-8 shrink-0 text-center">
+                    <p className="font-display text-lg font-medium leading-none">{formatDate(e.spent_on, { day: 'numeric' })}</p>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{e.description}</p>
+                    <p className="truncate text-[12px] text-ink-2">
+                      {e.payers.map((p) => memberShort(g, p.member_id)).join(' and ')} paid {formatMoney(e.amount_cents, g.currency)}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-[11px] text-ink-2">{impact > 0 ? 'you lent' : impact < 0 ? 'you borrowed' : paid || share ? 'even' : 'not involved'}</p>
+                    {impact !== 0 && <Amount cents={impact} currency={g.currency} className="text-sm" />}
+                  </div>
                 </Row>
               );
             })}
           </div>
         ))}
       </div>
-      <ConfirmDialog open={!!confirmingExpense} onClose={() => setConfirmingExpense(null)} title="Delete this expense?" icon={Trash2} busy={busy}
-        body={confirmingExpense && <>This removes <b>&ldquo;{confirmingExpense.description}&rdquo;</b> ({formatMoney(confirmingExpense.amount_cents, g.currency)}) and everyone's share of it. This can't be undone.</>}
-        onConfirm={async () => { const id = confirmingExpense!.id; setConfirmingExpense(null); await run((api) => api.deleteExpense(id), 'Expense deleted'); }} />
+      <ExpenseDetailDialog group={g} expense={detail} onClose={() => openDetail(null)}
+        onEdit={(e) => { openDetail(null); onEdit(e); }} />
     </Card>
   );
 }
@@ -280,52 +277,32 @@ function MembersTab({ g }: { g: Group }) {
   const [currency, setCurrency] = useState(g.currency);
   const [confirmingRemove, setConfirmingRemove] = useState<Member | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [cardMember, setCardMember] = useState<Member | null>(null);
+  const [cardId, setCardId] = useState<string | null>(null);
+  const cardMember = g.members.find((m) => m.id === cardId) ?? null; // looked up live so toggles show their new state
   const admin = isGroupAdmin(g, me.id);
   const dirty = name.trim() !== g.name || kind !== g.kind || currency !== g.currency;
   const settled = isGroupSettled(g);
   const finalGames = g.sessions.filter((s) => s.status === 'final').length;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       <Card>
         <CardHeader title="Members" action={<Button size="sm" onClick={() => setAdding(true)}><UserPlus size={14} aria-hidden="true" />Add</Button>} />
         <div className="mt-2">
-          {g.members.map((m) => {
-            const active = memberHasActivity(g, m.id);
-            return (
-              <Row key={m.id}>
-                <AvatarButton name={m.name} src={m.avatar_url} onClick={() => setCardMember(m)} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{m.name}{m.user_id === me.id && <span className="font-normal text-ink-2"> (you)</span>}</p>
-                  <p className="truncate text-[12px] text-ink-2">{m.email ?? 'No email'}</p>
-                </div>
-                {m.is_admin ? <Badge tone="brass">Admin</Badge> : m.user_id ? <Badge tone="gain">Signed up</Badge> : <Badge>Guest</Badge>}
-                {admin && (
-                  <IconButton label={m.is_admin ? `Remove ${m.name} as admin` : `Make ${m.name} an admin`}
-                    title={m.is_admin ? 'Admin — can change settings, delete the group or expenses' : 'Not an admin'}
-                    onClick={() => run((api) => api.setGroupAdmin(m.id, !m.is_admin))}>
-                    {m.is_admin ? <ShieldCheck size={16} className="text-brass" /> : <ShieldOff size={16} className="text-ink-2" />}
-                  </IconButton>
-                )}
-                {m.email && (
-                  <IconButton label={m.email_opt_out ? `Include ${m.name} in email summaries` : `Exclude ${m.name} from email summaries`}
-                    title={m.email_opt_out ? 'Not included in email summaries' : 'Included in email summaries'}
-                    onClick={() => run((api) => api.setEmailOptOut(m.id, !m.email_opt_out))}>
-                    {m.email_opt_out ? <MailX size={16} className="text-ink-2" /> : <Mail size={16} />}
-                  </IconButton>
-                )}
-                <IconButton label={`Remove ${m.name}`} disabled={active || m.user_id === me.id}
-                  title={active ? 'Has games, expenses, or payments in this group' : `Remove ${m.name}`}
-                  onClick={() => setConfirmingRemove(m)}>
-                  <Trash2 size={16} />
-                </IconButton>
-              </Row>
-            );
-          })}
+          {g.members.map((m) => (
+            <Row key={m.id} onClick={() => setCardId(m.id)}>
+              <Avatar name={m.name} src={m.avatar_url} size={32} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{m.name}{m.user_id === me.id && <span className="font-normal text-ink-2"> (you)</span>}</p>
+                <p className="truncate text-[12px] text-ink-2">{m.email ?? 'No email'}</p>
+              </div>
+              {m.is_admin ? <Badge tone="brass">Admin</Badge> : m.user_id ? <Badge tone="gain">Signed up</Badge> : <Badge>Guest</Badge>}
+              <ChevronRight size={16} className="shrink-0 text-ink-2" aria-hidden="true" />
+            </Row>
+          ))}
         </div>
         <p className="px-4 pb-4 pt-3 text-[12px] text-ink-2 md:px-5">
-          People with history in the group can't be removed, so balances stay correct. Only admins can change group settings, or delete the group or an expense — everyone can still add expenses.
+          Tap someone to manage them. Only admins can add, edit, or delete expenses, change group settings, or delete the group. People with history in the group can't be removed, so balances stay correct.
         </p>
       </Card>
 
@@ -356,7 +333,11 @@ function MembersTab({ g }: { g: Group }) {
         </div>
       </Card>
       <AddMemberDialog group={g} open={adding} onClose={() => setAdding(false)} />
-      <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)} />
+      <MemberCardDialog member={cardMember} onClose={() => setCardId(null)}
+        actions={cardMember && <MemberActions g={g} m={cardMember} admin={admin} busy={busy}
+          onToggleAdmin={() => run((api) => api.setGroupAdmin(cardMember.id, !cardMember.is_admin))}
+          onToggleEmail={() => run((api) => api.setEmailOptOut(cardMember.id, !cardMember.email_opt_out))}
+          onRemove={() => { setCardId(null); setConfirmingRemove(cardMember); }} />} />
 
       <ConfirmDialog open={!!confirmingRemove} onClose={() => setConfirmingRemove(null)} title="Remove this person?" icon={Trash2} busy={busy}
         body={confirmingRemove && <>This removes <b>{confirmingRemove.name}</b> from {g.name}. They can be added back any time.</>}
@@ -374,4 +355,30 @@ function MembersTab({ g }: { g: Group }) {
         }} />
     </div>
   );
+}
+
+function MemberActions({ g, m, admin, busy, onToggleAdmin, onToggleEmail, onRemove }: {
+  g: Group; m: Member; admin: boolean; busy: boolean; onToggleAdmin(): void; onToggleEmail(): void; onRemove(): void;
+}) {
+  const { me } = useData();
+  const active = memberHasActivity(g, m.id);
+  const isMe = m.user_id === me.id;
+  return <>
+    {admin && (
+      <Button className="w-full" disabled={busy} onClick={onToggleAdmin}>
+        {m.is_admin ? <><ShieldOff size={16} aria-hidden="true" />Remove as admin</> : <><ShieldCheck size={16} aria-hidden="true" />Make admin</>}
+      </Button>
+    )}
+    {m.email && (
+      <Button className="w-full" disabled={busy} onClick={onToggleEmail}>
+        {m.email_opt_out ? <><Mail size={16} aria-hidden="true" />Include in email summaries</> : <><MailX size={16} aria-hidden="true" />Leave out of email summaries</>}
+      </Button>
+    )}
+    <Button variant="danger" className="w-full" disabled={busy || active || isMe} onClick={onRemove}>
+      <Trash2 size={16} aria-hidden="true" />Remove from group
+    </Button>
+    {(active || isMe) && (
+      <p className="text-center text-[12px] text-ink-2">{isMe ? "You can't remove yourself." : 'Has games, expenses, or payments here, so they stay to keep balances right.'}</p>
+    )}
+  </>;
 }

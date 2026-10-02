@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { clsx } from 'clsx';
 import { Check, Minus, Plus, UserPlus } from 'lucide-react';
-import { Button, Field, IconButton, Input, Modal, MoneyInput, Select, Tabs, Avatar } from '../ui';
+import { Button, Field, IconButton, Input, Modal, MoneyInput, Select, Tabs, Avatar, enterToNext } from '../ui';
 import { useAction, useData } from '../../app/data';
 import { centsToInput, equalPercents, formatMoney, parseMoney, splitByWeights, splitEqual, todayISO } from '../../lib/money';
 import { myMemberId } from '../../lib/ledger';
@@ -135,11 +135,11 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
         {multiPay && (
           <div className="rounded-xl border border-line p-3">
             <p className="mb-2 text-[13px] font-semibold">How much each person paid</p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {group.members.map((m) => (
                 <div key={m.id} className="flex items-center gap-2">
                   <span className="w-24 truncate text-sm">{m.name}</span>
-                  <MoneyInput className="flex-1" value={payAmounts[m.id] ?? ''} placeholder="0"
+                  <MoneyInput className="flex-1" value={payAmounts[m.id] ?? ''} placeholder="0" data-entry="paid" enterKeyHint="next" onKeyDown={enterToNext}
                     onChange={(e) => setPayAmounts((p) => ({ ...p, [m.id]: e.target.value }))} />
                 </div>
               ))}
@@ -192,13 +192,13 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
               }
               if (mode === 'exact') {
                 return <SplitRow key={m.id} name={m.name} avatarUrl={m.avatar_url} on={on} toggle={toggle}>
-                  <MoneyInput className="w-28 shrink-0" value={values[m.id] ?? ''} placeholder="0"
+                  <MoneyInput className="w-28 shrink-0" value={values[m.id] ?? ''} placeholder="0" data-entry="split" enterKeyHint="next" onKeyDown={enterToNext}
                     onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))} />
                 </SplitRow>;
               }
               return <SplitRow key={m.id} name={m.name} avatarUrl={m.avatar_url} on={on} toggle={toggle}>
                 <div className="relative w-20 shrink-0">
-                  <Input inputMode="decimal" className="amount pr-6 text-right" value={values[m.id] ?? ''} placeholder="0"
+                  <Input inputMode="decimal" className="amount pr-6 text-right" value={values[m.id] ?? ''} placeholder="0" data-entry="split" enterKeyHint="next" onKeyDown={enterToNext}
                     onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))} />
                   <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-sm text-ink-2">%</span>
                 </div>
