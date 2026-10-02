@@ -17,6 +17,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Starting a new game suggests the club's members as the roster (last game's players if there was one); pick who's actually at the table tonight.
 - Log buy-ins as people sit down. The **+** button adds a rebuy in one tap; **−** records chips a player gives back to the bank mid-game (so someone else can buy in), any amount, any number of times. Given-back chips count like cash already taken out.
 - Enter cash-outs when the table breaks. A live **table check** shows whether total cash-outs match total buy-ins.
+- Everything on an open game **saves automatically**: taps (rebuy, give back, adding or removing a player) right away, typed amounts a moment after you stop typing.
 - Built for entering a full table on a phone: one line per player, a **Buy-ins / Cash-outs** switch so only one box shows at a time, and the keyboard's **Next** key jumps straight to the next player.
 - Finalize to lock the results and get the **settle-up list**: the fewest payments that clear the table.
 - Tick off each payment as **Paid** (or undo it). The game shows "3 unpaid" until everyone's square.

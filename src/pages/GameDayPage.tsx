@@ -1,8 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Check, Lock, Minus, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
+import { Check, Loader2, Lock, Minus, LockOpen, Mail, Plus, RotateCcw, Send, Trash2, UserPlus, X } from 'lucide-react';
 import { useAction, useData } from '../app/data';
+import { useAuth } from '../app/auth';
+import { useToast } from '../app/toast';
 import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
 import { Amount, AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, IconButton, Modal, MoneyInput, PageHeader, Row, Select, Tabs } from '../components/ui';
@@ -28,9 +31,10 @@ export function GameDayPage() {
   const g = groups.find((x) => x.id === groupId);
   const s = g?.sessions.find((x) => x.id === gameId);
   if (!g || !s) return <Navigate to={g ? `/groups/${g.id}` : '/groups'} replace />;
-  // Remount the editor whenever saved results change so inputs reflect the stored values.
-  const sig = s.results.map((r) => `${r.member_id}:${r.buy_in_cents}:${r.cash_out_cents}:${r.returned_cents ?? 0}`).join('|');
-  return <GameDayEditor key={`${s.id}|${sig}`} g={g} s={s} />;
+  // Remount only when the game opens/closes. While it's open the editor's own lines are the
+  // source of truth and autosave keeps the server in step -- remounting on every save would
+  // pull focus out of the box being typed in and drop the phone keyboard.
+  return <GameDayEditor key={`${s.id}|${s.status}`} g={g} s={s} />;
 }
 
 function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
@@ -38,10 +42,20 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const { run, busy } = useAction();
   const nav = useNavigate();
   const final = s.status === 'final';
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  const toast = useToast();
   const [lines, setLines] = useState<Line[]>(() => s.results.map((r) => ({
     member_id: r.member_id, buyIn: centsToInput(r.buy_in_cents), cashOut: centsToInput(r.cash_out_cents), returned: r.returned_cents ?? 0,
   })));
-  const [dirty, setDirty] = useState(false);
+  // Autosave plumbing: every change goes through apply() so linesRef is always current, then
+  // either saves now (taps: rebuy, give back, add/remove) or ~1s after typing stops / on blur.
+  // Saves run one at a time, each sending the latest lines, so a slow save can't overwrite a newer one.
+  const linesRef = useRef(lines);
+  const lastSaved = useRef(JSON.stringify(toResults(lines)));
+  const timer = useRef<number | undefined>(undefined);
+  const queue = useRef<Promise<boolean>>(Promise.resolve(true));
+  const [saveState, setSaveState] = useState<'saved' | 'pending' | 'saving' | 'error'>('saved');
   const [adding, setAdding] = useState('');
   const [newPerson, setNewPerson] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,40 +77,70 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const balanced = diff === 0 && lines.length >= 2;
   const notPlaying = g.members.filter((m) => !lines.some((l) => l.member_id === m.id));
 
-  const edit = (id: string, patch: Partial<Line>) => {
-    setLines((ls) => ls.map((l) => (l.member_id === id ? { ...l, ...patch } : l)));
-    setDirty(true); setError(null);
+  const badLine = (ls: Line[]) => ls.find((l) => (l.buyIn && (parseMoney(l.buyIn) ?? -1) < 0) || (l.cashOut && (parseMoney(l.cashOut) ?? -1) < 0));
+  const doPersist = async (): Promise<boolean> => {
+    const ls = linesRef.current;
+    const bad = badLine(ls);
+    if (bad) { setError(`Check the numbers for ${memberName(g, bad.member_id)}`); setSaveState('error'); return false; }
+    const results = toResults(ls);
+    const key = JSON.stringify(results);
+    if (key === lastSaved.current) { setSaveState('saved'); return true; }
+    setSaveState('saving');
+    try {
+      await api.saveSessionResults(s.id, results);
+      lastSaved.current = key;
+      setSaveState(JSON.stringify(toResults(linesRef.current)) === key ? 'saved' : 'pending');
+      void qc.invalidateQueries({ queryKey: ['all'] });
+      return true;
+    } catch (e) {
+      setSaveState('error');
+      toast.push(e instanceof Error ? e.message : "Couldn't save. Check your connection.", 'error');
+      return false;
+    }
   };
+  const persist = () => {
+    window.clearTimeout(timer.current); timer.current = undefined;
+    queue.current = queue.current.then(doPersist, doPersist);
+    return queue.current;
+  };
+  const apply = (fn: (ls: Line[]) => Line[], when: 'now' | 'soon') => {
+    const next = fn(linesRef.current);
+    linesRef.current = next;
+    setLines(next); setError(null); setSaveState('pending');
+    if (when === 'now') void persist();
+    else { window.clearTimeout(timer.current); timer.current = window.setTimeout(() => void persist(), 1000); }
+  };
+  // Typing still waiting on its timer is saved if the page is left or the app is backgrounded.
+  useEffect(() => {
+    const flush = () => { if (timer.current !== undefined) void persist(); };
+    const onHide = () => { if (document.visibilityState === 'hidden') flush(); };
+    document.addEventListener('visibilitychange', onHide);
+    return () => { document.removeEventListener('visibilitychange', onHide); flush(); };
+    // persist only reads refs and stable ids, so the first one is fine to keep
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const edit = (id: string, patch: Partial<Line>) => apply((ls) => ls.map((l) => (l.member_id === id ? { ...l, ...patch } : l)), 'soon');
+  const tapEdit = (id: string, patch: Partial<Line>) => apply((ls) => ls.map((l) => (l.member_id === id ? { ...l, ...patch } : l)), 'now');
   const addLine = (id: string) => {
     if (!id) return;
-    setLines((ls) => [...ls, { member_id: id, buyIn: centsToInput(rebuy), cashOut: '', returned: 0 }]);
-    setDirty(true); setAdding('');
+    apply((ls) => [...ls, { member_id: id, buyIn: centsToInput(rebuy), cashOut: '', returned: 0 }], 'now');
+    setAdding('');
   };
+  const removeLine = (id: string) => apply((ls) => ls.filter((x) => x.member_id !== id), 'now');
   const validate = () => {
     if (parsed.some((r) => r.buy_in_cents < 0 || r.cash_out_cents < 0)) return 'Amounts can\'t be negative';
     const bad = lines.find((l) => (l.buyIn && parseMoney(l.buyIn) === null) || (l.cashOut && parseMoney(l.cashOut) === null));
     if (bad) return `Check the numbers for ${memberName(g, bad.member_id)}`;
     return null;
   };
-  // A give-back is a real event at the table, so it's saved straight away (with whatever else
-  // is on screen) instead of waiting for Save -- leaving the page can't lose it.
-  const giveBack = async (memberId: string, cents: number) => {
-    const next = lines.map((l) => (l.member_id === memberId ? { ...l, returned: cents } : l));
-    setLines(next); setDirty(true); setError(null);
-    const bad = next.find((l) => (l.buyIn && parseMoney(l.buyIn) === null) || (l.cashOut && parseMoney(l.cashOut) === null));
-    if (bad) { setError(`Check the numbers for ${memberName(g, bad.member_id)}, then tap Save`); return; }
-    await run((api) => api.saveSessionResults(s.id, toResults(next)), cents ? 'Give-back saved' : 'Give-back cleared');
-  };
-  const save = async () => {
-    const v = validate();
-    if (v) { setError(v); return; }
-    await run((api) => api.saveSessionResults(s.id, parsed), 'Game saved');
-  };
   const finalize = async () => {
     const v = validate();
     if (v) { setError(v); return; }
     if (lines.length < 2) { setError('Add at least two players'); return; }
     if (diff !== 0) { setError(`Cash-outs are ${formatMoney(Math.abs(diff), g.currency)} ${diff > 0 ? 'more' : 'less'} than buy-ins. Recount the chips or fix an entry.`); return; }
+    window.clearTimeout(timer.current); timer.current = undefined;
+    await queue.current;
     await run(async (api) => {
       await api.saveSessionResults(s.id, parsed);
       await api.updateSession(s.id, { status: 'final' });
@@ -124,8 +168,8 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
           {final ? (
             <Button onClick={reopen}><LockOpen size={16} aria-hidden="true" />Reopen</Button>
           ) : (<>
-            <Button disabled={!dirty} loading={busy && dirty} onClick={save}><Save size={16} aria-hidden="true" />Save</Button>
-            <Button variant="primary" onClick={finalize} loading={busy && !dirty}><Check size={16} aria-hidden="true" />Finalize</Button>
+            <SaveStatus state={saveState} onRetry={() => void persist()} />
+            <Button variant="primary" onClick={finalize} loading={busy}><Check size={16} aria-hidden="true" />Finalize</Button>
           </>)}
         </>}
       />
@@ -162,7 +206,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
               const r = parsed.find((x) => x.member_id === l.member_id)!;
               const net = resultNet(r);
               const name = memberName(g, l.member_id);
-              const remove = () => { setLines((ls) => ls.filter((x) => x.member_id !== l.member_id)); setDirty(true); };
+              const remove = () => removeLine(l.member_id);
               const openCard = () => setCardMember(g.members.find((m) => m.id === l.member_id) ?? null);
               if (final) {
                 return (
@@ -193,14 +237,14 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
                     <IconButton label={`${name} gives chips back`} className="h-9 w-8 shrink-0 border border-line"
                       onClick={() => setGivingBack(l.member_id)}><Minus size={16} /></IconButton>
                     <MoneyInput compact aria-label={`${name} buy-in`} className="flex-1" value={l.buyIn} placeholder="0"
-                      data-entry="buyin" enterKeyHint="next" onKeyDown={enterToNext}
+                      data-entry="buyin" enterKeyHint="next" onKeyDown={enterToNext} onBlur={() => { if (timer.current !== undefined) void persist(); }}
                       onChange={(e) => edit(l.member_id, { buyIn: e.target.value })} />
                     <IconButton label={`Rebuy ${formatMoney(rebuy, g.currency)} for ${name}`} className="h-9 w-8 shrink-0 border border-line"
-                      onClick={() => edit(l.member_id, { buyIn: centsToInput(r.buy_in_cents + rebuy) })}><Plus size={16} /></IconButton>
+                      onClick={() => tapEdit(l.member_id, { buyIn: centsToInput(r.buy_in_cents + rebuy) })}><Plus size={16} /></IconButton>
                   </div>
                   <div className={clsx('w-28 shrink-0 md:order-3 md:block md:w-auto', entry === 'cashout' ? 'block' : 'hidden')}>
                     <MoneyInput compact aria-label={`${name} cash-out`} value={l.cashOut} placeholder="0"
-                      data-entry="cashout" enterKeyHint="next" onKeyDown={enterToNext}
+                      data-entry="cashout" enterKeyHint="next" onKeyDown={enterToNext} onBlur={() => { if (timer.current !== undefined) void persist(); }}
                       onChange={(e) => edit(l.member_id, { cashOut: e.target.value })} />
                   </div>
                   <div className="hidden justify-end md:order-4 md:flex">
@@ -233,13 +277,13 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
       <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)}
         actions={!final && cardMember && lines.some((l) => l.member_id === cardMember.id) && (
           <Button variant="danger" className="w-full" onClick={() => {
-            setLines((ls) => ls.filter((x) => x.member_id !== cardMember.id)); setDirty(true); setCardMember(null);
+            removeLine(cardMember.id); setCardMember(null);
           }}><X size={16} aria-hidden="true" />Remove from this game</Button>
         )} />
       {givingBack && (
         <GiveBackDialog name={memberShort(g, givingBack)} currency={g.currency} rebuy={rebuy}
           returned={lines.find((l) => l.member_id === givingBack)?.returned ?? 0}
-          onSet={(cents) => { void giveBack(givingBack, cents); }} onClose={() => setGivingBack(null)} />
+          onSet={(cents) => tapEdit(givingBack, { returned: cents })} onClose={() => setGivingBack(null)} />
       )}
       <AddMemberDialog group={g} open={newPerson} onClose={() => setNewPerson(false)} onAdded={(id) => addLine(id)} />
       {admin && (
@@ -335,5 +379,15 @@ function GiveBackDialog({ name, currency, rebuy, returned, onSet, onClose }: {
         </p>
       )}
     </Modal>
+  );
+}
+
+/** Where autosave is at, in place of a Save button. */
+function SaveStatus({ state, onRetry }: { state: 'saved' | 'pending' | 'saving' | 'error'; onRetry(): void }) {
+  if (state === 'error') return <Button onClick={onRetry}><RotateCcw size={16} aria-hidden="true" />Not saved, retry</Button>;
+  return (
+    <span className="inline-flex h-10 items-center gap-1.5 px-1 text-[13px] font-semibold text-ink-2" aria-live="polite">
+      {state === 'saved' ? <><Check size={15} aria-hidden="true" />Saved</> : <><Loader2 size={15} className="animate-spin" aria-hidden="true" />Saving…</>}
+    </span>
   );
 }
