@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
-import { activity, friendBalances, groupBalances, isGameHost, listedGroups, myMemberId, pokerStats, totals } from '../lib/ledger';
+import { activity, friendBalances, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, pokerStats, sumByCurrency, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row } from '../components/ui';
 import { GroupIcon } from './GroupsPage';
@@ -16,11 +16,15 @@ export function DashboardPage() {
   const { me } = data;
   const groups = listedGroups(data);
   // Friends you have one-on-one (non-group) expenses with, and where you stand with each.
-  const directFriends = friendBalances(data)
-    .map((f) => ({ ...f, direct: f.groups.filter((fg) => fg.group.is_direct).reduce((a, fg) => a + fg.cents, 0), has: f.groups.some((fg) => fg.group.is_direct) }))
-    .filter((f) => f.has)
-    .sort((a, b) => Math.abs(b.direct) - Math.abs(a.direct) || a.name.localeCompare(b.name));
   const currency = me.default_currency || 'USD';
+  const directFriends = friendBalances(data)
+    .filter((f) => f.groups.some((fg) => fg.group.is_direct))
+    .map((f) => {
+      // Per currency, like everywhere else: show the biggest, mention the rest.
+      const [main, ...rest] = sumByCurrency(f.groups.filter((fg) => fg.group.is_direct).map((fg) => ({ currency: fg.group.currency, cents: fg.cents })));
+      return { ...f, direct: main ?? { currency: f.groups.find((fg) => fg.group.is_direct)!.group.currency, cents: 0 }, directOthers: rest };
+    })
+    .sort((a, b) => Math.abs(b.direct.cents) - Math.abs(a.direct.cents) || a.name.localeCompare(b.name));
   const t = totals(data);
   const feed = activity(data, 5, undefined, true);
   const poker = pokerStats(data);
@@ -54,6 +58,11 @@ export function DashboardPage() {
             <div className="hidden sm:block"><p className="opacity-75">Clubs, all time</p><p className="amount font-display text-xl">{formatMoney(poker.net, currency, { sign: true })}</p></div>
           )}
         </div>
+        {t.others.length > 0 && (
+          <div className="mt-3 space-y-0.5 border-t border-felt-ink/15 pt-3 text-sm">
+            {t.others.map((m) => <p key={m.currency}><span className="opacity-75">In {m.currency}:</span> <span className="amount font-semibold">{moneyPhrase(m, 'overall')}</span></p>)}
+          </div>
+        )}
       </section>
 
       {openGames.length > 0 && (
@@ -105,8 +114,11 @@ export function DashboardPage() {
           ) : directFriends.slice(0, 6).map((f) => (
             <Link key={f.key} to={`/friends/${encodeURIComponent(f.key)}`} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-surface-2/60 md:px-5">
               <Avatar name={f.name} src={f.avatar_url} size={32} />
-              <p className="min-w-0 flex-1 truncate text-sm font-semibold">{f.name}</p>
-              <BalanceText cents={f.direct} currency={currency} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{f.name}</p>
+                {f.directOthers.length > 0 && <p className="truncate text-[11px] text-ink-2">also {f.directOthers.map((m) => moneyPhrase(m, 'friend')).join(', ')}</p>}
+              </div>
+              <BalanceText cents={f.direct.cents} currency={f.direct.currency} />
             </Link>
           ))}
         </div>

@@ -71,7 +71,7 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
             </Select>
           </Field>
           <Field label="Buy-in (optional)">
-            <MoneyInput value={buyIn} placeholder="0" onChange={(e) => setBuyIn(e.target.value)} />
+            <MoneyInput currency={group?.currency ?? (data.me.default_currency || 'USD')} value={buyIn} placeholder="0" onChange={(e) => setBuyIn(e.target.value)} />
           </Field>
         </div>
         <p className="-mt-2 text-[12px] text-ink-2">

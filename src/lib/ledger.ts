@@ -154,14 +154,40 @@ export function statusFromKey(key: string): FriendStatus {
 export const STATUS_LABEL: Record<FriendStatus, string> = { friend: 'Friend', invited: 'Invited', guest: 'Guest' };
 
 export interface FriendGroupBalance { group: Group; memberId: string; myMemberId: string; cents: number }
-export interface Friend { key: string; name: string; email: string | null; avatar_url: string | null; net: number; groups: FriendGroupBalance[] }
+/** An amount in one currency. Balances in different currencies are never added together. */
+export interface Money { currency: string; cents: number }
+export interface Friend {
+  key: string; name: string; email: string | null; avatar_url: string | null;
+  /** Their balance in `currency`, the currency they have the biggest balance in (positive = they owe you). */
+  net: number;
+  currency: string;
+  /** Balances in any other currencies, biggest first (e.g. a USD club plus an INR one-on-one). */
+  others: Money[];
+  groups: FriendGroupBalance[];
+}
+
+/** Totals per currency, nonzero only, biggest first. */
+export function sumByCurrency(items: Money[]): Money[] {
+  const m = new Map<string, number>();
+  items.forEach((x) => add(m, x.currency, x.cents));
+  return [...m].map(([currency, cents]) => ({ currency, cents })).filter((x) => x.cents !== 0)
+    .sort((a, b) => Math.abs(b.cents) - Math.abs(a.cents));
+}
+
+/** Split per-currency balances into the main one (or `fallback` at zero) and the rest. */
+function primary(balances: Money[], fallback: string): { net: number; currency: string; others: Money[] } {
+  if (!balances.length) return { net: 0, currency: fallback, others: [] };
+  return { net: balances[0]!.cents, currency: balances[0]!.currency, others: balances.slice(1) };
+}
 
 /**
  * Splitwise-style per-friend balances. Each group's debts are simplified first, then the
- * payments between you and each person are summed across every group you share.
+ * payments between you and each person are summed across every group you share -- per
+ * currency, since a USD club and an INR one-on-one can't be added together.
  * Positive net = they owe you.
  */
 export function friendBalances(data: AppData): Friend[] {
+  const fallback = data.me.default_currency || 'USD';
   const map = new Map<string, Friend>();
   for (const g of data.groups) {
     const mine = myMemberId(g, data.me.id);
@@ -176,13 +202,14 @@ export function friendBalances(data: AppData): Friend[] {
       const key = friendKey(m);
       let f = map.get(key);
       if (!f) {
-        f = { key, name: m.name, email: m.email, avatar_url: m.avatar_url ?? null, net: 0, groups: [] };
+        f = { key, name: m.name, email: m.email, avatar_url: m.avatar_url ?? null, net: 0, currency: fallback, others: [], groups: [] };
         map.set(key, f);
       }
-      const cents = perMember.get(m.id) ?? 0;
-      f.net += cents;
-      f.groups.push({ group: g, memberId: m.id, myMemberId: mine, cents });
+      f.groups.push({ group: g, memberId: m.id, myMemberId: mine, cents: perMember.get(m.id) ?? 0 });
     }
+  }
+  for (const f of map.values()) {
+    Object.assign(f, primary(sumByCurrency(f.groups.map((fg) => ({ currency: fg.group.currency, cents: fg.cents }))), fallback));
   }
   return [...map.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
 }
@@ -198,22 +225,40 @@ export interface FriendRow extends Friend {
  * person collapses into one row whether they showed up via a group or via `contacts`.
  */
 export function friendsList(data: AppData): FriendRow[] {
+  const fallback = data.me.default_currency || 'USD';
   const rows = new Map<string, FriendRow>();
   for (const f of friendBalances(data)) rows.set(f.key, { ...f, contactId: null, status: statusFromKey(f.key) });
   for (const c of data.contacts) {
     const key = friendKey(c);
     const existing = rows.get(key);
     if (existing) { existing.contactId = c.id; existing.avatar_url ??= c.avatar_url ?? null; }
-    else rows.set(key, { key, name: c.name, email: c.email, avatar_url: c.avatar_url ?? null, net: 0, groups: [], contactId: c.id, status: statusFromKey(key) });
+    else rows.set(key, { key, name: c.name, email: c.email, avatar_url: c.avatar_url ?? null, net: 0, currency: fallback, others: [], groups: [], contactId: c.id, status: statusFromKey(key) });
   }
   return [...rows.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
 }
 
+/** "owes you ₹58,184" / "you owe ₹500" (perspective: the friend), or "you are owed ₹58,184" /
+ *  "you owe ₹500" (perspective: you, overall). For balances shown beside a main-currency figure. */
+export function moneyPhrase(m: Money, perspective: 'friend' | 'overall'): string {
+  const amount = formatMoney(Math.abs(m.cents), m.currency);
+  if (m.cents > 0) return perspective === 'friend' ? `owes you ${amount}` : `you are owed ${amount}`;
+  return `you owe ${amount}`;
+}
+
+/** Where you stand overall. `owed`/`owe`/`net` are in your own currency (Profile); balances in
+ *  any other currency are reported separately in `others` as a net per currency -- never converted. */
 export function totals(data: AppData) {
-  const friends = friendBalances(data);
-  const owed = friends.filter((f) => f.net > 0).reduce((a, f) => a + f.net, 0);
-  const owe = friends.filter((f) => f.net < 0).reduce((a, f) => a - f.net, 0);
-  return { owed, owe, net: owed - owe };
+  const currency = data.me.default_currency || 'USD';
+  let owed = 0, owe = 0;
+  const others: Money[] = [];
+  for (const f of friendBalances(data)) {
+    for (const b of [{ currency: f.currency, cents: f.net }, ...f.others]) {
+      if (b.currency !== currency) others.push(b);
+      else if (b.cents > 0) owed += b.cents;
+      else owe -= b.cents;
+    }
+  }
+  return { currency, owed, owe, net: owed - owe, others: sumByCurrency(others) };
 }
 
 export interface ActivityItem {

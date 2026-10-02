@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, HandCoins, Receipt, UserX } from 'lucide-react';
 import { useData, useAction } from '../app/data';
-import { friendsList, isGroupAdmin, memberShort, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
+import { friendsList, isGroupAdmin, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, BackLink, BalanceText, Button, Card, CardHeader, EmptyState, Row } from '../components/ui';
 import { GroupIcon } from './GroupsPage';
@@ -30,7 +30,6 @@ export function FriendDetailPage() {
   const [settle, setSettle] = useState<{ group: Group; draft: SettleDraft } | null>(null);
   const [editing, setEditing] = useState<{ group: Group; expense: Expense | null } | null>(null);
   if (!f) return <Navigate to="/friends" replace />;
-  const currency = data.me.default_currency || 'USD';
 
   const directGroups = f.groups.filter((fg) => fg.group.is_direct);
   const sharedGroups = f.groups.filter((fg) => !fg.group.is_direct);
@@ -66,7 +65,8 @@ export function FriendDetailPage() {
       <section className="mb-5 flex items-center justify-between gap-3 rounded-2xl bg-surface-2 px-4 py-3">
         <div className="min-w-0">
           <p className="text-[13px] text-ink-2">{f.net === 0 ? 'All square' : f.net > 0 ? 'Owes you' : 'You owe'}</p>
-          <p className={`amount font-display text-2xl font-medium ${f.net > 0 ? 'text-gain' : f.net < 0 ? 'text-loss' : ''}`}>{formatMoney(Math.abs(f.net), currency)}</p>
+          <p className={`amount font-display text-2xl font-medium ${f.net > 0 ? 'text-gain' : f.net < 0 ? 'text-loss' : ''}`}>{formatMoney(Math.abs(f.net), f.currency)}</p>
+          {f.others.map((m) => <p key={m.currency} className="amount truncate text-[12px] text-ink-2">and {moneyPhrase(m, 'friend')}</p>)}
         </div>
         <Button variant="primary" loading={direct.busy} onClick={addExpense}><Receipt size={16} aria-hidden="true" />Add expense</Button>
       </section>

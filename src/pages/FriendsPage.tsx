@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, HeartHandshake, UserPlus } from 'lucide-react';
 import { useData } from '../app/data';
-import { friendsList, totals, STATUS_LABEL } from '../lib/ledger';
+import { friendsList, moneyPhrase, totals, STATUS_LABEL } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { Avatar, BalanceText, Button, Card, EmptyState, Input, PageHeader } from '../components/ui';
 import { AddFriendDialog } from '../components/dialogs/AddFriendDialog';
@@ -23,6 +23,11 @@ export function FriendsPage() {
         <div className="rounded-2xl bg-surface-2 px-4 py-3"><p className="text-[13px] text-ink-2">Owed to you</p><p className="amount font-display text-xl font-medium md:text-2xl text-gain">{formatMoney(t.owed, currency)}</p></div>
         <div className="rounded-2xl bg-surface-2 px-4 py-3"><p className="text-[13px] text-ink-2">You owe</p><p className="amount font-display text-xl font-medium md:text-2xl text-loss">{formatMoney(t.owe, currency)}</p></div>
       </div>
+      {t.others.length > 0 && (
+        <p className="-mt-2 mb-4 text-[13px] text-ink-2">
+          {t.others.map((m) => <span key={m.currency} className="mr-3 inline-block">In {m.currency}: <b className="amount font-semibold text-ink">{moneyPhrase(m, 'overall')}</b></span>)}
+        </p>
+      )}
       <div className="relative mb-4">
         <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-2" aria-hidden="true" />
         <Input aria-label="Search friends" className="pl-9" placeholder="Search friends" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -39,10 +44,10 @@ export function FriendsPage() {
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{f.name}</p>
               <p className="truncate text-[12px] text-ink-2">
-                {STATUS_LABEL[f.status]} · {f.groups.length === 0 ? 'nothing shared yet' : `${f.groups.length} shared`}
+                {STATUS_LABEL[f.status]} · {f.others.length ? `also ${f.others.map((m) => moneyPhrase(m, 'friend')).join(', ')}` : f.groups.length === 0 ? 'nothing shared yet' : `${f.groups.length} shared`}
               </p>
             </div>
-            <BalanceText cents={f.net} currency={currency} />
+            <BalanceText cents={f.net} currency={f.currency} />
           </Link>
         ))}
       </Card>

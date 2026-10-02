@@ -111,7 +111,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
           <Field label="Description" className="col-span-2">
             <Input autoFocus value={description} placeholder="Pizza and drinks" onChange={(e) => setDescription(e.target.value)} />
           </Field>
-          <Field label="Amount"><MoneyInput value={amount} placeholder="0.00" onChange={(e) => setAmount(e.target.value)} /></Field>
+          <Field label="Amount"><MoneyInput currency={group.currency} value={amount} placeholder="0.00" onChange={(e) => setAmount(e.target.value)} /></Field>
           <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           <Field label="Category" className="col-span-2 md:col-span-1">
             <Select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -139,7 +139,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
               {group.members.map((m) => (
                 <div key={m.id} className="flex items-center gap-2">
                   <span className="w-24 truncate text-sm">{m.name}</span>
-                  <MoneyInput className="flex-1" value={payAmounts[m.id] ?? ''} placeholder="0" data-entry="paid" enterKeyHint="next" onKeyDown={enterToNext}
+                  <MoneyInput currency={group.currency} className="flex-1" value={payAmounts[m.id] ?? ''} placeholder="0" data-entry="paid" enterKeyHint="next" onKeyDown={enterToNext}
                     onChange={(e) => setPayAmounts((p) => ({ ...p, [m.id]: e.target.value }))} />
                 </div>
               ))}
@@ -192,7 +192,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
               }
               if (mode === 'exact') {
                 return <SplitRow key={m.id} name={m.name} avatarUrl={m.avatar_url} on={on} toggle={toggle}>
-                  <MoneyInput className="w-28 shrink-0" value={values[m.id] ?? ''} placeholder="0" data-entry="split" enterKeyHint="next" onKeyDown={enterToNext}
+                  <MoneyInput currency={group.currency} className="w-28 shrink-0" value={values[m.id] ?? ''} placeholder="0" data-entry="split" enterKeyHint="next" onKeyDown={enterToNext}
                     onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))} />
                 </SplitRow>;
               }

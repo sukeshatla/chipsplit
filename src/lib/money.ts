@@ -19,6 +19,14 @@ function fmt(currency: string, whole: boolean) {
   return f;
 }
 
+/** The symbol for a currency in the user's locale: "$", "₹", "€" (falls back to the code). */
+export function currencySymbol(currency = 'USD') {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })
+      .formatToParts(0).find((p) => p.type === 'currency')?.value ?? currency;
+  } catch { return currency; }
+}
+
 /** Format integer cents. Negative values use a true minus sign. */
 export function formatMoney(cents: number, currency = 'USD', opts: { sign?: boolean } = {}) {
   const s = fmt(currency, cents % 100 === 0).format(Math.abs(cents) / 100);

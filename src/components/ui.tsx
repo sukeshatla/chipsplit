@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useRef, type ButtonHTMLAttributes, type Keyboard
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ArrowLeft, X, Loader2 } from 'lucide-react';
-import { formatMoney } from '../lib/money';
+import { currencySymbol, formatMoney } from '../lib/money';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -49,11 +49,14 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
   return <input ref={ref} className={clsx(field, 'h-10 px-3', className)} {...p} />;
 });
 
-export function MoneyInput({ className, compact, ...p }: InputHTMLAttributes<HTMLInputElement> & { compact?: boolean }) {
+export function MoneyInput({ className, compact, currency = 'USD', ...p }: InputHTMLAttributes<HTMLInputElement> & { compact?: boolean; currency?: string }) {
+  const symbol = currencySymbol(currency);
+  // Room for the symbol on the left: one character ("$", "₹") or a code like "CHF".
+  const pad = symbol.length > 1 ? (compact ? 'pl-10' : 'pl-11') : (compact ? 'pl-5' : 'pl-6');
   return (
     <div className={clsx('relative', className)}>
-      <span className={clsx('pointer-events-none absolute top-1/2 -translate-y-1/2 text-sm text-ink-2', compact ? 'left-2' : 'left-3')}>$</span>
-      <input inputMode="decimal" autoComplete="off" className={clsx(field, 'amount pr-2 text-right', compact ? 'h-9 pl-5' : 'h-10 pl-6')} {...p} />
+      <span className={clsx('pointer-events-none absolute top-1/2 -translate-y-1/2 text-sm text-ink-2', compact ? 'left-2' : 'left-3')}>{symbol}</span>
+      <input inputMode="decimal" autoComplete="off" className={clsx(field, 'amount pr-2 text-right', compact ? 'h-9' : 'h-10', pad)} {...p} />
     </div>
   );
 }

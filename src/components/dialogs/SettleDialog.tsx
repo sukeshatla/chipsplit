@@ -53,7 +53,7 @@ export function SettleDialog({ group, draft, onClose }: { group: Group; draft: S
           </Select>
         </Field>
         <Field label="Amount" error={error} className="col-span-2">
-          <MoneyInput value={amount} placeholder="0.00" onChange={(e) => { setAmount(e.target.value); setError(null); }} />
+          <MoneyInput currency={group.currency} value={amount} placeholder="0.00" onChange={(e) => { setAmount(e.target.value); setError(null); }} />
         </Field>
         <Field label="Method">
           <Select value={method} onChange={(e) => setMethod(e.target.value)}>{METHODS.map((m) => <option key={m}>{m}</option>)}</Select>

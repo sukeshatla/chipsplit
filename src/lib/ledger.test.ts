@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { settle } from './settle';
 import { splitByWeights, splitEqual, parseMoney, equalPercents } from './money';
-import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink, shortName, listedGroups, directFriendKey, activity, resultNet, sessionTotals, isGameHost } from './ledger';
+import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink, shortName, listedGroups, directFriendKey, activity, resultNet, sessionTotals, isGameHost, totals, friendBalances } from './ledger';
 import type { AppData, GameSession, Group } from './types';
 
 describe('settle', () => {
@@ -388,5 +388,27 @@ describe('game host', () => {
   it('falls back to group admins for old games with no recorded host', () => {
     expect(isGameHost(g, game(null), 'ua')).toBe(true);
     expect(isGameHost(g, game(null), 'ub')).toBe(false);
+  });
+});
+
+describe('balances in more than one currency', () => {
+  const me = { id: 'me', display_name: 'Me', email: 'me@x.com', avatar_url: null, default_currency: 'USD', notifications_seen_at: '' };
+  const mem = (gid: string, id: string, userId: string | null, name: string) => ({ id, group_id: gid, user_id: userId, contact_id: null, name, email: 'j@x.com', email_opt_out: false, is_admin: true });
+  const lend = (gid: string, id: string, payer: string, ower: string, cents: number) => ({ id, group_id: gid, description: id, category: 'general', amount_cents: cents, spent_on: '2026-01-01', created_by: null, created_at: '',
+    payers: [{ member_id: payer, amount_cents: cents }], shares: [{ member_id: ower, amount_cents: cents }] });
+  // Jagan owes you $20 in a USD club and ₹58,184 one-on-one.
+  const club: Group = { id: 'c', name: 'Club', kind: 'club', currency: 'USD', created_by: null, created_at: '', members: [mem('c', 'c1', 'me', 'Me'), mem('c', 'c2', null, 'Jagan')], sessions: [], settlements: [], expenses: [lend('c', 'e1', 'c1', 'c2', 2000)] };
+  const inr: Group = { id: 'd', name: 'Jagan', kind: 'expenses', is_direct: true, currency: 'INR', created_by: null, created_at: '', members: [mem('d', 'd1', 'me', 'Me'), mem('d', 'd2', null, 'Jagan')], sessions: [], settlements: [], expenses: [lend('d', 'e2', 'd1', 'd2', 5818400)] };
+  const data: AppData = { me, groups: [club, inr], contacts: [] };
+
+  it('never adds rupees and dollars together for a friend', () => {
+    const [f] = friendBalances(data);
+    expect({ net: f!.net, currency: f!.currency }).toEqual({ net: 5818400, currency: 'INR' });
+    expect(f!.others).toEqual([{ currency: 'USD', cents: 2000 }]);
+  });
+  it('keeps your own-currency totals separate from other currencies', () => {
+    const t = totals(data);
+    expect({ owed: t.owed, owe: t.owe, net: t.net }).toEqual({ owed: 2000, owe: 0, net: 2000 });
+    expect(t.others).toEqual([{ currency: 'INR', cents: 5818400 }]);
   });
 });

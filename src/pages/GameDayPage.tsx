@@ -254,14 +254,14 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
                   <div className={clsx('w-[10.5rem] shrink-0 items-center gap-1 md:order-2 md:flex md:w-auto', entry === 'buyin' ? 'flex' : 'hidden')}>
                     <IconButton label={`${name} gives chips back`} className="h-9 w-8 shrink-0 border border-line"
                       onClick={() => setGivingBack(l.member_id)}><Minus size={16} /></IconButton>
-                    <MoneyInput compact aria-label={`${name} buy-in`} className="flex-1" value={l.buyIn} placeholder="0"
+                    <MoneyInput compact currency={g.currency} aria-label={`${name} buy-in`} className="flex-1" value={l.buyIn} placeholder="0"
                       data-entry="buyin" enterKeyHint="next" onKeyDown={enterToNext} onBlur={() => { if (timer.current !== undefined) void persist(); }}
                       onChange={(e) => edit(l.member_id, { buyIn: e.target.value })} />
                     <IconButton label={`Rebuy ${formatMoney(rebuy, g.currency)} for ${name}`} className="h-9 w-8 shrink-0 border border-line"
                       onClick={() => tapEdit(l.member_id, { buyIn: centsToInput(r.buy_in_cents + rebuy) })}><Plus size={16} /></IconButton>
                   </div>
                   <div className={clsx('w-28 shrink-0 md:order-3 md:block md:w-auto', entry === 'cashout' ? 'block' : 'hidden')}>
-                    <MoneyInput compact aria-label={`${name} cash-out`} value={l.cashOut} placeholder="0"
+                    <MoneyInput compact currency={g.currency} aria-label={`${name} cash-out`} value={l.cashOut} placeholder="0"
                       data-entry="cashout" enterKeyHint="next" onKeyDown={enterToNext} onBlur={() => { if (timer.current !== undefined) void persist(); }}
                       onChange={(e) => edit(l.member_id, { cashOut: e.target.value })} />
                   </div>
@@ -387,7 +387,7 @@ function GiveBackDialog({ name, currency, rebuy, returned, onSet, onClose }: {
         </Button>
       </>}>
       {editing ? (
-        <MoneyInput autoFocus aria-label="Amount given back" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value)} />
+        <MoneyInput autoFocus currency={currency} aria-label="Amount given back" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value)} />
       ) : (
         <div className="flex items-center justify-between">
           <span className="amount font-display text-2xl font-medium">{valid ? formatMoney(cents!, currency) : '—'}</span>
