@@ -16,6 +16,7 @@ import { ActivityPage } from './pages/ActivityPage';
 import { AdminPage } from './pages/AdminPage';
 import { RummyListPage } from './pages/RummyListPage';
 import { RummyGamePage } from './pages/RummyGamePage';
+import { GroupRummyPage } from './pages/GroupRummyPage';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="groups" element={<GroupsPage />} />
           <Route path="groups/:groupId" element={<GroupPage />} />
           <Route path="groups/:groupId/games/:gameId" element={<GameDayPage />} />
+          <Route path="groups/:groupId/rummy" element={<GroupRummyPage />} />
           <Route path="games" element={<GamesPage />} />
           <Route path="rummy" element={<RummyListPage />} />
           <Route path="rummy/:id" element={<RummyGamePage />} />

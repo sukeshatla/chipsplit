@@ -115,6 +115,15 @@ export function Avatar({ name, src, size = 36, className }: { name: string; src?
   );
 }
 
+/** An avatar that opens that person's card. Names stay plain text; the avatar is the way in. */
+export function AvatarButton({ name, src, size = 32, onClick }: { name: string; src?: string | null; size?: number; onClick(): void }) {
+  return (
+    <button type="button" aria-label={`About ${name}`} onClick={onClick} className="shrink-0 rounded-full active:opacity-70">
+      <Avatar name={name} src={src} size={size} />
+    </button>
+  );
+}
+
 export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'gain' | 'loss' | 'brass' | 'felt'; children: ReactNode }) {
   return (
     <span className={clsx('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[12px] font-semibold',

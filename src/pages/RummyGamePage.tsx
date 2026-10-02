@@ -7,8 +7,10 @@ import { useAuth } from '../app/auth';
 import { rummyStandings } from '../lib/rummy';
 import { shortName } from '../lib/ledger';
 import { formatDate } from '../lib/money';
-import { Avatar, BackLink, Badge, Button, Card, CardHeader, Input, PageHeader, Row, Spinner } from '../components/ui';
+import { Avatar, AvatarButton, BackLink, Badge, Button, Card, CardHeader, Input, PageHeader, Row, Spinner } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
+import type { RummyPlayer } from '../lib/types';
 
 export function RummyGamePage() {
   const { id } = useParams();
@@ -22,6 +24,7 @@ export function RummyGamePage() {
   const [roundError, setRoundError] = useState<string | null>(null);
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [cardPlayer, setCardPlayer] = useState<RummyPlayer | null>(null);
 
   const q = useQuery({ queryKey: ['rummy', id], queryFn: () => api.loadRummyGame(id!), enabled: !!id });
 
@@ -82,7 +85,7 @@ export function RummyGamePage() {
   return (
     <>
       <PageHeader
-        back={<BackLink to={group ? `/groups/${group.id}?tab=rummy` : '/rummy'} label={group ? group.name : 'Rummy'} />}
+        back={<BackLink to={group ? `/groups/${group.id}/rummy` : '/rummy'} label={group ? group.name : 'Rummy'} />}
         title={game.name || 'Rummy'}
         subtitle={<span className="flex flex-wrap items-center gap-2">
           <Badge tone={game.status === 'active' ? 'felt' : 'neutral'}>{game.status === 'active' ? 'Active' : 'Finished'}</Badge>
@@ -115,7 +118,7 @@ export function RummyGamePage() {
             {standings.map((s, i) => (
               <Row key={s.player.id} className={s.eliminated ? 'bg-loss/5' : undefined}>
                 <span className="amount w-5 text-center text-sm text-ink-2">{i + 1}</span>
-                <Avatar name={s.player.name} src={s.player.avatar_url} size={32} />
+                <AvatarButton name={s.player.name} src={s.player.avatar_url} onClick={() => setCardPlayer(s.player)} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{short(s.player.name)}{s.player.user_id === me.id && <span className="font-normal text-ink-2"> (you)</span>}</p>
                   {s.eliminated && <p className="text-[12px] font-semibold text-loss">Out</p>}
@@ -188,6 +191,8 @@ export function RummyGamePage() {
         </div>
       </div>
 
+      <MemberCardDialog member={cardPlayer} onClose={() => setCardPlayer(null)}
+        extra={cardPlayer ? { label: 'Points this game', node: <span className="amount font-display text-base font-medium">{standings.find((x) => x.player.id === cardPlayer.id)?.total ?? 0}</span> } : undefined} />
       <ConfirmDialog open={confirmingClose} onClose={() => setConfirmingClose(false)} title="Close this rummy game?" tone="primary" icon={Spade} busy={busy}
         confirmLabel="Close game"
         body="This ends the game now. A winner is only declared if exactly one player is still under the point limit — otherwise it just closes with no winner."
@@ -198,7 +203,7 @@ export function RummyGamePage() {
         onConfirm={async () => {
           setConfirmingDelete(false);
           const ok = await run((api) => api.deleteRummyGame(game.id), 'Rummy game deleted');
-          if (ok) { qc.invalidateQueries({ queryKey: ['rummy-list'] }); nav(group ? `/groups/${group.id}?tab=rummy` : '/rummy'); }
+          if (ok) { qc.invalidateQueries({ queryKey: ['rummy-list'] }); nav(group ? `/groups/${group.id}/rummy` : '/rummy'); }
         }} />
     </>
   );

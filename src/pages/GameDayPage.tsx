@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { ArrowRight, Check, Lock, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
+import { Check, Lock, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, memberShort, myMemberId, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
+import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, memberShort, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
-import { Amount, Avatar, BackLink, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Textarea } from '../components/ui';
+import { Amount, AvatarButton, BackLink, Badge, Button, Card, CardHeader, Field, IconButton, Input, MoneyInput, PageHeader, Row, Select, Textarea } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
-import type { GameSession, Group } from '../lib/types';
+import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
+import { SettleRow } from '../components/SettleRow';
+import type { GameSession, Group, Member } from '../lib/types';
 
 interface Line { member_id: string; buyIn: string; cashOut: string }
 
@@ -38,6 +40,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmReopen, setConfirmReopen] = useState(false);
+  const [cardMember, setCardMember] = useState<Member | null>(null);
   const rebuy = s.default_buy_in_cents || 5000;
   const admin = isGroupAdmin(g, me.id);
   const settled = isSessionSettled(g, s);
@@ -50,8 +53,6 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const diff = totalOut - totalIn;
   const balanced = diff === 0 && lines.length >= 2;
   const notPlaying = g.members.filter((m) => !lines.some((l) => l.member_id === m.id));
-  const mine = myMemberId(g, me.id);
-  const myResult = parsed.find((r) => r.member_id === mine);
 
   const edit = (id: string, patch: Partial<Line>) => {
     setLines((ls) => ls.map((l) => (l.member_id === id ? { ...l, ...patch } : l)));
@@ -111,14 +112,14 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         </>}
       />
 
-      <section className={clsx('mb-5 rounded-2xl p-4 md:p-5', balanced ? 'felt' : 'border border-line bg-surface')}>
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex gap-6 md:gap-8">
-            <div><p className="text-sm opacity-80">Bought in</p><p className="amount font-display text-2xl font-medium md:text-3xl">{formatMoney(totalIn, g.currency)}</p></div>
-            <div><p className="text-sm opacity-80">Cashed out</p><p className="amount font-display text-2xl font-medium md:text-3xl">{formatMoney(totalOut, g.currency)}</p></div>
+      <section className={clsx('mb-4 rounded-xl px-4 py-2.5 md:mb-5 md:rounded-2xl md:p-5', balanced ? 'felt' : 'border border-line bg-surface')}>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <div className="flex items-baseline gap-4 md:gap-8">
+            <p><span className="text-[12px] opacity-80 md:block md:text-sm">In </span><span className="amount font-display text-lg font-medium md:text-3xl">{formatMoney(totalIn, g.currency)}</span></p>
+            <p><span className="text-[12px] opacity-80 md:block md:text-sm">Out </span><span className="amount font-display text-lg font-medium md:text-3xl">{formatMoney(totalOut, g.currency)}</span></p>
           </div>
-          <p className={clsx('text-sm font-semibold', !balanced && (diff === 0 || totalOut === 0 ? 'text-ink-2' : 'text-loss'))}>
-            {balanced ? 'The table balances.' : lines.length < 2 ? 'Add at least two players.'
+          <p className={clsx('text-[13px] font-semibold md:text-sm', !balanced && (diff === 0 || totalOut === 0 ? 'text-ink-2' : 'text-loss'))}>
+            {balanced ? 'Table balances' : lines.length < 2 ? 'Add at least two players.'
               : totalOut === 0 ? 'Enter cash-outs when the table breaks.'
                 : `${formatMoney(Math.abs(diff), g.currency)} ${diff > 0 ? 'more out than in' : 'still unaccounted for'}`}
           </p>
@@ -128,46 +129,58 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
 
       <div className="space-y-5">
         <Card>
-          <CardHeader title="Players" action={final && myResult && <span className="text-[13px] text-ink-2">You: <Amount cents={myResult.cash_out_cents - myResult.buy_in_cents} currency={g.currency} sign /></span>} />
-          <div className="mt-3 hidden grid-cols-[minmax(0,1fr)_170px_140px_90px_36px] gap-3 px-5 text-[12px] font-semibold text-ink-2 md:grid">
-            <span>Player</span><span>Buy-in</span><span>Cash-out</span><span className="text-right">Net</span><span />
-          </div>
+          <CardHeader title="Players" />
+          {!final && <>
+            <div className="mt-3 hidden grid-cols-[minmax(0,1fr)_170px_140px_90px_36px] gap-3 px-5 text-[12px] font-semibold text-ink-2 md:grid">
+              <span>Player</span><span>Buy-in</span><span>Cash-out</span><span className="text-right">Net</span><span />
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-x-3 px-4 text-[11px] font-semibold text-ink-2 md:hidden">
+              <span>Buy-in</span><span>Cash-out</span>
+            </div>
+          </>}
           <div className="mt-1">
             {lines.map((l) => {
               const r = parsed.find((x) => x.member_id === l.member_id)!;
               const net = r.cash_out_cents - r.buy_in_cents;
               const name = memberName(g, l.member_id);
               const remove = () => { setLines((ls) => ls.filter((x) => x.member_id !== l.member_id)); setDirty(true); };
+              const openCard = () => setCardMember(g.members.find((m) => m.id === l.member_id) ?? null);
+              if (final) {
+                return (
+                  <Row key={l.member_id} className="py-2.5">
+                    <AvatarButton name={name} src={memberAvatar(g, l.member_id)} size={30} onClick={openCard} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{memberShort(g, l.member_id)}</p>
+                      <p className="amount truncate text-[12px] text-ink-2">In {formatMoney(r.buy_in_cents, g.currency)} · Out {formatMoney(r.cash_out_cents, g.currency)}</p>
+                    </div>
+                    <Amount cents={net} currency={g.currency} sign className="text-base" />
+                  </Row>
+                );
+              }
               return (
-                <div key={l.member_id} className="grid grid-cols-2 items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,1fr)_170px_140px_90px_36px] md:px-5">
+                <div key={l.member_id} className="grid grid-cols-2 items-center gap-x-3 gap-y-1.5 border-b border-line px-4 py-2.5 last:border-b-0 md:grid-cols-[minmax(0,1fr)_170px_140px_90px_36px] md:px-5">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <Avatar name={name} src={memberAvatar(g, l.member_id)} size={30} />
+                    <AvatarButton name={name} src={memberAvatar(g, l.member_id)} size={30} onClick={openCard} />
                     <span className="truncate text-sm font-semibold">{memberShort(g, l.member_id)}</span>
                   </div>
                   <div className="flex items-center justify-end gap-1 md:order-4">
-                    {final || l.cashOut ? <Amount cents={net} currency={g.currency} sign /> : <span className="text-[13px] text-ink-2">playing</span>}
-                    {!final && <IconButton className="md:hidden" label={`Remove ${name}`} onClick={remove}><X size={16} /></IconButton>}
+                    {l.cashOut ? <Amount cents={net} currency={g.currency} sign /> : <span className="text-[13px] text-ink-2">playing</span>}
+                    <IconButton className="md:hidden" label={`Remove ${name}`} onClick={remove}><X size={16} /></IconButton>
                   </div>
                   <div className="md:order-2">
-                    <span className="mb-1 block text-[11px] font-semibold text-ink-2 md:hidden">Buy-in</span>
-                    {final ? <p className="amount text-sm">{formatMoney(r.buy_in_cents, g.currency)}</p> : (
-                      <div className="flex items-center gap-1">
-                        <MoneyInput aria-label={`${name} buy-in`} className="flex-1" value={l.buyIn} placeholder="0"
-                          onChange={(e) => edit(l.member_id, { buyIn: e.target.value })} />
-                        <IconButton label={`Rebuy ${formatMoney(rebuy, g.currency)} for ${name}`}
-                          onClick={() => edit(l.member_id, { buyIn: centsToInput(r.buy_in_cents + rebuy) })}><Plus size={16} /></IconButton>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1">
+                      <MoneyInput aria-label={`${name} buy-in`} className="flex-1" value={l.buyIn} placeholder="0"
+                        onChange={(e) => edit(l.member_id, { buyIn: e.target.value })} />
+                      <IconButton label={`Rebuy ${formatMoney(rebuy, g.currency)} for ${name}`}
+                        onClick={() => edit(l.member_id, { buyIn: centsToInput(r.buy_in_cents + rebuy) })}><Plus size={16} /></IconButton>
+                    </div>
                   </div>
                   <div className="md:order-3">
-                    <span className="mb-1 block text-[11px] font-semibold text-ink-2 md:hidden">Cash-out</span>
-                    {final ? <p className="amount text-sm">{formatMoney(r.cash_out_cents, g.currency)}</p> : (
-                      <MoneyInput aria-label={`${name} cash-out`} value={l.cashOut} placeholder="0"
-                        onChange={(e) => edit(l.member_id, { cashOut: e.target.value })} />
-                    )}
+                    <MoneyInput aria-label={`${name} cash-out`} value={l.cashOut} placeholder="0"
+                      onChange={(e) => edit(l.member_id, { cashOut: e.target.value })} />
                   </div>
                   <div className="hidden md:order-5 md:block">
-                    {!final && <IconButton label={`Remove ${name}`} onClick={remove}><X size={16} /></IconButton>}
+                    <IconButton label={`Remove ${name}`} onClick={remove}><X size={16} /></IconButton>
                   </div>
                 </div>
               );
@@ -198,6 +211,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         </div>
         <HistoryList g={g} entityId={s.id} />
       </div>
+      <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)} />
       <AddMemberDialog group={g} open={newPerson} onClose={() => setNewPerson(false)} onAdded={(id) => addLine(id)} />
       {admin && (
         <div className="mt-8 flex justify-center">
@@ -226,6 +240,7 @@ function Payments({ g, s }: { g: Group; s: GameSession }) {
   const { run, busy } = useAction();
   const pays = sessionPayments(g, s);
   const done = pays.filter((p) => p.settlementId).length;
+  const [cardMember, setCardMember] = useState<Member | null>(null);
   return (
     <Card>
       <CardHeader title="Settle up" action={<span className="text-[13px] text-ink-2">{done} of {pays.length} paid</span>} />
@@ -233,35 +248,27 @@ function Payments({ g, s }: { g: Group; s: GameSession }) {
       <div className="mt-2">
         {pays.length === 0 && <p className="px-5 pb-5 text-sm text-ink-2">Everyone broke even.</p>}
         {pays.map((p) => (
-          <Row key={`${p.from}-${p.to}`} className={p.settlementId ? 'opacity-60' : ''}>
-            <Avatar name={memberName(g, p.from)} src={memberAvatar(g, p.from)} size={32} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm">
-                <b className="font-semibold text-loss">{memberShort(g, p.from)}</b>
-                <ArrowRight size={14} className="mx-1 inline text-ink-2" aria-label="pays" />
-                <b className="font-semibold text-gain">{memberShort(g, p.to)}</b>
-              </p>
-              <p className={clsx('amount font-display text-[15px] font-medium leading-tight', p.settlementId && 'line-through')}>{formatMoney(p.cents, g.currency)}</p>
-            </div>
-            {!p.settlementId && reminderMailto(g, p) && (
-              <IconButton label={`Remind ${memberName(g, p.from)}`} title="Email a settle-up reminder"
-                onClick={() => { window.location.href = reminderMailto(g, p)!; }}><Mail size={16} /></IconButton>
-            )}
-            {p.settlementId ? (
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run((api) => api.deleteSettlement(p.settlementId!), 'Marked unpaid')}>
-                <RotateCcw size={14} aria-hidden="true" />Undo
+          <SettleRow key={`${p.from}-${p.to}`} fromName={memberName(g, p.from)} fromShort={memberShort(g, p.from)} fromAvatar={memberAvatar(g, p.from)}
+            toShort={memberShort(g, p.to)} amount={formatMoney(p.cents, g.currency)} done={!!p.settlementId}
+            onAvatar={() => setCardMember(g.members.find((m) => m.id === p.from) ?? null)}
+            actions={p.settlementId ? (
+              <Button size="sm" disabled={busy} onClick={() => run((api) => api.deleteSettlement(p.settlementId!), 'Marked unpaid')}>
+                <RotateCcw size={14} aria-hidden="true" />Undo paid
               </Button>
-            ) : (
-              <Button size="sm" disabled={busy} onClick={() => run((api) => api.addSettlement({
+            ) : (<>
+              {reminderMailto(g, p) && (
+                <Button size="sm" onClick={() => { window.location.href = reminderMailto(g, p)!; }}><Mail size={14} aria-hidden="true" />Remind by email</Button>
+              )}
+              <Button size="sm" variant="primary" disabled={busy} onClick={() => run((api) => api.addSettlement({
                 group_id: g.id, from_member: p.from, to_member: p.to, amount_cents: p.cents, method: 'Cash',
                 note: `Game ${formatDate(s.played_on, { month: 'short', day: 'numeric' })}`, session_id: s.id, settled_on: todayISO(),
               }), 'Marked paid')}>
-                <Check size={14} aria-hidden="true" />Paid
+                <Check size={14} aria-hidden="true" />Mark paid
               </Button>
-            )}
-          </Row>
+            </>)} />
         ))}
       </div>
+      <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)} />
     </Card>
   );
 }

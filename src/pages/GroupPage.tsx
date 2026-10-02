@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ArrowRight, ChevronRight, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { useAuth } from '../app/auth';
 import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
-import { rummyStandings } from '../lib/rummy';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Avatar, BackLink, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Spinner, Tabs } from '../components/ui';
+import { Amount, AvatarButton, BackLink, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KIND_LABEL } from './GroupsPage';
@@ -15,19 +12,20 @@ import { ExpenseDialog } from '../components/dialogs/ExpenseDialog';
 import { ImportDialog } from '../components/dialogs/ImportDialog';
 import { SettleDialog, type SettleDraft } from '../components/dialogs/SettleDialog';
 import { NewGameDialog } from '../components/dialogs/NewGameDialog';
-import { NewRummyGameDialog } from '../components/dialogs/NewRummyGameDialog';
 import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
+import { SettleRow } from '../components/SettleRow';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
 import { CURRENCIES, KindPicker } from '../components/dialogs/CreateGroupDialog';
 import type { Expense, Group, GroupKind, Member, Settlement } from '../lib/types';
 
-type Tab = 'games' | 'rummy' | 'balances' | 'expenses' | 'members' | 'history';
+type Tab = 'games' | 'balances' | 'expenses' | 'members' | 'history';
 
 export function GroupPage() {
   const { groupId } = useParams();
   const { me, groups } = useData();
   const g = groups.find((x) => x.id === groupId);
   const [params, setParams] = useSearchParams();
+  const nav = useNavigate();
   const [newGame, setNewGame] = useState(false);
   const [expense, setExpense] = useState<Expense | null | 'new'>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -37,12 +35,13 @@ export function GroupPage() {
 
   const tabs: { value: Tab; label: string }[] = [
     ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Games' }] : []),
-    ...(g.kind === 'club' ? [{ value: 'rummy' as Tab, label: 'Rummy' }] : []),
     { value: 'balances', label: 'Balances' },
     ...(g.kind !== 'club' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
     { value: 'members', label: 'Members' },
     { value: 'history', label: 'History' },
   ];
+  // Rummy used to be a tab; old links (notifications, bookmarks) land on its own page now.
+  if (params.get('tab') === 'rummy') return <Navigate to={`/groups/${g.id}/rummy`} replace />;
   const requested = params.get('tab') as Tab | null;
   const tab: Tab = tabs.some((t) => t.value === requested) ? requested! : tabs[0]!.value;
   const mine = myMemberId(g, me.id);
@@ -62,13 +61,13 @@ export function GroupPage() {
           <Button onClick={() => { window.location.href = summaryMailto(g); }}><Send size={16} aria-hidden="true" />Send summary</Button>
           {g.kind !== 'club' && <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Import</Button>}
           {g.kind !== 'expenses' && <Button variant={g.kind === 'club' ? 'primary' : 'secondary'} onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />New game</Button>}
+          {g.kind === 'club' && <Button onClick={() => nav(`/groups/${g.id}/rummy`)}><Club size={16} aria-hidden="true" />Rummy</Button>}
           <Button variant={g.kind === 'club' ? 'secondary' : 'primary'} onClick={() => setExpense('new')}><Receipt size={16} aria-hidden="true" />Expense</Button>
         </>}
       />
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
       {tab === 'games' && <GamesTab g={g} onNew={() => setNewGame(true)} />}
-      {tab === 'rummy' && <RummyTab g={g} />}
       {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} onAddExpense={() => setExpense('new')} />}
       {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} admin={isGroupAdmin(g, me.id)} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
@@ -99,14 +98,11 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
             board.map((r, i) => (
               <Row key={r.memberId}>
                 <span className="amount w-5 text-center font-display text-sm text-ink-2">{i + 1}</span>
-                <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                  onClick={() => setCardMember(g.members.find((m) => m.id === r.memberId) ?? null)}>
-                  <Avatar name={r.name} src={r.avatar_url} size={32} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{memberShort(g, r.memberId)}</p>
-                    <p className="text-[12px] text-ink-2">{r.games} games, won {r.wins}, best {formatMoney(r.best, g.currency)}</p>
-                  </div>
-                </button>
+                <AvatarButton name={r.name} src={r.avatar_url} onClick={() => setCardMember(g.members.find((m) => m.id === r.memberId) ?? null)} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{memberShort(g, r.memberId)}</p>
+                  <p className="truncate text-[12px] text-ink-2">{r.games} games, won {r.wins}, best {formatMoney(r.best, g.currency)}</p>
+                </div>
                 <Amount cents={r.net} currency={g.currency} sign className="text-base" />
               </Row>
             ))}
@@ -145,55 +141,6 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
   );
 }
 
-function RummyTab({ g }: { g: Group }) {
-  const { api } = useAuth();
-  const [newGame, setNewGame] = useState(false);
-  const q = useQuery({ queryKey: ['rummy-list', g.id], queryFn: () => api.loadRummyGames(g.id) });
-
-  if (q.isLoading) return <Spinner />;
-  if (q.isError) {
-    return (
-      <Card className="p-8 text-center">
-        <p className="font-display text-lg font-medium">Couldn't load rummy games</p>
-        <p className="mt-2 text-sm text-ink-2">{q.error instanceof Error ? q.error.message : 'Check your connection and try again.'}</p>
-        <Button className="mt-4" onClick={() => q.refetch()}>Try again</Button>
-      </Card>
-    );
-  }
-  const games = q.data ?? [];
-
-  return (
-    <Card>
-      <CardHeader title="Rummy" action={<Button size="sm" onClick={() => setNewGame(true)}><Plus size={14} aria-hidden="true" />New rummy game</Button>} />
-      {games.length === 0 ? (
-        <EmptyState icon={<Spade size={28} />} title="No rummy games yet" body="Start one and track points hand by hand, with anyone crossing the point limit marked out."
-          action={<Button variant="primary" onClick={() => setNewGame(true)}>Start a rummy game</Button>} />
-      ) : (
-        <div className="mt-2">
-          {games.map((rg) => {
-            const leader = rummyStandings(rg)[0];
-            return (
-              <Link key={rg.id} to={`/rummy/${rg.id}`} className="block">
-                <Row className="hover:bg-surface-2/60">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2"><Spade size={16} aria-hidden="true" /></span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{rg.name || 'Rummy'}</p>
-                    <p className="truncate text-[12px] text-ink-2">{rg.players.length} players, out at {rg.point_limit}, {formatDate(rg.created_at)}</p>
-                  </div>
-                  <Badge tone={rg.status === 'active' ? 'felt' : 'neutral'}>{rg.status === 'active' ? 'Active' : 'Finished'}</Badge>
-                  {leader && <span className="hidden text-[12px] text-ink-2 sm:inline">{shortName(leader.player.name, rg.players.map((x) => x.name))} leads</span>}
-                  <ChevronRight size={16} className="text-ink-2" aria-hidden="true" />
-                </Row>
-              </Link>
-            );
-          })}
-        </div>
-      )}
-      <NewRummyGameDialog open={newGame} onClose={() => setNewGame(false)} group={g} />
-    </Card>
-  );
-}
-
 function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: SettleDraft): void; onAddExpense(): void }) {
   const { run, busy } = useAction();
   const [confirmingPayment, setConfirmingPayment] = useState<Settlement | null>(null);
@@ -213,22 +160,14 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
           <div className="mt-2">
             {transfers.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Everyone is settled up.</p> :
               transfers.map((t) => (
-                <Row key={`${t.from}-${t.to}`}>
-                  <Avatar name={memberName(g, t.from)} src={memberAvatar(g, t.from)} size={32} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">
-                      <button type="button" className="font-semibold text-loss hover:underline" onClick={() => setCardMember(memberById(t.from))}>{memberShort(g, t.from)}</button>
-                      <ArrowRight size={14} className="mx-1 inline text-ink-2" aria-label="pays" />
-                      <button type="button" className="font-semibold text-gain hover:underline" onClick={() => setCardMember(memberById(t.to))}>{memberShort(g, t.to)}</button>
-                    </p>
-                    <p className="amount font-display text-[15px] font-medium leading-tight">{formatMoney(t.cents, g.currency)}</p>
-                  </div>
-                  {reminderMailto(g, t) && (
-                    <IconButton label={`Remind ${memberName(g, t.from)}`} title="Email a settle-up reminder"
-                      onClick={() => { window.location.href = reminderMailto(g, t)!; }}><Mail size={16} /></IconButton>
-                  )}
-                  <Button size="sm" onClick={() => onSettle({ from: t.from, to: t.to, cents: t.cents })}>Record</Button>
-                </Row>
+                <SettleRow key={`${t.from}-${t.to}`} fromName={memberName(g, t.from)} fromShort={memberShort(g, t.from)} fromAvatar={memberAvatar(g, t.from)}
+                  toShort={memberShort(g, t.to)} amount={formatMoney(t.cents, g.currency)} onAvatar={() => setCardMember(memberById(t.from))}
+                  actions={<>
+                    {reminderMailto(g, t) && (
+                      <Button size="sm" onClick={() => { window.location.href = reminderMailto(g, t)!; }}><Mail size={14} aria-hidden="true" />Remind by email</Button>
+                    )}
+                    <Button size="sm" variant="primary" onClick={() => onSettle({ from: t.from, to: t.to, cents: t.cents })}><HandCoins size={14} aria-hidden="true" />Record payment</Button>
+                  </>} />
               ))}
           </div>
         </Card>
@@ -237,10 +176,8 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
           <div className="mt-2">
             {members.map((m) => (
               <Row key={m.id}>
-                <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setCardMember(m)}>
-                  <Avatar name={m.name} src={m.avatar_url} size={32} />
-                  <span className="flex-1 truncate text-sm font-semibold">{shortName(m.name, g.members.map((x) => x.name))}</span>
-                </button>
+                <AvatarButton name={m.name} src={m.avatar_url} onClick={() => setCardMember(m)} />
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">{shortName(m.name, g.members.map((x) => x.name))}</span>
                 <BalanceText cents={bal.get(m.id) ?? 0} currency={g.currency} perspective="them" />
               </Row>
             ))}
@@ -343,6 +280,7 @@ function MembersTab({ g }: { g: Group }) {
   const [currency, setCurrency] = useState(g.currency);
   const [confirmingRemove, setConfirmingRemove] = useState<Member | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [cardMember, setCardMember] = useState<Member | null>(null);
   const admin = isGroupAdmin(g, me.id);
   const dirty = name.trim() !== g.name || kind !== g.kind || currency !== g.currency;
   const settled = isGroupSettled(g);
@@ -357,7 +295,7 @@ function MembersTab({ g }: { g: Group }) {
             const active = memberHasActivity(g, m.id);
             return (
               <Row key={m.id}>
-                <Avatar name={m.name} src={m.avatar_url} size={32} />
+                <AvatarButton name={m.name} src={m.avatar_url} onClick={() => setCardMember(m)} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{m.name}{m.user_id === me.id && <span className="font-normal text-ink-2"> (you)</span>}</p>
                   <p className="truncate text-[12px] text-ink-2">{m.email ?? 'No email'}</p>
@@ -418,6 +356,7 @@ function MembersTab({ g }: { g: Group }) {
         </div>
       </Card>
       <AddMemberDialog group={g} open={adding} onClose={() => setAdding(false)} />
+      <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)} />
 
       <ConfirmDialog open={!!confirmingRemove} onClose={() => setConfirmingRemove(null)} title="Remove this person?" icon={Trash2} busy={busy}
         body={confirmingRemove && <>This removes <b>{confirmingRemove.name}</b> from {g.name}. They can be added back any time.</>}
