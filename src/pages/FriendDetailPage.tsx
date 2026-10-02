@@ -73,11 +73,7 @@ export function FriendDetailPage() {
 
       <div className="space-y-5">
         <Card>
-          <CardHeader title="Just you two" action={directGroups.some((fg) => fg.cents !== 0) && (
-            <Button size="sm" onClick={() => { const fg = directGroups.find((x) => x.cents !== 0)!; setSettle({ group: fg.group, draft: settleDraft(fg) }); }}>
-              <HandCoins size={14} aria-hidden="true" />Settle
-            </Button>
-          )} />
+          <CardHeader title="Just you two" />
           {directExpenses.length === 0 ? (
             <p className="px-4 pb-4 pt-1 text-sm text-ink-2 md:px-5">Expenses you add here stay between you and {f.name}, outside any group.</p>
           ) : (
@@ -102,6 +98,18 @@ export function FriendDetailPage() {
               })}
             </div>
           )}
+          {/* The balance for these expenses, laid out like the group rows below. A friend can
+              share more than one one-on-one ledger (e.g. one with a third friend), so one row each. */}
+          {directGroups.map((fg) => (
+            <Row key={fg.group.id} className="border-t border-line">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gain/10 text-gain"><HandCoins size={16} aria-hidden="true" /></span>
+              <p className="min-w-0 flex-1 truncate text-sm font-semibold">
+                {fg.group.members.length > 2 ? `With ${fg.group.members.filter((m) => m.user_id !== data.me.id).map((m) => memberShort(fg.group, m.id)).join(', ')}` : 'Balance'}
+              </p>
+              <BalanceText cents={fg.cents} currency={fg.group.currency} />
+              {fg.cents !== 0 && <Button size="sm" onClick={() => setSettle({ group: fg.group, draft: settleDraft(fg) })}>Settle</Button>}
+            </Row>
+          ))}
         </Card>
 
         <Card>
