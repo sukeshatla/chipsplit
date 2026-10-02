@@ -6,7 +6,7 @@ import { Check, Loader2, Lock, Minus, LockOpen, Mail, Plus, RotateCcw, Send, Tra
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { useToast } from '../app/toast';
-import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
+import { isGameHost, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
 import { Amount, AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, IconButton, Modal, MoneyInput, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -66,15 +66,26 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   // Phones show one number column at a time: buy-ins while playing, cash-outs when the table breaks.
   const [entry, setEntry] = useState<'buyin' | 'cashout'>(() => (s.results.some((r) => r.cash_out_cents > 0) ? 'cashout' : 'buyin'));
   const rebuy = s.default_buy_in_cents || 5000;
-  const admin = isGroupAdmin(g, me.id);
+  // Only the host (whoever started the game) changes it; everyone else gets a live read-only view.
+  const host = isGameHost(g, s, me.id);
+  const editable = host && !final;
+  const hostName = s.created_by ? (g.members.find((m) => m.user_id === s.created_by)?.name ?? 'the host') : 'a group admin';
   const settled = isSessionSettled(g, s);
 
   const parsed = useMemo(() => toResults(lines), [lines]);
-  const totalIn = parsed.reduce((a, r) => a + r.buy_in_cents, 0);
+  // The host works from their own (autosaving) lines; viewers read straight from the latest data.
+  const rows = editable ? parsed : s.results.map((r) => ({ ...r, returned_cents: r.returned_cents ?? 0 }));
+  const totalIn = rows.reduce((a, r) => a + r.buy_in_cents, 0);
   // Chips given back left the table just like a cash-out, so they count on the "out" side.
-  const totalOut = parsed.reduce((a, r) => a + r.cash_out_cents + r.returned_cents, 0);
+  const totalOut = rows.reduce((a, r) => a + r.cash_out_cents + r.returned_cents, 0);
   const diff = totalOut - totalIn;
-  const balanced = diff === 0 && lines.length >= 2;
+  const balanced = diff === 0 && rows.length >= 2;
+  // Viewers of a game in progress pick up the host's changes every 15 seconds.
+  useEffect(() => {
+    if (editable || final) return;
+    const t = window.setInterval(() => void qc.invalidateQueries({ queryKey: ['all'] }), 15000);
+    return () => window.clearInterval(t);
+  }, [editable, final, qc]);
   const notPlaying = g.members.filter((m) => !lines.some((l) => l.member_id === m.id));
 
   const badLine = (ls: Line[]) => ls.find((l) => (l.buyIn && (parseMoney(l.buyIn) ?? -1) < 0) || (l.cashOut && (parseMoney(l.cashOut) ?? -1) < 0));
@@ -161,11 +172,11 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         subtitle={<span className="flex flex-wrap items-center gap-2">
           {final ? <Badge tone="gain"><Lock size={12} aria-hidden="true" />Final</Badge> : <Badge tone="brass">In progress</Badge>}
           {s.location && <span>{s.location}</span>}
-          <span>{lines.length} players</span>
+          <span>{rows.length} players</span>
         </span>}
         actions={<>
           {final && <Button onClick={() => { window.location.href = summaryMailto(g, s.id); }}><Send size={16} aria-hidden="true" />Send summary</Button>}
-          {final ? (
+          {!host ? null : final ? (
             <Button onClick={reopen}><LockOpen size={16} aria-hidden="true" />Reopen</Button>
           ) : (<>
             <SaveStatus state={saveState} onRetry={() => void persist()} />
@@ -182,18 +193,24 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
             <p><span className="text-[12px] opacity-80 md:block md:text-sm">Out </span><span className="amount font-display text-base font-medium md:text-3xl">{formatMoney(totalOut, g.currency)}</span></p>
           </div>
           <p className={clsx('min-w-0 text-[12px] font-semibold md:text-sm', !balanced && (diff === 0 || totalOut === 0 ? 'text-ink-2' : 'text-loss'))}>
-            {balanced ? 'Table balances' : lines.length < 2 ? 'Add 2+ players'
+            {balanced ? 'Table balances' : rows.length < 2 ? 'Add 2+ players'
               : totalOut === 0 ? (final ? '' : 'Playing')
                 : `${formatMoney(Math.abs(diff), g.currency)} ${diff > 0 ? 'over' : 'short'}`}
           </p>
         </div>
       </section>
+      {!host && (
+        <p className="mb-4 flex items-center gap-2 rounded-xl border border-line bg-surface-2/60 px-3 py-2 text-[12px] text-ink-2">
+          <Lock size={14} className="shrink-0" aria-hidden="true" />
+          Only {hostName} can change this game{final ? '' : ". You'll see their updates here as they happen"}.
+        </p>
+      )}
       {error && <p role="alert" className="mb-4 rounded-lg bg-loss/10 px-3 py-2 text-sm text-loss">{error}</p>}
 
       <div className="space-y-5">
         <Card>
-          <CardHeader title={`Players (${lines.length})`} />
-          {!final && <>
+          <CardHeader title={`Players (${rows.length})`} />
+          {editable && <>
             <div className="mt-3 hidden grid-cols-[minmax(0,1fr)_210px_140px_90px_36px] gap-3 px-5 text-[12px] font-semibold text-ink-2 md:grid">
               <span>Player</span><span>Buy-in <span className="font-normal">(− give back, + rebuy)</span></span><span>Cash-out</span><span className="text-right">Net</span><span />
             </div>
@@ -202,13 +219,13 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
             </div>
           </>}
           <div className="mt-1">
-            {lines.map((l) => {
-              const r = parsed.find((x) => x.member_id === l.member_id)!;
+            {(editable ? lines : rows).map((l) => {
+              const r = rows.find((x) => x.member_id === l.member_id)!;
               const net = resultNet(r);
               const name = memberName(g, l.member_id);
               const remove = () => removeLine(l.member_id);
               const openCard = () => setCardMember(g.members.find((m) => m.id === l.member_id) ?? null);
-              if (final) {
+              if (!editable) {
                 return (
                   <Row key={l.member_id} className="py-2.5">
                     <AvatarButton name={name} src={memberAvatar(g, l.member_id)} size={30} onClick={openCard} />
@@ -216,10 +233,11 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
                       <p className="truncate text-sm font-semibold">{memberShort(g, l.member_id)}</p>
                       <p className="amount truncate text-[12px] text-ink-2">In {formatMoney(r.buy_in_cents, g.currency)}{r.returned_cents > 0 && ` · Back ${formatMoney(r.returned_cents, g.currency)}`} · Out {formatMoney(r.cash_out_cents, g.currency)}</p>
                     </div>
-                    <Amount cents={net} currency={g.currency} sign className="text-base" />
+                    {final || r.cash_out_cents > 0 ? <Amount cents={net} currency={g.currency} sign className="text-base" /> : <span className="text-[13px] text-ink-2">playing</span>}
                   </Row>
                 );
               }
+              if (!('buyIn' in l)) return null; // narrows to the host's editable Line from here on
               return (
                 <div key={l.member_id} className="flex items-center gap-2 border-b border-line px-4 py-1.5 last:border-b-0 md:grid md:grid-cols-[minmax(0,1fr)_210px_140px_90px_36px] md:gap-3 md:px-5 md:py-2.5">
                   <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -257,7 +275,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
               );
             })}
           </div>
-          {!final && (
+          {editable && (
             <div className="flex flex-wrap gap-2 border-t border-line px-4 py-2.5 md:px-5 md:py-3">
               {notPlaying.length > 0 && (
                 <Select aria-label="Add a player" className="w-auto min-w-[160px] flex-1" value={adding} onChange={(e) => addLine(e.target.value)}>
@@ -268,14 +286,14 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
               <Button onClick={() => setNewPerson(true)}><UserPlus size={16} aria-hidden="true" />New person</Button>
             </div>
           )}
-          {!final && <p className="px-4 pb-3 text-[12px] text-ink-2 md:px-5">+ adds a {formatMoney(rebuy, g.currency)} rebuy; − is chips given back to the bank, any number of times. <span className="md:hidden">Next on the keyboard jumps to the next player; tap an avatar to remove someone.</span></p>}
+          {editable && <p className="px-4 pb-3 text-[12px] text-ink-2 md:px-5">+ adds a {formatMoney(rebuy, g.currency)} rebuy; − is chips given back to the bank, any number of times. <span className="md:hidden">Next on the keyboard jumps to the next player; tap an avatar to remove someone.</span></p>}
         </Card>
 
-        {final && <Payments g={g} s={s} />}
+        {final && <Payments g={g} s={s} host={host} />}
         <HistoryList g={g} entityId={s.id} />
       </div>
       <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)}
-        actions={!final && cardMember && lines.some((l) => l.member_id === cardMember.id) && (
+        actions={editable && cardMember && lines.some((l) => l.member_id === cardMember.id) && (
           <Button variant="danger" className="w-full" onClick={() => {
             removeLine(cardMember.id); setCardMember(null);
           }}><X size={16} aria-hidden="true" />Remove from this game</Button>
@@ -286,7 +304,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
           onSet={(cents) => tapEdit(givingBack, { returned: cents })} onClose={() => setGivingBack(null)} />
       )}
       <AddMemberDialog group={g} open={newPerson} onClose={() => setNewPerson(false)} onAdded={(id) => addLine(id)} />
-      {admin && (
+      {host && (
         <div className="mt-8 flex justify-center">
           <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}><Trash2 size={14} aria-hidden="true" />Delete game</Button>
         </div>
@@ -309,7 +327,8 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   );
 }
 
-function Payments({ g, s }: { g: Group; s: GameSession }) {
+/** Who pays whom for a finished game. Anyone can send a reminder; only the host marks payments. */
+function Payments({ g, s, host }: { g: Group; s: GameSession; host: boolean }) {
   const { run, busy } = useAction();
   const pays = sessionPayments(g, s);
   const done = pays.filter((p) => p.settlementId).length;
@@ -324,7 +343,10 @@ function Payments({ g, s }: { g: Group; s: GameSession }) {
           <SettleRow key={`${p.from}-${p.to}`} fromName={memberName(g, p.from)} fromShort={memberShort(g, p.from)} fromAvatar={memberAvatar(g, p.from)}
             toShort={memberShort(g, p.to)} amount={formatMoney(p.cents, g.currency)} done={!!p.settlementId}
             onAvatar={() => setCardMember(g.members.find((m) => m.id === p.from) ?? null)}
-            actions={p.settlementId ? (
+            actions={!host ? (reminderMailto(g, p) && !p.settlementId
+              ? <Button size="sm" onClick={() => { window.location.href = reminderMailto(g, p)!; }}><Mail size={14} aria-hidden="true" />Remind by email</Button>
+              : <span className="text-[12px] text-ink-2">{p.settlementId ? 'Paid.' : 'Not paid yet.'} Only the host marks payments.</span>)
+            : p.settlementId ? (
               <Button size="sm" disabled={busy} onClick={() => run((api) => api.deleteSettlement(p.settlementId!), 'Marked unpaid')}>
                 <RotateCcw size={14} aria-hidden="true" />Undo paid
               </Button>

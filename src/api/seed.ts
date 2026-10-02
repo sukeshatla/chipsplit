@@ -67,7 +67,8 @@ export function seedDemo(): AppData {
   for (const [ago, location, table, status, paid] of nights) {
     const s: GameSession = {
       id: uid(), group_id: club.id, played_on: daysAgo(ago), location, notes: null, status,
-      default_buy_in_cents: 5000, created_at: `${daysAgo(ago)}T19:00:00Z`,
+      // Ravi hosted the night at his place (so the demo shows a game you can only view); you hosted the rest.
+      default_buy_in_cents: 5000, created_by: location.startsWith('Ravi') ? RAVI_USER_ID : me.id, created_at: `${daysAgo(ago)}T19:00:00Z`,
       results: Object.entries(table).map(([n, [i, o]]) => ({ member_id: mid(club, n), buy_in_cents: i * 100, cash_out_cents: o * 100 })),
     };
     club.sessions.push(s);

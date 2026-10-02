@@ -88,6 +88,15 @@ function assertAdmin(d: DemoStore, g: Group, message: string) {
   if (!g.members.some((m) => m.user_id === d.me.id && m.is_admin)) throw new Error(message);
 }
 
+/** Mirrors the server's is_game_host(): only whoever started a game (or, for old games with no
+ *  recorded host, a group admin) can change it. */
+function assertHost(d: DemoStore, g: Group, sessionId: string) {
+  const s = g.sessions.find((x) => x.id === sessionId);
+  if (!s) throw new Error('That game no longer exists');
+  const host = s.created_by ? s.created_by === d.me.id : g.members.some((m) => m.user_id === d.me.id && m.is_admin);
+  if (!host) throw new Error('Only the person who started this game can change it');
+}
+
 function rummyGame(d: DemoStore, id: string): RummyGame {
   const g = d.rummyGames.find((x) => x.id === id);
   if (!g) throw new Error('That rummy game no longer exists');
@@ -255,13 +264,14 @@ export const demoApi: DataApi = {
 
   createSession: (s) => mutate((d) => {
     const id = uid();
-    group(d, s.group_id).sessions.push({ ...s, id, status: 'open', created_at: now(), results: [] });
+    group(d, s.group_id).sessions.push({ ...s, id, status: 'open', created_by: d.me.id, created_at: now(), results: [] });
     log(d, s.group_id, 'session', id, `Started a game${s.location ? ` at ${s.location}` : ''}`);
     return id;
   }),
 
   updateSession: (id, patch) => mutate((d) => {
     const g = groupOf(d, (x) => x.sessions.some((s) => s.id === id));
+    assertHost(d, g, id);
     const before = g.sessions.find((s) => s.id === id)!;
     const wasFinal = before.status === 'final';
     Object.assign(before, patch);
@@ -272,11 +282,13 @@ export const demoApi: DataApi = {
 
   saveSessionResults: (id, results) => mutate((d) => {
     const g = groupOf(d, (x) => x.sessions.some((s) => s.id === id));
+    assertHost(d, g, id);
     g.sessions.find((s) => s.id === id)!.results = results;
   }),
 
   deleteSession: (id) => mutate((d) => {
     const g = groupOf(d, (x) => x.sessions.some((s) => s.id === id));
+    assertHost(d, g, id);
     const location = g.sessions.find((s) => s.id === id)!.location;
     g.sessions = g.sessions.filter((s) => s.id !== id);
     g.settlements.forEach((s) => { if (s.session_id === id) s.session_id = null; });
@@ -285,6 +297,7 @@ export const demoApi: DataApi = {
 
   addSettlement: (s) => mutate((d) => {
     const g = group(d, s.group_id);
+    if (s.session_id) assertHost(d, g, s.session_id);
     const id = uid();
     g.settlements.push({ ...s, id, created_at: now() });
     const name = (mid: string) => g.members.find((m) => m.id === mid)?.name ?? 'someone';
@@ -294,6 +307,7 @@ export const demoApi: DataApi = {
   deleteSettlement: (id) => mutate((d) => {
     const g = groupOf(d, (x) => x.settlements.some((s) => s.id === id));
     const before = g.settlements.find((s) => s.id === id)!;
+    if (before.session_id) assertHost(d, g, before.session_id);
     const name = (mid: string) => g.members.find((m) => m.id === mid)?.name ?? 'someone';
     g.settlements = g.settlements.filter((s) => s.id !== id);
     log(d, g.id, 'settlement', before.session_id, `Deleted a payment: ${name(before.from_member)} → ${name(before.to_member)}`);

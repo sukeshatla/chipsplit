@@ -34,12 +34,13 @@ const GROUP_SELECT = `
   group_members ( id, group_id, user_id, contact_id, name, email, email_opt_out, is_admin ),
   expenses ( id, group_id, description, category, amount_cents, spent_on, created_by, created_at, deleted_at,
     expense_payers ( member_id, amount_cents ), expense_shares ( member_id, amount_cents ) ),
-  game_sessions ( id, group_id, played_on, location, notes, status, default_buy_in_cents, created_at,
+  game_sessions ( id, group_id, played_on, location, notes, status, default_buy_in_cents, created_by, created_at,
     session_results ( member_id, buy_in_cents, cash_out_cents, returned_cents ) ),
   settlements ( id, group_id, from_member, to_member, amount_cents, method, note, session_id, settled_on, created_at )
 `;
 
 const num = (v: any) => Number(v ?? 0);
+const HOST_ONLY = 'Only the person who started this game can change it';
 
 // rummy_players is named explicitly (rummy_players_rummy_game_id_fkey) because rummy_games also
 // has a second FK to it (winner_player_id) -- without this, PostgREST can't tell which
@@ -92,7 +93,7 @@ function mapGroup(r: any): Group {
     deleted_expenses: expenses.filter((e: any) => e.deleted_at),
     sessions: (r.game_sessions ?? []).map((s: any) => ({
       id: s.id, group_id: s.group_id, played_on: s.played_on, location: s.location, notes: s.notes, status: s.status,
-      default_buy_in_cents: num(s.default_buy_in_cents), created_at: s.created_at,
+      default_buy_in_cents: num(s.default_buy_in_cents), created_by: s.created_by, created_at: s.created_at,
       results: (s.session_results ?? []).map((x: any) => ({
         member_id: x.member_id, buy_in_cents: num(x.buy_in_cents), cash_out_cents: num(x.cash_out_cents), returned_cents: num(x.returned_cents),
       })),
@@ -273,7 +274,9 @@ export const supabaseApi: DataApi = {
 
   async updateSession(id, patch) {
     const before = check(await db().from('game_sessions').select('group_id, status').eq('id', id).maybeSingle()) as { group_id: string; status: string } | null;
-    check(await db().from('game_sessions').update(patch).eq('id', id));
+    // RLS skips rows you can't change without an error, so ask for the row back to tell them apart.
+    const rows = check(await db().from('game_sessions').update(patch).eq('id', id).select('id')) as { id: string }[];
+    if (!rows.length) throw new Error(HOST_ONLY);
     if (!before) return;
     if (patch.status === 'final' && before.status !== 'final') await log(before.group_id, 'session', id, 'Finalized the game');
     else if (patch.status === 'open' && before.status === 'final') await log(before.group_id, 'session', id, 'Reopened the game');
@@ -283,7 +286,8 @@ export const supabaseApi: DataApi = {
   async saveSessionResults(id, results) {
     const ids = results.map((r) => r.member_id);
     if (results.length) {
-      check(await db().from('session_results').upsert(results.map((r) => ({ ...r, returned_cents: r.returned_cents ?? 0, session_id: id })), { onConflict: 'session_id,member_id' }));
+      const res = await db().from('session_results').upsert(results.map((r) => ({ ...r, returned_cents: r.returned_cents ?? 0, session_id: id })), { onConflict: 'session_id,member_id' });
+      if (res.error) throw new Error(/row-level security/i.test(res.error.message) ? HOST_ONLY : res.error.message);
     }
     let del = db().from('session_results').delete().eq('session_id', id);
     if (ids.length) del = del.not('member_id', 'in', `(${ids.join(',')})`);
@@ -292,7 +296,8 @@ export const supabaseApi: DataApi = {
 
   async deleteSession(id) {
     const before = check(await db().from('game_sessions').select('group_id, location').eq('id', id).maybeSingle()) as { group_id: string; location: string | null } | null;
-    check(await db().from('game_sessions').delete().eq('id', id));
+    const rows = check(await db().from('game_sessions').delete().eq('id', id).select('id')) as { id: string }[];
+    if (!rows.length) throw new Error(HOST_ONLY);
     if (before) await log(before.group_id, 'session', id, `Deleted the game${before.location ? ` at ${before.location}` : ''}`);
   },
 

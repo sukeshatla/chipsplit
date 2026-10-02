@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
-import { activity, friendBalances, groupBalances, listedGroups, myMemberId, pokerStats, totals } from '../lib/ledger';
+import { activity, friendBalances, groupBalances, isGameHost, listedGroups, myMemberId, pokerStats, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row } from '../components/ui';
 import { GroupIcon } from './GroupsPage';
@@ -64,7 +64,7 @@ export function DashboardPage() {
               <Radio size={18} className="text-brass" aria-hidden="true" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">Game in progress{s.location ? ` at ${s.location}` : ''}</p>
-                <p className="text-[13px] text-ink-2">{g.name}, {s.results.length} players. Enter cash-outs when the table breaks.</p>
+                <p className="text-[13px] text-ink-2">{g.name}, {s.results.length} players. {isGameHost(g, s, me.id) ? 'Enter cash-outs when the table breaks.' : 'Tap to follow the scores.'}</p>
               </div>
               <ChevronRight size={18} className="text-ink-2" aria-hidden="true" />
             </Link>

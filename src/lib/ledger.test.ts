@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { settle } from './settle';
 import { splitByWeights, splitEqual, parseMoney, equalPercents } from './money';
-import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink, shortName, listedGroups, directFriendKey, activity, resultNet, sessionTotals } from './ledger';
+import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink, shortName, listedGroups, directFriendKey, activity, resultNet, sessionTotals, isGameHost } from './ledger';
 import type { AppData, GameSession, Group } from './types';
 
 describe('settle', () => {
@@ -374,5 +374,19 @@ describe('chips given back mid-game', () => {
   });
   it('treats a missing amount as nothing given back', () => {
     expect(resultNet({ member_id: 'x', buy_in_cents: 500, cash_out_cents: 700 })).toBe(200);
+  });
+});
+
+describe('game host', () => {
+  const mem = (id: string, userId: string | null, admin: boolean) => ({ id, group_id: 'g', user_id: userId, contact_id: null, name: id, email: null, email_opt_out: false, is_admin: admin });
+  const g: Group = { id: 'g', name: 'Club', kind: 'club', currency: 'USD', created_by: null, created_at: '', members: [mem('a', 'ua', true), mem('b', 'ub', false)], expenses: [], sessions: [], settlements: [] };
+  const game = (created_by: string | null): GameSession => ({ id: 's', group_id: 'g', played_on: '', location: null, notes: null, status: 'open', default_buy_in_cents: 0, created_by, created_at: '', results: [] });
+  it('only the person who started a game hosts it', () => {
+    expect(isGameHost(g, game('ub'), 'ub')).toBe(true);
+    expect(isGameHost(g, game('ub'), 'ua')).toBe(false); // not even an admin
+  });
+  it('falls back to group admins for old games with no recorded host', () => {
+    expect(isGameHost(g, game(null), 'ua')).toBe(true);
+    expect(isGameHost(g, game(null), 'ub')).toBe(false);
   });
 });

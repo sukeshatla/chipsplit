@@ -69,6 +69,8 @@ export interface GameSession {
   notes: string | null;
   status: 'open' | 'final';
   default_buy_in_cents: number;
+  /** The host: whoever started the game. Only they can change or delete it (null on old games = group admins). */
+  created_by?: string | null;
   created_at: string;
   results: SessionResult[];
 }

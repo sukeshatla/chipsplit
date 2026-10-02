@@ -102,6 +102,12 @@ export function isGroupAdmin(g: Group, meId: string): boolean {
   return g.members.some((m) => m.user_id === meId && m.is_admin);
 }
 
+/** Whether the signed-in user hosts this game: started it, or (old games with no recorded host) is a group admin.
+ *  Only the host can change, finalize, reopen, mark payments on, or delete a game; everyone else views it. */
+export function isGameHost(g: Group, s: GameSession, meId: string): boolean {
+  return s.created_by ? s.created_by === meId : isGroupAdmin(g, meId);
+}
+
 /** Whether everyone in the group is at zero. The database also enforces this before a delete. */
 export function isGroupSettled(g: Group): boolean {
   return [...groupBalances(g).values()].every((v) => v === 0);
