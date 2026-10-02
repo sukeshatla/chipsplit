@@ -56,6 +56,9 @@ export interface SessionResult {
   member_id: string;
   buy_in_cents: number;
   cash_out_cents: number;
+  /** Chips handed back to the bank mid-game (any number of times). Counts like cash already
+   *  taken out: net = cash_out + returned - buy_in. Optional so older rows/callers read as 0. */
+  returned_cents?: number;
 }
 
 export interface GameSession {

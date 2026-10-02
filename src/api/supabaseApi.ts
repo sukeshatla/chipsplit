@@ -35,7 +35,7 @@ const GROUP_SELECT = `
   expenses ( id, group_id, description, category, amount_cents, spent_on, created_by, created_at, deleted_at,
     expense_payers ( member_id, amount_cents ), expense_shares ( member_id, amount_cents ) ),
   game_sessions ( id, group_id, played_on, location, notes, status, default_buy_in_cents, created_at,
-    session_results ( member_id, buy_in_cents, cash_out_cents ) ),
+    session_results ( member_id, buy_in_cents, cash_out_cents, returned_cents ) ),
   settlements ( id, group_id, from_member, to_member, amount_cents, method, note, session_id, settled_on, created_at )
 `;
 
@@ -94,7 +94,7 @@ function mapGroup(r: any): Group {
       id: s.id, group_id: s.group_id, played_on: s.played_on, location: s.location, notes: s.notes, status: s.status,
       default_buy_in_cents: num(s.default_buy_in_cents), created_at: s.created_at,
       results: (s.session_results ?? []).map((x: any) => ({
-        member_id: x.member_id, buy_in_cents: num(x.buy_in_cents), cash_out_cents: num(x.cash_out_cents),
+        member_id: x.member_id, buy_in_cents: num(x.buy_in_cents), cash_out_cents: num(x.cash_out_cents), returned_cents: num(x.returned_cents),
       })),
     })),
     settlements: (r.settlements ?? []).map((s: any) => ({ ...s, amount_cents: num(s.amount_cents) })),
@@ -286,7 +286,7 @@ export const supabaseApi: DataApi = {
   async saveSessionResults(id, results) {
     const ids = results.map((r) => r.member_id);
     if (results.length) {
-      check(await db().from('session_results').upsert(results.map((r) => ({ ...r, session_id: id })), { onConflict: 'session_id,member_id' }));
+      check(await db().from('session_results').upsert(results.map((r) => ({ ...r, returned_cents: r.returned_cents ?? 0, session_id: id })), { onConflict: 'session_id,member_id' }));
     }
     let del = db().from('session_results').delete().eq('session_id', id);
     if (ids.length) del = del.not('member_id', 'in', `(${ids.join(',')})`);

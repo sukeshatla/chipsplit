@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Spade, ChevronRight } from 'lucide-react';
 import { useData } from '../app/data';
-import { myMemberId, pokerStats, sessionPayments } from '../lib/ledger';
+import { myMemberId, pokerStats, resultNet, sessionPayments } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Badge, Card, EmptyState, PageHeader, Row } from '../components/ui';
 
@@ -52,7 +52,7 @@ export function GamesPage() {
                   <p className="truncate text-[12px] text-ink-2">{s.results.length} players, {formatMoney(s.results.reduce((a, x) => a + x.buy_in_cents, 0), g.currency)} in play</p>
                 </div>
                 {s.status === 'open' ? <Badge tone="brass">In progress</Badge>
-                  : r ? <Amount cents={r.cash_out_cents - r.buy_in_cents} currency={g.currency} sign />
+                  : r ? <Amount cents={resultNet(r)} currency={g.currency} sign />
                     : <span className="text-[12px] text-ink-2">sat out</span>}
                 {unpaid > 0 && <Badge tone="loss">{unpaid} unpaid</Badge>}
                 <ChevronRight size={16} className="text-ink-2" aria-hidden="true" />

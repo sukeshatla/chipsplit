@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { settle } from './settle';
 import { splitByWeights, splitEqual, parseMoney, equalPercents } from './money';
-import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink, shortName, listedGroups, directFriendKey, activity } from './ledger';
+import { groupBalances, simplify, isGroupAdmin, isGroupSettled, isSessionSettled, notificationLink, shortName, listedGroups, directFriendKey, activity, resultNet, sessionTotals } from './ledger';
 import type { AppData, GameSession, Group } from './types';
 
 describe('settle', () => {
@@ -358,5 +358,21 @@ describe('group vs game settlement', () => {
   it('an open game does not count toward balances yet', () => {
     const open = groupBalances({ ...g, sessions: [{ ...game, status: 'open' }], settlements: [] });
     expect(open.get('a')).toBe(1000);
+  });
+});
+
+describe('chips given back mid-game', () => {
+  // a buys 100, sells 40 of chips back to the bank, ends with 80; b buys 100 + the 40 a gave back, ends with 120.
+  const s: GameSession = { id: 's', group_id: 'g', played_on: '', location: null, notes: null, status: 'final', default_buy_in_cents: 10000, created_at: '',
+    results: [{ member_id: 'a', buy_in_cents: 10000, cash_out_cents: 8000, returned_cents: 4000 }, { member_id: 'b', buy_in_cents: 14000, cash_out_cents: 12000 }] };
+  it('counts given-back chips as cash already taken out', () => {
+    expect(resultNet(s.results[0]!)).toBe(2000);
+    expect(resultNet(s.results[1]!)).toBe(-2000);
+  });
+  it('balances the table with given-back chips on the out side', () => {
+    expect(sessionTotals(s)).toEqual({ buyIn: 24000, cashOut: 24000, diff: 0 });
+  });
+  it('treats a missing amount as nothing given back', () => {
+    expect(resultNet({ member_id: 'x', buy_in_cents: 500, cash_out_cents: 700 })).toBe(200);
   });
 });

@@ -1,6 +1,11 @@
-import type { AppData, ChangeLogEntry, GameSession, Group } from './types';
+import type { AppData, ChangeLogEntry, GameSession, Group, SessionResult } from './types';
 import { settle, type Transfer } from './settle';
 import { formatMoney } from './money';
+
+/** One player's result for a game: everything they took out (final stack + chips given back) minus what they bought. */
+export function resultNet(r: SessionResult): number {
+  return r.cash_out_cents + (r.returned_cents ?? 0) - r.buy_in_cents;
+}
 
 function add(map: Map<string, number>, id: string, v: number) {
   map.set(id, (map.get(id) ?? 0) + v);
@@ -21,7 +26,7 @@ export function groupBalances(g: Group): Map<string, number> {
   }
   for (const s of g.sessions) {
     if (s.status !== 'final') continue;
-    s.results.forEach((r) => add(m, r.member_id, r.cash_out_cents - r.buy_in_cents));
+    s.results.forEach((r) => add(m, r.member_id, resultNet(r)));
   }
   for (const st of g.settlements) {
     add(m, st.from_member, st.amount_cents);
@@ -32,13 +37,13 @@ export function groupBalances(g: Group): Map<string, number> {
 
 export function sessionNets(s: GameSession): Map<string, number> {
   const m = new Map<string, number>();
-  s.results.forEach((r) => add(m, r.member_id, r.cash_out_cents - r.buy_in_cents));
+  s.results.forEach((r) => add(m, r.member_id, resultNet(r)));
   return m;
 }
 
 export function sessionTotals(s: GameSession) {
   const buyIn = s.results.reduce((a, r) => a + r.buy_in_cents, 0);
-  const cashOut = s.results.reduce((a, r) => a + r.cash_out_cents, 0);
+  const cashOut = s.results.reduce((a, r) => a + r.cash_out_cents + (r.returned_cents ?? 0), 0);
   return { buyIn, cashOut, diff: cashOut - buyIn };
 }
 
@@ -244,7 +249,7 @@ export function activity(data: AppData, limit = 20, onlyGroupId?: string, onlyMi
         id: s.id, kind: 'game', date: s.played_on, createdAt: s.created_at,
         title: s.location ? `Game at ${s.location}` : 'Game',
         detail: s.status === 'final' ? `${s.results.length} players` : 'In progress',
-        group: g, impact: r && s.status === 'final' ? r.cash_out_cents - r.buy_in_cents : null,
+        group: g, impact: r && s.status === 'final' ? resultNet(r) : null,
         note: r && s.status === 'open' ? 'playing' : undefined,
         link: `/groups/${g.id}/games/${s.id}`,
       });
@@ -274,7 +279,7 @@ export function pokerLeaderboard(g: Group): LeaderRow[] {
   for (const s of g.sessions) {
     if (s.status !== 'final') continue;
     for (const r of s.results) {
-      const net = r.cash_out_cents - r.buy_in_cents;
+      const net = resultNet(r);
       const row = rows.get(r.member_id) ?? { memberId: r.member_id, name: memberName(g, r.member_id), avatar_url: memberAvatar(g, r.member_id), net: 0, games: 0, wins: 0, best: 0 };
       row.net += net;
       row.games += 1;
@@ -294,7 +299,7 @@ export function pokerStats(data: AppData) {
       if (s.status !== 'final') continue;
       const r = s.results.find((x) => x.member_id === mine);
       if (!r) continue;
-      const n = r.cash_out_cents - r.buy_in_cents;
+      const n = resultNet(r);
       net += n; games += 1;
       if (n > 0) wins += 1;
       best = Math.max(best, n);

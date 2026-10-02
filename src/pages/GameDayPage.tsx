@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Check, Lock, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
+import { Check, Lock, Minus, LockOpen, Mail, Plus, RotateCcw, Save, Send, Trash2, UserPlus, X } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, memberShort, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
+import { isGroupAdmin, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, summaryMailto } from '../lib/ledger';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
-import { Amount, AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, IconButton, MoneyInput, PageHeader, Row, Select, Tabs } from '../components/ui';
+import { Amount, AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, IconButton, Modal, MoneyInput, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
@@ -13,7 +13,8 @@ import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
 import { SettleRow } from '../components/SettleRow';
 import type { GameSession, Group, Member } from '../lib/types';
 
-interface Line { member_id: string; buyIn: string; cashOut: string }
+/** One player while the game is open. `returned` (cents) is chips handed back to the bank mid-game. */
+interface Line { member_id: string; buyIn: string; cashOut: string; returned: number }
 
 export function GameDayPage() {
   const { groupId, gameId } = useParams();
@@ -22,7 +23,7 @@ export function GameDayPage() {
   const s = g?.sessions.find((x) => x.id === gameId);
   if (!g || !s) return <Navigate to={g ? `/groups/${g.id}` : '/groups'} replace />;
   // Remount the editor whenever saved results change so inputs reflect the stored values.
-  const sig = s.results.map((r) => `${r.member_id}:${r.buy_in_cents}:${r.cash_out_cents}`).join('|');
+  const sig = s.results.map((r) => `${r.member_id}:${r.buy_in_cents}:${r.cash_out_cents}:${r.returned_cents ?? 0}`).join('|');
   return <GameDayEditor key={`${s.id}|${sig}`} g={g} s={s} />;
 }
 
@@ -32,7 +33,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const nav = useNavigate();
   const final = s.status === 'final';
   const [lines, setLines] = useState<Line[]>(() => s.results.map((r) => ({
-    member_id: r.member_id, buyIn: centsToInput(r.buy_in_cents), cashOut: centsToInput(r.cash_out_cents),
+    member_id: r.member_id, buyIn: centsToInput(r.buy_in_cents), cashOut: centsToInput(r.cash_out_cents), returned: r.returned_cents ?? 0,
   })));
   const [dirty, setDirty] = useState(false);
   const [adding, setAdding] = useState('');
@@ -41,6 +42,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmReopen, setConfirmReopen] = useState(false);
   const [cardMember, setCardMember] = useState<Member | null>(null);
+  const [givingBack, setGivingBack] = useState<string | null>(null); // member_id whose give-back popup is open
   // Phones show one number column at a time: buy-ins while playing, cash-outs when the table breaks.
   const [entry, setEntry] = useState<'buyin' | 'cashout'>(() => (s.results.some((r) => r.cash_out_cents > 0) ? 'cashout' : 'buyin'));
   const rebuy = s.default_buy_in_cents || 5000;
@@ -48,10 +50,11 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const settled = isSessionSettled(g, s);
 
   const parsed = useMemo(() => lines.map((l) => ({
-    member_id: l.member_id, buy_in_cents: parseMoney(l.buyIn) ?? 0, cash_out_cents: parseMoney(l.cashOut) ?? 0,
+    member_id: l.member_id, buy_in_cents: parseMoney(l.buyIn) ?? 0, cash_out_cents: parseMoney(l.cashOut) ?? 0, returned_cents: l.returned,
   })), [lines]);
   const totalIn = parsed.reduce((a, r) => a + r.buy_in_cents, 0);
-  const totalOut = parsed.reduce((a, r) => a + r.cash_out_cents, 0);
+  // Chips given back left the table just like a cash-out, so they count on the "out" side.
+  const totalOut = parsed.reduce((a, r) => a + r.cash_out_cents + r.returned_cents, 0);
   const diff = totalOut - totalIn;
   const balanced = diff === 0 && lines.length >= 2;
   const notPlaying = g.members.filter((m) => !lines.some((l) => l.member_id === m.id));
@@ -62,7 +65,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   };
   const addLine = (id: string) => {
     if (!id) return;
-    setLines((ls) => [...ls, { member_id: id, buyIn: centsToInput(rebuy), cashOut: '' }]);
+    setLines((ls) => [...ls, { member_id: id, buyIn: centsToInput(rebuy), cashOut: '', returned: 0 }]);
     setDirty(true); setAdding('');
   };
   const validate = () => {
@@ -134,8 +137,8 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         <Card>
           <CardHeader title={`Players (${lines.length})`} />
           {!final && <>
-            <div className="mt-3 hidden grid-cols-[minmax(0,1fr)_170px_140px_90px_36px] gap-3 px-5 text-[12px] font-semibold text-ink-2 md:grid">
-              <span>Player</span><span>Buy-in</span><span>Cash-out</span><span className="text-right">Net</span><span />
+            <div className="mt-3 hidden grid-cols-[minmax(0,1fr)_210px_140px_90px_36px] gap-3 px-5 text-[12px] font-semibold text-ink-2 md:grid">
+              <span>Player</span><span>Buy-in <span className="font-normal">(− give back, + rebuy)</span></span><span>Cash-out</span><span className="text-right">Net</span><span />
             </div>
             <div className="mt-2 px-4 md:hidden">
               <Tabs<'buyin' | 'cashout'> value={entry} onChange={setEntry} tabs={[{ value: 'buyin', label: 'Buy-ins' }, { value: 'cashout', label: 'Cash-outs' }]} />
@@ -144,7 +147,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
           <div className="mt-1">
             {lines.map((l) => {
               const r = parsed.find((x) => x.member_id === l.member_id)!;
-              const net = r.cash_out_cents - r.buy_in_cents;
+              const net = resultNet(r);
               const name = memberName(g, l.member_id);
               const remove = () => { setLines((ls) => ls.filter((x) => x.member_id !== l.member_id)); setDirty(true); };
               const openCard = () => setCardMember(g.members.find((m) => m.id === l.member_id) ?? null);
@@ -154,28 +157,32 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
                     <AvatarButton name={name} src={memberAvatar(g, l.member_id)} size={30} onClick={openCard} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{memberShort(g, l.member_id)}</p>
-                      <p className="amount truncate text-[12px] text-ink-2">In {formatMoney(r.buy_in_cents, g.currency)} · Out {formatMoney(r.cash_out_cents, g.currency)}</p>
+                      <p className="amount truncate text-[12px] text-ink-2">In {formatMoney(r.buy_in_cents, g.currency)}{r.returned_cents > 0 && ` · Back ${formatMoney(r.returned_cents, g.currency)}`} · Out {formatMoney(r.cash_out_cents, g.currency)}</p>
                     </div>
                     <Amount cents={net} currency={g.currency} sign className="text-base" />
                   </Row>
                 );
               }
               return (
-                <div key={l.member_id} className="flex items-center gap-2 border-b border-line px-4 py-1.5 last:border-b-0 md:grid md:grid-cols-[minmax(0,1fr)_170px_140px_90px_36px] md:gap-3 md:px-5 md:py-2.5">
+                <div key={l.member_id} className="flex items-center gap-2 border-b border-line px-4 py-1.5 last:border-b-0 md:grid md:grid-cols-[minmax(0,1fr)_210px_140px_90px_36px] md:gap-3 md:px-5 md:py-2.5">
                   <div className="flex min-w-0 flex-1 items-center gap-2">
                     <AvatarButton name={name} src={memberAvatar(g, l.member_id)} size={28} onClick={openCard} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold leading-tight">{memberShort(g, l.member_id)}</p>
                       <p className="text-[11px] leading-tight text-ink-2 md:hidden">
-                        {entry === 'cashout' ? (l.cashOut ? <Amount cents={net} currency={g.currency} sign className="text-[11px]" /> : `in ${formatMoney(r.buy_in_cents, g.currency)}`) : (l.cashOut ? `out ${formatMoney(r.cash_out_cents, g.currency)}` : 'playing')}
+                        {entry === 'cashout' ? (l.cashOut ? <Amount cents={net} currency={g.currency} sign className="text-[11px]" /> : `in ${formatMoney(r.buy_in_cents, g.currency)}${r.returned_cents > 0 ? ` · back ${formatMoney(r.returned_cents, g.currency)}` : ''}`)
+                          : l.returned > 0 ? <span className="text-brass">gave back {formatMoney(l.returned, g.currency)}</span>
+                            : l.cashOut ? `out ${formatMoney(r.cash_out_cents, g.currency)}` : 'playing'}
                       </p>
                     </div>
                   </div>
-                  <div className={clsx('w-[8.75rem] shrink-0 items-center gap-1 md:order-2 md:flex md:w-auto', entry === 'buyin' ? 'flex' : 'hidden')}>
+                  <div className={clsx('w-[10.5rem] shrink-0 items-center gap-1 md:order-2 md:flex md:w-auto', entry === 'buyin' ? 'flex' : 'hidden')}>
+                    <IconButton label={`${name} gives chips back`} className="h-9 w-8 shrink-0 border border-line"
+                      onClick={() => setGivingBack(l.member_id)}><Minus size={16} /></IconButton>
                     <MoneyInput compact aria-label={`${name} buy-in`} className="flex-1" value={l.buyIn} placeholder="0"
                       data-entry="buyin" enterKeyHint="next" onKeyDown={enterToNext}
                       onChange={(e) => edit(l.member_id, { buyIn: e.target.value })} />
-                    <IconButton label={`Rebuy ${formatMoney(rebuy, g.currency)} for ${name}`} className="h-9 w-9 shrink-0 border border-line"
+                    <IconButton label={`Rebuy ${formatMoney(rebuy, g.currency)} for ${name}`} className="h-9 w-8 shrink-0 border border-line"
                       onClick={() => edit(l.member_id, { buyIn: centsToInput(r.buy_in_cents + rebuy) })}><Plus size={16} /></IconButton>
                   </div>
                   <div className={clsx('w-28 shrink-0 md:order-3 md:block md:w-auto', entry === 'cashout' ? 'block' : 'hidden')}>
@@ -204,7 +211,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
               <Button onClick={() => setNewPerson(true)}><UserPlus size={16} aria-hidden="true" />New person</Button>
             </div>
           )}
-          {!final && <p className="px-4 pb-3 text-[12px] text-ink-2 md:px-5">+ adds a {formatMoney(rebuy, g.currency)} rebuy. <span className="md:hidden">Next on the keyboard jumps to the next player; tap an avatar to remove someone.</span></p>}
+          {!final && <p className="px-4 pb-3 text-[12px] text-ink-2 md:px-5">+ adds a {formatMoney(rebuy, g.currency)} rebuy; − is chips given back to the bank, any number of times. <span className="md:hidden">Next on the keyboard jumps to the next player; tap an avatar to remove someone.</span></p>}
         </Card>
 
         {final && <Payments g={g} s={s} />}
@@ -216,6 +223,11 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
             setLines((ls) => ls.filter((x) => x.member_id !== cardMember.id)); setDirty(true); setCardMember(null);
           }}><X size={16} aria-hidden="true" />Remove from this game</Button>
         )} />
+      {givingBack && (
+        <GiveBackDialog name={memberShort(g, givingBack)} currency={g.currency} rebuy={rebuy}
+          returned={lines.find((l) => l.member_id === givingBack)?.returned ?? 0}
+          onSet={(cents) => { edit(givingBack, { returned: cents }); }} onClose={() => setGivingBack(null)} />
+      )}
       <AddMemberDialog group={g} open={newPerson} onClose={() => setNewPerson(false)} onAdded={(id) => addLine(id)} />
       {admin && (
         <div className="mt-8 flex justify-center">
@@ -274,5 +286,34 @@ function Payments({ g, s }: { g: Group; s: GameSession }) {
       </div>
       <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)} />
     </Card>
+  );
+}
+
+/** Chips a player hands back to the bank mid-game (so someone else can buy in). Adds to their
+ *  running "given back" total; that counts like cash already taken out. Can be cleared to fix
+ *  a mistake. */
+function GiveBackDialog({ name, currency, rebuy, returned, onSet, onClose }: {
+  name: string; currency: string; rebuy: number; returned: number; onSet(cents: number): void; onClose(): void;
+}) {
+  const [amount, setAmount] = useState(centsToInput(rebuy));
+  const cents = parseMoney(amount);
+  const valid = cents !== null && cents > 0;
+  return (
+    <Modal open onClose={onClose} title={`${name} gives chips back`}
+      footer={<>
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" disabled={!valid} onClick={() => { onSet(returned + cents!); onClose(); }}>
+          <Minus size={16} aria-hidden="true" />Give back{valid ? ` ${formatMoney(cents!, currency)}` : ''}
+        </Button>
+      </>}>
+      <p className="text-sm text-ink-2">Chips {name} hands back to the bank so others can buy in. It counts like cash they've already taken out.</p>
+      <MoneyInput className="mt-3" autoFocus value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value)} />
+      {returned > 0 && (
+        <div className="mt-3 flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2 text-[13px]">
+          <span>Given back so far: <b className="amount">{formatMoney(returned, currency)}</b></span>
+          <button type="button" className="font-semibold text-loss hover:underline" onClick={() => { onSet(0); onClose(); }}>Clear</button>
+        </div>
+      )}
+    </Modal>
   );
 }

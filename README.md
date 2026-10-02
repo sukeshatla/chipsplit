@@ -15,7 +15,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 **Clubs and card games** (rummy, blackjack, poker — anything with buy-ins and cash-outs)
 - A **Club** is a standing group for people you play with regularly — create it once, then start as many games in it as you want, whenever you want.
 - Starting a new game suggests the club's members as the roster (last game's players if there was one); pick who's actually at the table tonight.
-- Log buy-ins as people sit down. The **+** button adds a rebuy in one tap.
+- Log buy-ins as people sit down. The **+** button adds a rebuy in one tap; **−** records chips a player gives back to the bank mid-game (so someone else can buy in), any amount, any number of times. Given-back chips count like cash already taken out.
 - Enter cash-outs when the table breaks. A live **table check** shows whether total cash-outs match total buy-ins.
 - Built for entering a full table on a phone: one line per player, a **Buy-ins / Cash-outs** switch so only one box shows at a time, and the keyboard's **Next** key jumps straight to the next player.
 - Finalize to lock the results and get the **settle-up list**: the fewest payments that clear the table.
