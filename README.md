@@ -23,7 +23,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Tick off each payment as **Paid** (or undo it). The game shows "3 unpaid" until everyone's square.
 - A game belongs to whoever **started** it: only they can change buy-ins and cash-outs, finalize or reopen it, mark its payments, or delete it. Everyone else in the club follows along live, read-only. (Rummy works the same way.)
 - Reopen a game to fix a mistake. Date, location, and rebuy amount are set when the game starts.
-- Deleting a game needs that game's own payments recorded; deleting the whole club only needs the club's **total** balance settled (games + expenses + every payment).
+- Deleting a game needs that game's own payments recorded, and removes them along with it, so everyone's balance is exactly what it was before the game. Deleting the whole club only needs the club's **total** balance settled (games + expenses + every payment).
 - **Leaderboard** per club: total won or lost, games played, winning nights, best night.
 - A club can run more than one game on the same day — each is its own record, nothing is tied to a calendar day.
 - A club holds expenses too (split the pizza, chip in for the venue) — it isn't games-only.

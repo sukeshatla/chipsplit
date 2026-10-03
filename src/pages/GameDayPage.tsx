@@ -157,7 +157,8 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
       await api.updateSession(s.id, { status: 'final' });
     }, 'Game finalized');
   };
-  const paidSettlements = g.settlements.some((x) => x.session_id === s.id);
+  const gamePayments = g.settlements.filter((x) => x.session_id === s.id).length;
+  const paidSettlements = gamePayments > 0;
   const reopen = () => {
     if (paidSettlements) { setConfirmReopen(true); return; }
     run((api) => api.updateSession(s.id, { status: 'open' }), 'Game reopened');
@@ -313,7 +314,9 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
       <ConfirmDialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete this game?" icon={Trash2}
         confirmLabel="Delete game" busy={busy}
         blocked={final && !settled ? 'Settle up everyone at this table first — open Settle up below to record the remaining payments.' : undefined}
-        body={<>This removes <b>{lines.length} player{lines.length === 1 ? '' : 's'}</b>{final ? <> and <b>{formatMoney(pot, g.currency)}</b> in recorded buy-ins</> : ''} for good. This can't be undone.</>}
+        body={<>This removes <b>{rows.length} player{rows.length === 1 ? '' : 's'}</b>{final ? <>, <b>{formatMoney(pot, g.currency)}</b> in recorded buy-ins</> : ''}
+          {gamePayments > 0 && <>, and the <b>{gamePayments} payment{gamePayments === 1 ? '' : 's'}</b> marked for this game</>} for good.
+          {gamePayments > 0 && ' Everyone\'s club balance stays exactly as it was before this game.'} This can't be undone.</>}
         onConfirm={async () => {
           const ok = await run((api) => api.deleteSession(s.id), 'Game deleted');
           if (ok !== undefined) nav(`/groups/${g.id}?tab=games`);

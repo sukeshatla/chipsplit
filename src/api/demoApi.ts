@@ -291,7 +291,8 @@ export const demoApi: DataApi = {
     assertHost(d, g, id);
     const location = g.sessions.find((s) => s.id === id)!.location;
     g.sessions = g.sessions.filter((s) => s.id !== id);
-    g.settlements.forEach((s) => { if (s.session_id === id) s.session_id = null; });
+    // Same as the server (0022): a game's own payments go with it, so balances stay as before the game.
+    g.settlements = g.settlements.filter((s) => s.session_id !== id);
     log(d, g.id, 'session', id, `Deleted the game${location ? ` at ${location}` : ''}`);
   }),
 
