@@ -26,6 +26,8 @@ export interface DataApi {
   deleteGroup(id: string): Promise<void>;
   addMember(groupId: string, name: string, email: string | null): Promise<string>;
   addMemberFromContact(groupId: string, contactId: string): Promise<string>;
+  /** Only for people without an account -- a signed-up person's name comes from their profile. */
+  renameMember(memberId: string, name: string): Promise<void>;
   removeMember(memberId: string): Promise<void>;
   addContact(name: string, email: string | null): Promise<string>;
   deleteContact(contactId: string): Promise<void>;

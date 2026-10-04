@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Mail, MailX, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Mail, MailX, Pencil, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useToast } from '../app/toast';
 import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryData, summaryMailto } from '../lib/ledger';
@@ -340,10 +340,11 @@ function MembersTab({ g }: { g: Group }) {
       </Card>
       <AddMemberDialog group={g} open={adding} onClose={() => setAdding(false)} />
       <MemberCardDialog member={cardMember} onClose={() => setCardId(null)}
-        actions={cardMember && <MemberActions g={g} m={cardMember} admin={admin} busy={busy}
+        actions={cardMember && <MemberActions key={cardMember.id} g={g} m={cardMember} admin={admin} busy={busy}
           onToggleAdmin={() => run((api) => api.setGroupAdmin(cardMember.id, !cardMember.is_admin))}
           onToggleEmail={() => run((api) => api.setEmailOptOut(cardMember.id, !cardMember.email_opt_out))}
-          onRemove={() => { setCardId(null); setConfirmingRemove(cardMember); }} />} />
+          onRemove={() => { setCardId(null); setConfirmingRemove(cardMember); }}
+          onRename={(name) => run((api) => api.renameMember(cardMember.id, name), `Renamed to ${name}`)} />} />
 
       <ConfirmDialog open={!!confirmingRemove} onClose={() => setConfirmingRemove(null)} title="Remove this person?" icon={Trash2} busy={busy}
         body={confirmingRemove && <>This removes <b>{confirmingRemove.name}</b> from {g.name}. They can be added back any time.</>}
@@ -363,13 +364,27 @@ function MembersTab({ g }: { g: Group }) {
   );
 }
 
-function MemberActions({ g, m, admin, busy, onToggleAdmin, onToggleEmail, onRemove }: {
-  g: Group; m: Member; admin: boolean; busy: boolean; onToggleAdmin(): void; onToggleEmail(): void; onRemove(): void;
+function MemberActions({ g, m, admin, busy, onToggleAdmin, onToggleEmail, onRemove, onRename }: {
+  g: Group; m: Member; admin: boolean; busy: boolean; onToggleAdmin(): void; onToggleEmail(): void; onRemove(): void; onRename(name: string): Promise<unknown>;
 }) {
   const { me } = useData();
   const active = memberHasActivity(g, m.id);
   const isMe = m.user_id === me.id;
+  const [newName, setNewName] = useState<string | null>(null);
+  const clean = newName?.trim() ?? '';
+  const save = async () => { if (clean && clean !== m.name) await onRename(clean); setNewName(null); };
   return <>
+    {admin && !m.user_id && (newName === null ? (
+      <Button className="w-full" disabled={busy} onClick={() => setNewName(m.name)}><Pencil size={16} aria-hidden="true" />Rename</Button>
+    ) : (
+      <div className="flex gap-2">
+        <Input autoFocus aria-label="New name" value={newName} maxLength={60} onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void save(); if (e.key === 'Escape') setNewName(null); }} />
+        <Button variant="primary" loading={busy} disabled={!clean} onClick={() => void save()}>Save</Button>
+        <Button variant="ghost" onClick={() => setNewName(null)}>Cancel</Button>
+      </div>
+    ))}
+    {admin && m.user_id && !isMe && <p className="text-center text-[12px] text-ink-2">Their name comes from their own account.</p>}
     {admin && (
       <Button className="w-full" disabled={busy} onClick={onToggleAdmin}>
         {m.is_admin ? <><ShieldOff size={16} aria-hidden="true" />Remove as admin</> : <><ShieldCheck size={16} aria-hidden="true" />Make admin</>}

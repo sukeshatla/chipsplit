@@ -186,6 +186,14 @@ export const demoApi: DataApi = {
     return id;
   }),
 
+  renameMember: (memberId, name) => mutate((d) => {
+    const g = groupOf(d, (x) => x.members.some((m) => m.id === memberId));
+    const m = g.members.find((m) => m.id === memberId)!;
+    const before = m.name;
+    m.name = name;
+    log(d, g.id, 'member', memberId, `Renamed ${before} to ${name}`);
+  }),
+
   removeMember: (memberId) => mutate((d) => {
     const g = groupOf(d, (x) => x.members.some((m) => m.id === memberId));
     const name = g.members.find((m) => m.id === memberId)!.name;

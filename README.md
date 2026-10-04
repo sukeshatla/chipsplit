@@ -45,7 +45,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 **Friends**
 - A personal friends list, independent of any one group: add someone by name, or by email so they're linked the moment they sign in with a matching Google account.
 - Every friend is tagged **Friend** (linked account), **Invited** (email on file, hasn't signed up), or **Guest** (name only).
-- **One name per person**: once someone has an account, their own account name is what everyone sees, in every group, friends list, and rummy game, and it follows them if they rename themselves. People without an account keep the name they were added with.
+- **One name per person**: once someone has an account, their own account name is what everyone sees, in every group, friends list, and rummy game, and it follows them if they rename themselves. People without an account keep the name they were added with, and a group admin can fix it with **Rename** on their card in the Members tab (logged in History).
 - Pick existing friends right when creating a group or a club, when adding them to an expense, or when adding a player to a game — no retyping. Adding someone new anywhere in the app also saves them to your friends list.
 - Friend page: your overall balance with them, an **Add expense** button, your one-on-one expenses ("Just you two"), and your balance in each group you share, each with a **Settle** button.
 

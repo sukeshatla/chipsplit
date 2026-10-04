@@ -186,6 +186,12 @@ export const supabaseApi: DataApi = {
     return id;
   },
 
+  async renameMember(memberId, name) {
+    const before = check(await db().from('group_members').select('group_id, name').eq('id', memberId).maybeSingle()) as { group_id: string; name: string } | null;
+    check(await db().from('group_members').update({ name }).eq('id', memberId));
+    if (before) await log(before.group_id, 'member', memberId, `Renamed ${before.name} to ${name}`);
+  },
+
   async removeMember(memberId) {
     const before = check(await db().from('group_members').select('group_id, name').eq('id', memberId).maybeSingle()) as { group_id: string; name: string } | null;
     check(await db().from('group_members').delete().eq('id', memberId));
