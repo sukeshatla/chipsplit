@@ -414,6 +414,13 @@ export function liveGameData(g: Group, s: GameSession, rows: LiveRow[]): Summary
   const totalBack = rows.reduce((a, r) => a + (r.returned_cents ?? 0), 0);
   const totalCashOut = rows.reduce((a, r) => a + r.cash_out_cents, 0);
   const counts = rows.map((r) => count(r.buy_in_cents));
+  // Best to worst: winners (biggest first), then anyone still playing (net unknown), then even,
+  // then losers (smallest loss first). Net is only known once someone has cashed out.
+  const rank = (r: { buyIn: number; back: number; cashOut: number }) => {
+    if (r.cashOut <= 0) return 0.5;
+    const net = r.cashOut + r.back - r.buyIn;
+    return net > 0 ? 1e12 + net : net === 0 ? 0 : -1e12 + net;
+  };
   return {
     title: g.name,
     when: formatDate(s.played_on, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
@@ -422,7 +429,7 @@ export function liveGameData(g: Group, s: GameSession, rows: LiveRow[]): Summary
     rows: rows.map((r, i) => ({
       id: r.member_id, name: memberName(g, r.member_id), cents: 0,
       buyIn: r.buy_in_cents, buyIns: counts[i]!, back: r.returned_cents ?? 0, cashOut: r.cash_out_cents,
-    })).sort((a, b) => b.buyIn - a.buyIn || a.name.localeCompare(b.name)),
+    })).sort((a, b) => rank(b) - rank(a) || b.buyIn - a.buyIn || a.name.localeCompare(b.name)),
     transfers: [],
     recipients: [],
     live: {

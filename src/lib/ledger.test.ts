@@ -264,6 +264,18 @@ describe('liveGameData', async () => {
   });
 });
 
+describe('liveGameData order', async () => {
+  const { liveGameData } = await import('./ledger');
+  it('puts winners first, then players still in, then even, then losers', () => {
+    const mem = (id: string) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id, email: null, email_opt_out: false, is_admin: true });
+    const g = { id: 'g', name: 'Club', kind: 'club', currency: 'USD', created_by: null, created_at: '', members: ['w1', 'w2', 'p', 'e', 'l1', 'l2'].map(mem), expenses: [], settlements: [], sessions: [] } as unknown as Group;
+    const s = { id: 's', played_on: '2026-10-04', location: null, status: 'open', default_buy_in_cents: 500 } as GameSession;
+    const row = (member_id: string, buy_in_cents: number, cash_out_cents: number) => ({ member_id, buy_in_cents, cash_out_cents, returned_cents: 0 });
+    const d = liveGameData(g, s, [row('l2', 1000, 200), row('p', 1500, 0), row('w1', 500, 900), row('e', 500, 500), row('w2', 500, 1500), row('l1', 500, 400)]);
+    expect(d.rows.map((r) => r.id)).toEqual(['w2', 'w1', 'p', 'e', 'l1', 'l2']);
+  });
+});
+
 describe('reminderMailto', async () => {
   const { reminderMailto } = await import('./ledger');
   const g: Group = {
