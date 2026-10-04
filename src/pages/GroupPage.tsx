@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Image, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
-import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryMailto } from '../lib/ledger';
+import { useToast } from '../app/toast';
+import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryData, summaryMailto } from '../lib/ledger';
+import { shareSummaryImage } from '../lib/summaryImage';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, AvatarButton, BackLink, byMonth, DateTile, LIST_STEP, MonthHeader, ShowMore, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -27,6 +29,7 @@ export function GroupPage() {
   const g = groups.find((x) => x.id === groupId);
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
+  const toast = useToast();
   const [newGame, setNewGame] = useState(false);
   const [expense, setExpense] = useState<Expense | null | 'new'>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -61,6 +64,8 @@ export function GroupPage() {
         </span>}
         actions={<>
           <Button onClick={() => { window.location.href = summaryMailto(g); }}><Send size={16} aria-hidden="true" />Send summary</Button>
+          <Button onClick={() => shareSummaryImage(summaryData(g), (id) => memberName(g, id), false).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
+            <Image size={16} aria-hidden="true" />Share image</Button>
           {admin && g.kind !== 'club' && <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Import</Button>}
           {g.kind !== 'expenses' && <Button variant={g.kind === 'club' ? 'primary' : 'secondary'} onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />New game</Button>}
           {g.kind === 'club' && <Button onClick={() => nav(`/groups/${g.id}/rummy`)}><Club size={16} aria-hidden="true" />Rummy</Button>}

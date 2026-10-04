@@ -219,6 +219,35 @@ describe('summaryMailto', async () => {
   });
 });
 
+describe('summaryData', async () => {
+  const { summaryData } = await import('./ledger');
+  const mem = (id: string) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id.toUpperCase(), email: `${id}@x.com`, email_opt_out: false, is_admin: true });
+  const res = (member_id: string, buy_in_cents: number, cash_out_cents: number) => ({ id: member_id, session_id: 's', member_id, buy_in_cents, cash_out_cents, returned_cents: 0 });
+  const g = {
+    id: 'g', name: 'Club', kind: 'club', currency: 'USD', created_by: null, created_at: '',
+    members: ['a', 'b', 'c', 'd'].map(mem), expenses: [], settlements: [],
+    sessions: [{ id: 's', group_id: 'g', played_on: '2026-10-03', location: 'Ravi\'s', notes: null, status: 'final', default_buy_in_cents: 5000, created_at: '',
+      results: [res('a', 5000, 8000), res('b', 5000, 2000), res('c', 0, 0)] }],
+  } as unknown as Group;
+  it('a game covers only the people who played, with its date and place', () => {
+    const d = summaryData(g, 's');
+    expect(d.rows.map((r) => r.id)).toEqual(['a', 'b']);
+    expect(d.recipients).toEqual(['a@x.com', 'b@x.com']);
+    expect(d.place).toBe("Ravi's");
+  });
+  it('marks a game payment paid once it is recorded', () => {
+    expect(summaryData(g, 's').transfers).toEqual([{ from: 'b', to: 'a', cents: 3000, paid: false }]);
+    const paid = { ...g, settlements: [{ id: 'p', group_id: 'g', from_member: 'b', to_member: 'a', amount_cents: 3000, session_id: 's' }] } as unknown as Group;
+    expect(summaryData(paid, 's').transfers).toEqual([{ from: 'b', to: 'a', cents: 3000, paid: true }]);
+  });
+  it('a group covers every member, settled or not', () => {
+    const d = summaryData(g);
+    expect(d.rows.map((r) => r.id).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(d.recipients).toHaveLength(4);
+    expect(d.place).toBeNull();
+  });
+});
+
 describe('reminderMailto', async () => {
   const { reminderMailto } = await import('./ledger');
   const g: Group = {

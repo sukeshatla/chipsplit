@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
-import { activity, friendBalances, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, pokerStats, sumByCurrency, totals } from '../lib/ledger';
+import { activity, friendBalances, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, pokerStats, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row } from '../components/ui';
 import { GroupIcon } from './GroupsPage';
@@ -15,16 +15,9 @@ export function DashboardPage() {
   const data = useData();
   const { me } = data;
   const groups = listedGroups(data);
-  // Friends you have one-on-one (non-group) expenses with, and where you stand with each.
+  // Where you stand with each friend across every group and one-on-one -- same numbers as the Friends page.
   const currency = me.default_currency || 'USD';
-  const directFriends = friendBalances(data)
-    .filter((f) => f.groups.some((fg) => fg.group.is_direct))
-    .map((f) => {
-      // Per currency, like everywhere else: show the biggest, mention the rest.
-      const [main, ...rest] = sumByCurrency(f.groups.filter((fg) => fg.group.is_direct).map((fg) => ({ currency: fg.group.currency, cents: fg.cents })));
-      return { ...f, direct: main ?? { currency: f.groups.find((fg) => fg.group.is_direct)!.group.currency, cents: 0 }, directOthers: rest };
-    })
-    .sort((a, b) => Math.abs(b.direct.cents) - Math.abs(a.direct.cents) || a.name.localeCompare(b.name));
+  const friends = friendBalances(data);
   const t = totals(data);
   const feed = activity(data, 5, undefined, true);
   const poker = pokerStats(data);
@@ -106,19 +99,19 @@ export function DashboardPage() {
 
       <Card className="mt-5">
         <CardHeader title="Friends" action={<Link to="/friends" className="text-[13px] font-semibold text-felt dark:text-gain">See all</Link>} />
-        <p className="px-4 text-[12px] text-ink-2 md:px-5">One-on-one expenses, outside any group.</p>
+        <p className="px-4 text-[12px] text-ink-2 md:px-5">Across all your groups and one-on-one.</p>
         <div className="mt-1">
-          {directFriends.length === 0 ? (
-            <EmptyState icon={<Receipt size={28} />} title="Nothing one-on-one yet" body="Split something with a friend without making a group."
+          {friends.length === 0 ? (
+            <EmptyState icon={<Receipt size={28} />} title="No friends yet" body="Split something with a friend, or add them to a group."
               action={<Button onClick={() => setQuickExpense(true)}><Receipt size={16} aria-hidden="true" />Add expense</Button>} />
-          ) : directFriends.slice(0, 6).map((f) => (
+          ) : friends.slice(0, 6).map((f) => (
             <Link key={f.key} to={`/friends/${encodeURIComponent(f.key)}`} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-surface-2/60 md:px-5">
               <Avatar name={f.name} src={f.avatar_url} size={32} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{f.name}</p>
-                {f.directOthers.length > 0 && <p className="truncate text-[11px] text-ink-2">also {f.directOthers.map((m) => moneyPhrase(m, 'friend')).join(', ')}</p>}
+                {f.others.length > 0 && <p className="truncate text-[11px] text-ink-2">also {f.others.map((m) => moneyPhrase(m, 'friend')).join(', ')}</p>}
               </div>
-              <BalanceText cents={f.direct.cents} currency={f.direct.currency} />
+              <BalanceText cents={f.net} currency={f.currency} />
             </Link>
           ))}
         </div>

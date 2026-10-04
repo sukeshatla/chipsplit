@@ -1,6 +1,6 @@
 import type { AppData, ChangeLogEntry, GameSession, Group, SessionResult } from './types';
 import { settle, type Transfer } from './settle';
-import { formatMoney } from './money';
+import { formatDate, formatMoney } from './money';
 
 /** One player's result for a game: everything they took out (final stack + chips given back) minus what they bought. */
 export function resultNet(r: SessionResult): number {
@@ -360,31 +360,60 @@ export function pokerStats(data: AppData) {
   return { net, games, wins, best, worst, winRate: games ? Math.round((wins / games) * 100) : 0 };
 }
 
+export interface SummaryRow { id: string; name: string; cents: number }
+export interface Summary {
+  title: string;
+  /** "Sat, Oct 3, 2026" -- the game's date, or today for a group. */
+  when: string;
+  place: string | null;
+  currency: string;
+  rows: SummaryRow[];
+  /** `paid`: already recorded as a payment for this game (games only). */
+  transfers: (Transfer & { paid?: boolean })[];
+  recipients: string[];
+}
+
 /**
- * A `mailto:` link with a plain-text balance summary, for the involved parties.
- * Pass `sessionId` to summarize just one game (its players only); omit it for the whole group.
+ * What a "Send summary" shares. Pass `sessionId` for one game: only the people who played
+ * (bought in or cashed out). Omit it for the whole group: every member, settled or not.
  * Members who opted out (or have no email on file) are left off the recipient list.
  */
-export function summaryMailto(g: Group, sessionId?: string): string {
+export function summaryData(g: Group, sessionId?: string): Summary {
   const session = sessionId ? g.sessions.find((s) => s.id === sessionId) : undefined;
-  const bal = session ? sessionNets(session) : groupBalances(g);
-  const transfers = simplify(bal);
-  const involved = new Set(bal.keys());
-  const recipients = g.members.filter((m) => m.email && !m.email_opt_out && involved.has(m.id)).map((m) => m.email!);
+  const players = session?.results.filter((r) => r.buy_in_cents > 0 || r.cash_out_cents > 0 || (r.returned_cents ?? 0) > 0);
+  const bal = players ? new Map(players.map((r) => [r.member_id, resultNet(r)])) : groupBalances(g);
+  const rows = [...bal].map(([id, cents]) => ({ id, name: memberName(g, id), cents }))
+    .sort((a, b) => b.cents - a.cents || a.name.localeCompare(b.name));
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; // local, not UTC
+  return {
+    title: g.name,
+    when: formatDate(session?.played_on ?? today, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+    place: session?.location || null,
+    currency: g.currency,
+    rows,
+    transfers: session ? sessionPayments(g, session).map(({ settlementId, ...t }) => ({ ...t, paid: !!settlementId })) : simplify(bal),
+    recipients: g.members.filter((m) => m.email && !m.email_opt_out && bal.has(m.id)).map((m) => m.email!),
+  };
+}
 
-  const subject = session ? `Chip n Split summary — ${g.name}${session.location ? `, ${session.location}` : ''}` : `Chip n Split summary — ${g.name}`;
-  const lines: string[] = [subject, '-'.repeat(Math.min(subject.length, 42)), ''];
-  for (const id of involved) {
-    const cents = bal.get(id) ?? 0;
-    if (cents === 0) continue;
-    lines.push(`  ${memberName(g, id)} ${cents > 0 ? 'is owed' : 'owes'} ${formatMoney(Math.abs(cents), g.currency)}`);
+/** A `mailto:` link with a plain-text version of `summaryData` (mail apps won't take HTML from a link). */
+export function summaryMailto(g: Group, sessionId?: string): string {
+  const d = summaryData(g, sessionId);
+  const subject = `Chip n Split summary — ${d.title}${d.place ? `, ${d.place}` : ''}`;
+  const lines: string[] = [d.title, [d.when, d.place && `📍 ${d.place}`].filter(Boolean).join('  ·  '), ''];
+  for (const r of d.rows) {
+    const amount = formatMoney(Math.abs(r.cents), d.currency);
+    lines.push(r.cents > 0 ? `🟢 ${r.name} ${sessionId ? 'won' : 'is owed'} ${amount}`
+      : r.cents < 0 ? `🔴 ${r.name} ${sessionId ? 'lost' : 'owes'} ${amount}`
+      : `⚪ ${r.name} ${sessionId ? 'broke even' : 'is settled up'}`);
   }
   lines.push('', 'Settle up:');
-  if (transfers.length === 0) lines.push('  Everyone is settled up.');
-  else transfers.forEach((t) => lines.push(`  ${memberName(g, t.from)} → ${memberName(g, t.to)}   ${formatMoney(t.cents, g.currency)}`));
+  if (d.transfers.length === 0) lines.push('  ✅ Everyone is settled up.');
+  else d.transfers.forEach((t) => lines.push(`  ${t.paid ? '✅' : '⬜'} ${memberName(g, t.from)} → ${memberName(g, t.to)}   ${formatMoney(t.cents, d.currency)}${t.paid ? '  (paid)' : ''}`));
   lines.push('', '— Sent from Chip n Split');
 
-  const to = recipients.map(encodeURIComponent).join(',');
+  const to = d.recipients.map(encodeURIComponent).join(',');
   return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
 }
 
