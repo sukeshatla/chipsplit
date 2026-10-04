@@ -4,7 +4,7 @@ import { clsx } from 'clsx';
 import { Check, UserPlus } from 'lucide-react';
 import { Avatar, Button, Field, Input, Modal, MoneyInput, Select } from '../ui';
 import { useAction, useData } from '../../app/data';
-import { centsToInput, parseMoney, todayISO } from '../../lib/money';
+import { centsToInput, formatMoney, parseMoney, todayISO } from '../../lib/money';
 import { AddMemberDialog } from './AddMemberDialog';
 
 export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClose(): void; groupId?: string }) {
@@ -17,15 +17,17 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
   const last = useMemo(() => group?.sessions.slice().sort((a, b) => b.played_on.localeCompare(a.played_on))[0], [group]);
   const [date, setDate] = useState(todayISO());
   const [location, setLocation] = useState('');
-  const [buyIn, setBuyIn] = useState('50');
+  const [buyIn, setBuyIn] = useState('');
   const [players, setPlayers] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [buyInError, setBuyInError] = useState<string | null>(null);
   const [addingPerson, setAddingPerson] = useState(false);
 
   useEffect(() => {
     if (!open || !group) return;
     setPlayers(last ? last.results.map((r) => r.member_id) : group.members.map((m) => m.id));
-    setBuyIn(last ? centsToInput(last.default_buy_in_cents) : '50');
+    // Required every time, so nobody starts a game on a stale amount; last game's is one tap away.
+    setBuyIn(''); setBuyInError(null);
     setDate(todayISO()); setLocation(''); setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, gid]);
@@ -35,6 +37,7 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
   const submit = async () => {
     if (!group) { setError('Create a Club first'); return; }
     const cents = parseMoney(buyIn) ?? 0;
+    if (cents <= 0) { setBuyInError('Enter the buy-in per player'); return; }
     if (players.length < 2) { setError('Pick at least two players'); return; }
     const id = await run(async (api) => {
       const sid = await api.createSession({ group_id: group.id, played_on: date, location: location.trim() || null, notes: null, default_buy_in_cents: cents });
@@ -60,7 +63,16 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
           )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-            <Field label="Buy-in per player"><MoneyInput currency={group?.currency} value={buyIn} onChange={(e) => setBuyIn(e.target.value)} /></Field>
+            <Field label="Buy-in per player *" error={buyInError}>
+              <MoneyInput currency={group?.currency} value={buyIn} required aria-required="true" inputMode="decimal" placeholder="Amount"
+                onChange={(e) => { setBuyIn(e.target.value); setBuyInError(null); }} />
+            </Field>
+            {last && last.default_buy_in_cents > 0 && !buyIn && (
+              <button type="button" className="col-span-2 -mt-1 justify-self-start text-[13px] font-semibold text-felt hover:underline dark:text-gain"
+                onClick={() => { setBuyIn(centsToInput(last.default_buy_in_cents)); setBuyInError(null); }}>
+                Same as last game: {formatMoney(last.default_buy_in_cents, group?.currency)}
+              </button>
+            )}
             <Field label="Where you're playing (optional)" className="col-span-2">
               <Input value={location} placeholder="Ravi's place" onChange={(e) => setLocation(e.target.value)} />
             </Field>
