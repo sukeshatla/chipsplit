@@ -4,13 +4,16 @@ import type { Summary } from './ledger';
 // The light theme's colors (src/index.css), fixed so the picture looks the same wherever it's sent.
 const FELT = 'rgb(14 77 58)', FELT_INK = 'rgb(230 243 236)', GAIN = 'rgb(21 122 80)', LOSS = 'rgb(190 58 40)';
 const INK = 'rgb(20 33 29)', INK_2 = 'rgb(84 102 95)', LINE = 'rgb(218 226 222)', PAPER = '#ffffff';
+const BRASS = 'rgb(150 112 20)';
 const FONT = 'Manrope, system-ui, -apple-system, "Segoe UI", sans-serif';
 const DISPLAY = '"Bricolage Grotesque", system-ui, sans-serif';
 
 /** A colored PNG of a summary -- name per row, green for up, red for down, then who pays whom. */
 export async function summaryPng(d: Summary, names: (id: string) => string, game: boolean): Promise<Blob> {
   const W = 720, PAD = 40, ROW = 52, HEAD = 150;
-  const H = HEAD + 24 + d.rows.length * ROW + 70 + Math.max(1, d.transfers.length) * 40 + 70;
+  const rowH = d.live ? 70 : ROW;
+  const liveLines = d.live ? 2 + (d.live.totalBack ? 1 : 0) + (d.live.totalCashOut ? 1 : 0) : 0;
+  const H = HEAD + 24 + d.rows.length * rowH + 70 + (d.live ? liveLines : Math.max(1, d.transfers.length)) * 40 + (d.live ? 50 : 80);
   const scale = 2;
   const c = document.createElement('canvas');
   c.width = W * scale; c.height = H * scale;
@@ -23,11 +26,27 @@ export async function summaryPng(d: Summary, names: (id: string) => string, game
   x.fillStyle = FELT_INK;
   x.font = `600 34px ${DISPLAY}`; x.fillText(fit(x, d.title, W - 2 * PAD), PAD, 64);
   x.globalAlpha = 0.85; x.font = `500 18px ${FONT}`;
-  x.fillText(fit(x, [d.when, d.place && `📍 ${d.place}`].filter(Boolean).join('   ·   '), W - 2 * PAD), PAD, 104);
+  x.fillText(fit(x, [d.when, d.place && `📍 ${d.place}`, d.live && 'In progress'].filter(Boolean).join('   ·   '), W - 2 * PAD), PAD, 104);
   x.globalAlpha = 1;
 
   let y = HEAD + 24;
   for (const r of d.rows) {
+    if (d.live) {
+      // Name, then "3 buy-ins · gave back $40 · cashed out $80" under it; what they've put in on the right.
+      x.fillStyle = BRASS; x.beginPath(); x.arc(PAD + 7, y + 30, 7, 0, Math.PI * 2); x.fill();
+      x.fillStyle = INK; x.font = `600 20px ${FONT}`; x.textAlign = 'left';
+      x.fillText(fit(x, r.name, W - 2 * PAD - 200), PAD + 28, y + 36);
+      const bits = [r.buyIns != null ? `${r.buyIns} buy-in${r.buyIns === 1 ? '' : 's'}` : null,
+        r.back ? `gave back ${formatMoney(r.back, d.currency)}` : null,
+        r.cashOut ? `cashed out ${formatMoney(r.cashOut, d.currency)}` : null].filter(Boolean).join('  ·  ');
+      if (bits) { x.fillStyle = INK_2; x.font = `500 15px ${FONT}`; x.fillText(fit(x, bits, W - 2 * PAD - 200), PAD + 28, y + 58); }
+      x.fillStyle = INK; x.font = `600 22px ${FONT}`; x.textAlign = 'right';
+      x.fillText(formatMoney(r.buyIn ?? 0, d.currency), W - PAD, y + 44);
+      x.textAlign = 'left';
+      y += rowH;
+      x.fillStyle = LINE; x.fillRect(PAD, y - 1, W - 2 * PAD, 1);
+      continue;
+    }
     const tone = r.cents > 0 ? GAIN : r.cents < 0 ? LOSS : INK_2;
     x.fillStyle = tone; x.beginPath(); x.arc(PAD + 7, y + ROW / 2, 7, 0, Math.PI * 2); x.fill();
     x.fillStyle = INK; x.font = `600 20px ${FONT}`; x.textAlign = 'left';
@@ -40,6 +59,22 @@ export async function summaryPng(d: Summary, names: (id: string) => string, game
   }
 
   y += 44;
+  if (d.live) {
+    // Still playing: nobody owes anything yet, so show what's on the table instead of payments.
+    const L = d.live;
+    const line = (label: string, cents: number, strong = false) => {
+      x.fillStyle = strong ? FELT : INK_2; x.font = `${strong ? 700 : 500} ${strong ? 21 : 19}px ${FONT}`; x.textAlign = 'left'; x.fillText(label, PAD, y);
+      x.fillStyle = strong ? FELT : INK; x.font = `600 ${strong ? 26 : 21}px ${DISPLAY}`; x.textAlign = 'right'; x.fillText(formatMoney(cents, d.currency), W - PAD, y);
+      x.textAlign = 'left'; y += 40;
+    };
+    line(L.buyIns != null ? `Bought in (${L.buyIns} × ${formatMoney(L.buyInAmount, d.currency)})` : 'Bought in', L.totalIn);
+    if (L.totalBack) line('Given back to the bank', L.totalBack);
+    if (L.totalCashOut) line('Cashed out', L.totalCashOut);
+    y += 6; x.fillStyle = LINE; x.fillRect(PAD, y - 30, W - 2 * PAD, 1);
+    line('Pot on the table', L.pot, true);
+    x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 28);
+    return toPng(c);
+  }
   x.fillStyle = INK; x.font = `600 22px ${DISPLAY}`; x.fillText('Settle up', PAD, y);
   y += 16;
   x.font = `500 19px ${FONT}`;
@@ -55,6 +90,10 @@ export async function summaryPng(d: Summary, names: (id: string) => string, game
   }
   x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 28);
 
+  return toPng(c);
+}
+
+function toPng(c: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not draw the image'))), 'image/png'));
 }
 

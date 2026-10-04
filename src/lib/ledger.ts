@@ -360,7 +360,12 @@ export function pokerStats(data: AppData) {
   return { net, games, wins, best, worst, winRate: games ? Math.round((wins / games) * 100) : 0 };
 }
 
-export interface SummaryRow { id: string; name: string; cents: number }
+export interface SummaryRow {
+  id: string; name: string; cents: number;
+  /** Live (in-progress) games only: bought in so far, as an amount and (when it divides evenly by
+   *  the game's buy-in) a count including the first; chips given back to the bank; cashed out. */
+  buyIn?: number; buyIns?: number | null; back?: number; cashOut?: number;
+}
 export interface Summary {
   title: string;
   /** "Sat, Oct 3, 2026" -- the game's date, or today for a group. */
@@ -371,6 +376,8 @@ export interface Summary {
   /** `paid`: already recorded as a payment for this game (games only). */
   transfers: (Transfer & { paid?: boolean })[];
   recipients: string[];
+  /** Set for a game still in progress: nobody owes anything yet, so it shows what's on the table. */
+  live?: { buyInAmount: number; totalIn: number; buyIns: number | null; totalBack: number; totalCashOut: number; pot: number };
 }
 
 /**
@@ -394,6 +401,36 @@ export function summaryData(g: Group, sessionId?: string): Summary {
     rows,
     transfers: session ? sessionPayments(g, session).map(({ settlementId, ...t }) => ({ ...t, paid: !!settlementId })) : simplify(bal),
     recipients: g.members.filter((m) => m.email && !m.email_opt_out && bal.has(m.id)).map((m) => m.email!),
+  };
+}
+
+/** A game still being played, from the rows on screen (the host's may not be saved yet):
+ *  each player's buy-in and anything taken out so far, biggest buy-in first. */
+type LiveRow = Pick<SessionResult, 'member_id' | 'buy_in_cents' | 'cash_out_cents' | 'returned_cents'>;
+export function liveGameData(g: Group, s: GameSession, rows: LiveRow[]): Summary {
+  const unit = s.default_buy_in_cents || 0;
+  const count = (cents: number) => (unit > 0 && cents % unit === 0 ? cents / unit : null);
+  const totalIn = rows.reduce((a, r) => a + r.buy_in_cents, 0);
+  const totalBack = rows.reduce((a, r) => a + (r.returned_cents ?? 0), 0);
+  const totalCashOut = rows.reduce((a, r) => a + r.cash_out_cents, 0);
+  const counts = rows.map((r) => count(r.buy_in_cents));
+  return {
+    title: g.name,
+    when: formatDate(s.played_on, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+    place: s.location || null,
+    currency: g.currency,
+    rows: rows.map((r, i) => ({
+      id: r.member_id, name: memberName(g, r.member_id), cents: 0,
+      buyIn: r.buy_in_cents, buyIns: counts[i]!, back: r.returned_cents ?? 0, cashOut: r.cash_out_cents,
+    })).sort((a, b) => b.buyIn - a.buyIn || a.name.localeCompare(b.name)),
+    transfers: [],
+    recipients: [],
+    live: {
+      buyInAmount: unit, totalIn, totalBack, totalCashOut,
+      buyIns: counts.every((c) => c !== null) ? counts.reduce<number>((a, c) => a + c!, 0) : null,
+      // Chips still in play: everything bought, minus what went back to the bank or was cashed out.
+      pot: totalIn - totalBack - totalCashOut,
+    },
   };
 }
 

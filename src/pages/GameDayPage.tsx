@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Check, Loader2, Lock, Minus, LockOpen, Mail, Plus, RotateCcw, Trash2, UserPlus, X } from 'lucide-react';
+import { Check, Loader2, Lock, Minus, LockOpen, Mail, Plus, RotateCcw, Share2, Trash2, UserPlus, X } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { useToast } from '../app/toast';
-import { isGameHost, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, summaryData, summaryMailto } from '../lib/ledger';
+import { isGameHost, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, liveGameData, summaryData, summaryMailto } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
 import { ActionBar, ActionButton, ShareMenu } from '../components/ActionBar';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
@@ -184,9 +184,16 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
                 onImage={() => shareSummaryImage(summaryData(g, s.id), (id) => memberName(g, id), true).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
               {host && <ActionButton icon={<LockOpen size={16} aria-hidden="true" />} onClick={reopen}>Reopen</ActionButton>}
             </ActionBar>
-          ) : host && (<>
-            <SaveStatus state={saveState} onRetry={() => void persist()} />
-            <Button variant="primary" onClick={finalize} loading={busy}><Check size={16} aria-hidden="true" />Finalize</Button>
+          ) : (<>
+            {/* Mid-game: just the picture of who's in for how much (no email -- nobody owes anything yet). */}
+            <ActionBar>
+              <ActionButton icon={<Share2 size={16} aria-hidden="true" />}
+                onClick={() => shareSummaryImage(liveGameData(g, s, rows), (id) => memberName(g, id), true).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
+                Share
+              </ActionButton>
+            </ActionBar>
+            {host && <SaveStatus state={saveState} onRetry={() => void persist()} />}
+            {host && <Button variant="primary" onClick={finalize} loading={busy}><Check size={16} aria-hidden="true" />Finalize</Button>}
           </>)}
         </>}
       />

@@ -248,6 +248,22 @@ describe('summaryData', async () => {
   });
 });
 
+describe('liveGameData', async () => {
+  const { liveGameData } = await import('./ledger');
+  it('counts buy-ins (first included) and chips given back, and what is left in the pot', () => {
+    const mem = (id: string) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id.toUpperCase(), email: null, email_opt_out: false, is_admin: true });
+    const g = { id: 'g', name: 'Club', kind: 'club', currency: 'USD', created_by: null, created_at: '', members: ['a', 'b'].map(mem), expenses: [], settlements: [], sessions: [] } as unknown as Group;
+    const s = { id: 's', played_on: '2026-10-04', location: null, status: 'open', default_buy_in_cents: 5000 } as GameSession;
+    const d = liveGameData(g, s, [
+      { member_id: 'a', buy_in_cents: 5000, cash_out_cents: 0, returned_cents: 0 },
+      { member_id: 'b', buy_in_cents: 10000, cash_out_cents: 0, returned_cents: 2000 },
+    ]);
+    expect(d.rows.map((r) => [r.id, r.buyIns, r.back])).toEqual([['b', 2, 2000], ['a', 1, 0]]);
+    expect(d.live).toEqual({ buyInAmount: 5000, totalIn: 15000, buyIns: 3, totalBack: 2000, totalCashOut: 0, pot: 13000 });
+    expect(d.transfers).toEqual([]);
+  });
+});
+
 describe('reminderMailto', async () => {
   const { reminderMailto } = await import('./ledger');
   const g: Group = {
