@@ -93,6 +93,12 @@ listed:
 - **Invited** — added with an email; will auto-link the moment they sign in with that address.
 - **Guest** — name only, no email on file.
 
+**Names.** A signed-up person's name is their own profile name, confirmed on first sign-in and
+carried into every group, friends list, and rummy game they're linked in (0020). Nobody else can
+change another person's name or email except the app admin, through `admin_update_person()`,
+which fixes a guest or invited person in every group and friends list at once (0023). A trigger
+on `group_members` and `contacts` enforces this against direct API calls too.
+
 Matching a returning member to their existing history is done by email, case-insensitively, at
 the moment they first sign in (see `handle_new_user()` in the schema) — so someone who was
 added as a guest to three different groups over a year, then finally signs up, sees all three
@@ -288,7 +294,9 @@ buy-in/cash-out rows are similarly writable only by its host.
 application's own code never sees, stores, or handles a password. Email sign-in is deliberately
 off: without a custom SMTP sender, Supabase only delivers auth emails to the project's own team.
 Someone without Gmail creates a Google account with their existing address (Yahoo, Outlook, ...),
-and `handle_new_user()` links them to every group they were added to by that email. No secrets are
+and `handle_new_user()` links them to every group they were added to by that email.
+`profiles.email` is forced to match the sign-in account by a trigger, since `is_app_admin()`
+trusts it. No secrets are
 shipped to the client beyond the anon key, which is meant to be public; the `service_role` key
 is never used here.
 

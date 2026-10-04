@@ -3,6 +3,8 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-r
 import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Mail, MailX, Pencil, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useToast } from '../app/toast';
+import { useAuth } from '../app/auth';
+import { isAppAdmin } from '../lib/admin';
 import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryData, summaryMailto } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
 import { ActionBar, ActionButton, ShareMenu } from '../components/ActionBar';
@@ -344,7 +346,7 @@ function MembersTab({ g }: { g: Group }) {
           onToggleAdmin={() => run((api) => api.setGroupAdmin(cardMember.id, !cardMember.is_admin))}
           onToggleEmail={() => run((api) => api.setEmailOptOut(cardMember.id, !cardMember.email_opt_out))}
           onRemove={() => { setCardId(null); setConfirmingRemove(cardMember); }}
-          onRename={(name) => run((api) => api.renameMember(cardMember.id, name), `Renamed to ${name}`)} />} />
+          onEditPerson={(name, email) => run((api) => api.updatePerson(cardMember.id, name, email), 'Saved')} />} />
 
       <ConfirmDialog open={!!confirmingRemove} onClose={() => setConfirmingRemove(null)} title="Remove this person?" icon={Trash2} busy={busy}
         body={confirmingRemove && <>This removes <b>{confirmingRemove.name}</b> from {g.name}. They can be added back any time.</>}
@@ -364,27 +366,42 @@ function MembersTab({ g }: { g: Group }) {
   );
 }
 
-function MemberActions({ g, m, admin, busy, onToggleAdmin, onToggleEmail, onRemove, onRename }: {
-  g: Group; m: Member; admin: boolean; busy: boolean; onToggleAdmin(): void; onToggleEmail(): void; onRemove(): void; onRename(name: string): Promise<unknown>;
+function MemberActions({ g, m, admin, busy, onToggleAdmin, onToggleEmail, onRemove, onEditPerson }: {
+  g: Group; m: Member; admin: boolean; busy: boolean; onToggleAdmin(): void; onToggleEmail(): void; onRemove(): void;
+  onEditPerson(name: string, email: string | null): Promise<unknown>;
 }) {
   const { me } = useData();
+  const { mode } = useAuth();
   const active = memberHasActivity(g, m.id);
   const isMe = m.user_id === me.id;
-  const [newName, setNewName] = useState<string | null>(null);
-  const clean = newName?.trim() ?? '';
-  const save = async () => { if (clean && clean !== m.name) await onRename(clean); setNewName(null); };
+  // Only the app admin fixes other people's names and emails (0023 enforces it); the demo user
+  // stands in for the admin so the demo shows it.
+  const canEdit = isAppAdmin(me.email) || mode === 'demo';
+  const [edit, setEdit] = useState<{ name: string; email: string } | null>(null);
+  const name = edit?.name.trim() ?? '', email = edit?.email.trim().toLowerCase() ?? '';
+  const emailOk = !email || /^\S+@\S+\.\S+$/.test(email);
+  const save = async () => {
+    if (!name || !emailOk) return;
+    if (name !== m.name || email !== (m.email ?? '').toLowerCase()) await onEditPerson(name, email || null);
+    setEdit(null);
+  };
   return <>
-    {admin && !m.user_id && (newName === null ? (
-      <Button className="w-full" disabled={busy} onClick={() => setNewName(m.name)}><Pencil size={16} aria-hidden="true" />Rename</Button>
+    {canEdit && !m.user_id && (edit === null ? (
+      <Button className="w-full" disabled={busy} onClick={() => setEdit({ name: m.name, email: m.email ?? '' })}><Pencil size={16} aria-hidden="true" />Edit name & email</Button>
     ) : (
-      <div className="flex gap-2">
-        <Input autoFocus aria-label="New name" value={newName} maxLength={60} onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') void save(); if (e.key === 'Escape') setNewName(null); }} />
-        <Button variant="primary" loading={busy} disabled={!clean} onClick={() => void save()}>Save</Button>
-        <Button variant="ghost" onClick={() => setNewName(null)}>Cancel</Button>
+      <div className="space-y-2 rounded-xl border border-line p-3">
+        <Field label="Name"><Input autoFocus value={edit.name} maxLength={60} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
+        <Field label="Email" error={emailOk ? null : 'That email looks incomplete'} hint="Updates them in every group and friends list. An email that already has an account links to it.">
+          <Input type="email" value={edit.email} placeholder="Optional" onChange={(e) => setEdit({ ...edit, email: e.target.value })}
+            onKeyDown={(e) => { if (e.key === 'Enter') void save(); }} />
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setEdit(null)}>Cancel</Button>
+          <Button variant="primary" loading={busy} disabled={!name || !emailOk} onClick={() => void save()}>Save</Button>
+        </div>
       </div>
     ))}
-    {admin && m.user_id && !isMe && <p className="text-center text-[12px] text-ink-2">Their name comes from their own account.</p>}
+    {canEdit && m.user_id && !isMe && <p className="text-center text-[12px] text-ink-2">They have an account, so their name and email come from it.</p>}
     {admin && (
       <Button className="w-full" disabled={busy} onClick={onToggleAdmin}>
         {m.is_admin ? <><ShieldOff size={16} aria-hidden="true" />Remove as admin</> : <><ShieldCheck size={16} aria-hidden="true" />Make admin</>}

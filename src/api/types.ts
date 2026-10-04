@@ -17,7 +17,7 @@ export interface AdminSignup { id: string; display_name: string; email: string; 
 export interface DataApi {
   mode: 'demo' | 'supabase';
   loadAll(): Promise<AppData>;
-  updateProfile(patch: Partial<Pick<Profile, 'display_name' | 'default_currency'>>): Promise<void>;
+  updateProfile(patch: Partial<Pick<Profile, 'display_name' | 'default_currency' | 'name_confirmed'>>): Promise<void>;
   /** `blob` is already resized/compressed client-side; this persists it as the new avatar_url. */
   uploadAvatar(blob: Blob): Promise<void>;
   removeAvatar(): Promise<void>;
@@ -26,8 +26,9 @@ export interface DataApi {
   deleteGroup(id: string): Promise<void>;
   addMember(groupId: string, name: string, email: string | null): Promise<string>;
   addMemberFromContact(groupId: string, contactId: string): Promise<string>;
-  /** Only for people without an account -- a signed-up person's name comes from their profile. */
-  renameMember(memberId: string, name: string): Promise<void>;
+  /** App admin only, for people without an account (a signed-up person's name comes from their
+   *  profile). Fixes their name and email in every group and friends list at once. */
+  updatePerson(memberId: string, name: string, email: string | null): Promise<void>;
   removeMember(memberId: string): Promise<void>;
   addContact(name: string, email: string | null): Promise<string>;
   deleteContact(contactId: string): Promise<void>;

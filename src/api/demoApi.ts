@@ -72,7 +72,7 @@ function upsertContact(d: AppData, name: string, email: string | null): Contact 
   const em = email?.trim().toLowerCase() || null;
   if (em) {
     const existing = d.contacts.find((c) => c.email === em);
-    if (existing) { existing.name = name; return existing; }
+    if (existing) return existing; // re-adding by email links, never renames (0023)
   }
   const c: Contact = { id: uid(), owner_id: d.me.id, user_id: em && em === d.me.email ? d.me.id : null, name, email: em, created_at: now() };
   d.contacts.push(c);
@@ -186,12 +186,16 @@ export const demoApi: DataApi = {
     return id;
   }),
 
-  renameMember: (memberId, name) => mutate((d) => {
+  // Same as 0023's admin_update_person (the demo user stands in for the app admin).
+  updatePerson: (memberId, name, email) => mutate((d) => {
     const g = groupOf(d, (x) => x.members.some((m) => m.id === memberId));
     const m = g.members.find((m) => m.id === memberId)!;
-    const before = m.name;
-    m.name = name;
-    log(d, g.id, 'member', memberId, `Renamed ${before} to ${name}`);
+    if (m.user_id) throw new Error('They have an account, so their name comes from their profile');
+    const before = m.name, oldEmail = m.email?.toLowerCase() || null, em = email?.trim().toLowerCase() || null;
+    const same = (x: { user_id: string | null; email: string | null }) => !x.user_id && !!oldEmail && x.email?.toLowerCase() === oldEmail;
+    d.groups.forEach((gr) => gr.members.forEach((x) => { if (x === m || same(x)) { x.name = name; x.email = em; } }));
+    d.contacts.forEach((c) => { if (same(c) || c.id === m.contact_id) { c.name = name; c.email = em; } });
+    log(d, g.id, 'member', memberId, name !== before ? `Renamed ${before} to ${name}` : `Changed ${name}'s email`);
   }),
 
   removeMember: (memberId) => mutate((d) => {

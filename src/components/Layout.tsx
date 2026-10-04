@@ -7,6 +7,7 @@ import { isAppAdmin } from '../lib/admin';
 import { Avatar, Button, Spinner } from './ui';
 import { Logo } from './Logo';
 import { NotificationsBell } from './NotificationsBell';
+import { WelcomePage } from '../pages/WelcomePage';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -36,6 +37,8 @@ export function Layout() {
   }
   const me = q.data.me;
   const nav = isAppAdmin(me.email) ? [...NAV, ADMIN_NAV] : NAV;
+  // A brand-new account confirms its name before anything else (0023).
+  if (me.name_confirmed === false) return <DataProvider data={q.data}><WelcomePage /></DataProvider>;
 
   return (
     <DataProvider data={q.data}>

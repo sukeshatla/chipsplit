@@ -45,7 +45,8 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 **Friends**
 - A personal friends list, independent of any one group: add someone by name, or by email so they're linked the moment they sign in with a matching Google account.
 - Every friend is tagged **Friend** (linked account), **Invited** (email on file, hasn't signed up), or **Guest** (name only).
-- **One name per person**: once someone has an account, their own account name is what everyone sees, in every group, friends list, and rummy game, and it follows them if they rename themselves. People without an account keep the name they were added with, and a group admin can fix it with **Rename** on their card in the Members tab (logged in History).
+- **One name per person**: once someone has an account, their own account name is what everyone sees, in every group, friends list, and rummy game, and it follows them if they rename themselves. People without an account keep the name they were added with.
+- **Only the app admin changes other people's names and emails** (enforced in the database): **Edit name & email** on a guest's or invited person's card fixes them in every group and friends list at once, and links them if that email already has an account. Everyone else can only change their own name, on Profile.
 - Pick existing friends right when creating a group or a club, when adding them to an expense, or when adding a player to a game — no retyping. Adding someone new anywhere in the app also saves them to your friends list.
 - Friend page: your overall balance with them, an **Add expense** button, your one-on-one expenses ("Just you two"), and your balance in each group you share, each with a **Settle** button.
 
@@ -72,7 +73,8 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 
 **Accounts and profile**
 - **Sign in with Google** (no password to set, leak, or forget) via Supabase Auth; it auto-creates the account on first sign-in. Someone without Gmail can make a Google account with their existing email (Yahoo, Outlook, ...), and is linked to every group they were added to with that address.
-- Profile: display name, currency for totals, light / dark / system theme, card-game stats.
+- **First sign-in** asks you to confirm your name (prefilled from Google, with your email shown). That name is what everyone sees for you, everywhere.
+- Profile: display name, currency for totals, light / dark / system theme, card-game stats. Your profile email always matches your Google account.
 - Groups are either a **Club** (recurring games only) or an **Expenses** group (trips, rent — no games).
 
 **Built for low maintenance**

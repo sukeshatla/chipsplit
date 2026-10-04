@@ -8,6 +8,8 @@ export interface Profile {
   avatar_url: string | null;
   default_currency: string;
   notifications_seen_at: string; // entries after this are "unread" in the notifications bell
+  /** false only for a brand-new account that hasn't confirmed its name yet (welcome screen). */
+  name_confirmed?: boolean;
 }
 
 export interface Member {
