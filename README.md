@@ -23,10 +23,10 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Tick off each payment as **Paid** (or undo it). The game shows "3 unpaid" until everyone's square.
 - A game belongs to whoever **started** it: only they can change buy-ins and cash-outs, finalize or reopen it, mark its payments, or delete it. Everyone else in the club follows along live, read-only. (Rummy works the same way.)
 - Reopen a game to fix a mistake. Date, location, and rebuy amount are set when the game starts.
-- Deleting a game needs that game's own payments recorded, and removes them along with it, so everyone's balance is exactly what it was before the game. Deleting the whole club only needs the club's **total** balance settled (games + expenses + every payment).
+- Deleting a game needs that game's own payments recorded, and removes them along with it, so everyone's balance is exactly what it was before the game. Deleting the whole club only needs the club's **total** balance settled (games + any older expenses + every payment).
 - **Leaderboard** per club: total won or lost, games played, winning nights, best night.
 - A club can run more than one game on the same day — each is its own record, nothing is tied to a calendar day.
-- A club holds expenses too (split the pizza, chip in for the venue) — it isn't games-only.
+- A club tracks games only. Shared costs go in an Expenses group or one-on-one; expenses a club already had stay visible on its Expenses tab.
 
 **Rummy**
 - Score pool rummy hand by hand: players are out at **101, 151, or 201** points; last one standing wins. Start one from a club's **Rummy** button, or stand-alone from friends and typed-in names.
@@ -51,7 +51,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 
 **Balances and settling up**
 - Each group shows where everyone stands and a **simplified debts** list, one line per payment; tap one to record it or send a reminder.
-- **Send summary**: opens a pre-filled email (via `mailto:`, no email service required) with the balance breakdown and settle-up list, for a group or a single finalized game. Anyone can be left out of it, per group, from their card on the Members tab.
+- **Share** (first button on a group or finished game): **Email summary** opens a pre-filled email (via `mailto:`, no email service required) with the date, place, everyone's balance and the settle-up list, game payments already made marked paid; **Share image** makes the same summary as a colored picture (share sheet on phones, download on desktop). A game's summary covers only its players; a group's covers every member. Anyone can be left off the email, per group, from their card on the Members tab.
 - **Remind**: a `mailto:` nudge addressed to just the one person who owes a specific payment, from that payment in the settle-up list.
 - Payment history with method (Cash, Zelle, Venmo, UPI, PayPal) and notes.
 - A group can't be deleted until everyone in it is settled up — enforced by the database, not just the UI.

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Image, Mail, MailX, Send, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Mail, MailX, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useToast } from '../app/toast';
 import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryData, summaryMailto } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
+import { ActionBar, ActionButton, ShareMenu } from '../components/ActionBar';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, AvatarButton, BackLink, byMonth, DateTile, LIST_STEP, MonthHeader, ShowMore, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -62,20 +63,22 @@ export function GroupPage() {
           <span>{g.members.length} people</span>
           <span>{myBal === 0 ? 'You are settled up' : <>You {myBal > 0 ? 'are owed' : 'owe'} <Amount cents={myBal} currency={g.currency} className="text-sm" /></>}</span>
         </span>}
-        actions={<>
-          <Button onClick={() => { window.location.href = summaryMailto(g); }}><Send size={16} aria-hidden="true" />Send summary</Button>
-          <Button onClick={() => shareSummaryImage(summaryData(g), (id) => memberName(g, id), false).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
-            <Image size={16} aria-hidden="true" />Share image</Button>
-          {admin && g.kind !== 'club' && <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Import</Button>}
-          {g.kind !== 'expenses' && <Button variant={g.kind === 'club' ? 'primary' : 'secondary'} onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />New game</Button>}
-          {g.kind === 'club' && <Button onClick={() => nav(`/groups/${g.id}/rummy`)}><Club size={16} aria-hidden="true" />Rummy</Button>}
-          {admin && <Button variant={g.kind === 'club' ? 'secondary' : 'primary'} onClick={() => setExpense('new')}><Receipt size={16} aria-hidden="true" />Expense</Button>}
-        </>}
+        actions={<ActionBar>
+          <ShareMenu onEmail={() => { window.location.href = summaryMailto(g); }}
+            onImage={() => shareSummaryImage(summaryData(g), (id) => memberName(g, id), false).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
+          {g.kind === 'club' ? (<>
+            <ActionButton icon={<Club size={16} aria-hidden="true" />} onClick={() => nav(`/groups/${g.id}/rummy`)}>Rummy</ActionButton>
+            <ActionButton primary icon={<Spade size={16} aria-hidden="true" />} onClick={() => setNewGame(true)}>New game</ActionButton>
+          </>) : admin && (<>
+            <ActionButton icon={<Upload size={16} aria-hidden="true" />} onClick={() => setImportOpen(true)}>Import</ActionButton>
+            <ActionButton primary icon={<Receipt size={16} aria-hidden="true" />} onClick={() => setExpense('new')}>Expense</ActionButton>
+          </>)}
+        </ActionBar>}
       />
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
       {tab === 'games' && <GamesTab g={g} onNew={() => setNewGame(true)} />}
-      {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} onAddExpense={admin ? () => setExpense('new') : undefined} />}
+      {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} onAddExpense={admin && g.kind !== 'club' ? () => setExpense('new') : undefined} />}
       {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} admin={admin} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
       {tab === 'history' && <HistoryList g={g} />}

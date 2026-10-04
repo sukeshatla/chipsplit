@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Check, Image, Loader2, Lock, Minus, LockOpen, Mail, Plus, RotateCcw, Send, Trash2, UserPlus, X } from 'lucide-react';
+import { Check, Loader2, Lock, Minus, LockOpen, Mail, Plus, RotateCcw, Trash2, UserPlus, X } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { useToast } from '../app/toast';
 import { isGameHost, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, summaryData, summaryMailto } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
+import { ActionBar, ActionButton, ShareMenu } from '../components/ActionBar';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
 import { Amount, AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, IconButton, Modal, MoneyInput, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -177,12 +178,13 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
           <span>{rows.length} players</span>
         </span>}
         actions={<>
-          {final && <Button onClick={() => { window.location.href = summaryMailto(g, s.id); }}><Send size={16} aria-hidden="true" />Send summary</Button>}
-          {final && <Button onClick={() => shareSummaryImage(summaryData(g, s.id), (id) => memberName(g, id), true).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
-            <Image size={16} aria-hidden="true" />Share image</Button>}
-          {!host ? null : final ? (
-            <Button onClick={reopen}><LockOpen size={16} aria-hidden="true" />Reopen</Button>
-          ) : (<>
+          {final ? (
+            <ActionBar>
+              <ShareMenu onEmail={() => { window.location.href = summaryMailto(g, s.id); }}
+                onImage={() => shareSummaryImage(summaryData(g, s.id), (id) => memberName(g, id), true).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
+              {host && <ActionButton icon={<LockOpen size={16} aria-hidden="true" />} onClick={reopen}>Reopen</ActionButton>}
+            </ActionBar>
+          ) : host && (<>
             <SaveStatus state={saveState} onRetry={() => void persist()} />
             <Button variant="primary" onClick={finalize} loading={busy}><Check size={16} aria-hidden="true" />Finalize</Button>
           </>)}

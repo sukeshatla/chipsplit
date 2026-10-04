@@ -11,11 +11,10 @@ import type { GroupKind } from '../../lib/types';
 export const CURRENCIES = ['USD', 'INR', 'EUR', 'GBP', 'CAD', 'AUD'];
 const STATUS_TONE: Record<FriendStatus, 'felt' | 'brass' | 'neutral'> = { friend: 'felt', invited: 'brass', guest: 'neutral' };
 
-// A club already supports expenses too (Add expense works from any group kind), so there's
-// no separate "both" option here — just pick the group's main purpose.
+// A club tracks games only; shared costs go in an Expenses group (or one-on-one).
 const KINDS: { value: GroupKind; label: string; body: string; icon: typeof Spade }[] = [
-  { value: 'club', label: 'Club', body: 'Rummy, blackjack, poker nights, run as many games as you want — plus any shared expenses for the group', icon: Spade },
-  { value: 'expenses', label: 'Expenses', body: 'Trips, rent, dinners — no games', icon: Receipt },
+  { value: 'club', label: 'Club', body: 'Poker and rummy nights — tracks games only, not expenses', icon: Spade },
+  { value: 'expenses', label: 'Expenses', body: 'Trips, rent, dinners — shared costs, no games', icon: Receipt },
 ];
 
 export function KindPicker({ value, onChange, disabled }: { value: GroupKind; onChange(v: GroupKind): void; disabled?: boolean }) {
