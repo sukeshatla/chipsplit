@@ -53,7 +53,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 **Balances and settling up**
 - Each group shows where everyone stands and a **simplified debts** list, one line per payment; tap one to record it or send a reminder.
 - Group and finished-game pages have one action bar: **Share** first, then **New game** in a club, or **Import / Expense** in an Expenses group. A club's **Rummy** sits beside it as its own button, since rummy is a different kind of game.
-- A game **in progress** has **Share** too (image only, since nobody owes anything yet): each player's buy-in count and total, chips given back to the bank, early cash-outs, and the pot on the table right now.
+- A game **in progress** has **Share** too (image only, since nobody owes anything yet): a table of each player's buy-ins, money in, chips given back, and cash-out, with their profit (green) or loss (red) once they've cashed out, a totals row, and the pot on the table right now.
 - **Share** (first button on a group or finished game): **Email summary** opens a pre-filled email (via `mailto:`, no email service required) with the date, place, everyone's balance and the settle-up list, game payments already made marked paid; **Share image** makes the same summary as a colored picture (share sheet on phones, download on desktop). A game's summary covers only its players; a group's covers every member. Anyone can be left off the email, per group, from their card on the Members tab.
 - **Remind**: a `mailto:` nudge addressed to just the one person who owes a specific payment, from that payment in the settle-up list.
 - Payment history with method (Cash, Zelle, Venmo, UPI, PayPal) and notes.

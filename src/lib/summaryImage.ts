@@ -4,16 +4,16 @@ import type { Summary } from './ledger';
 // The light theme's colors (src/index.css), fixed so the picture looks the same wherever it's sent.
 const FELT = 'rgb(14 77 58)', FELT_INK = 'rgb(230 243 236)', GAIN = 'rgb(21 122 80)', LOSS = 'rgb(190 58 40)';
 const INK = 'rgb(20 33 29)', INK_2 = 'rgb(84 102 95)', LINE = 'rgb(218 226 222)', PAPER = '#ffffff';
-const BRASS = 'rgb(150 112 20)';
+const BRASS = 'rgb(150 112 20)', ZEBRA = 'rgb(242 246 244)';
 const FONT = 'Manrope, system-ui, -apple-system, "Segoe UI", sans-serif';
 const DISPLAY = '"Bricolage Grotesque", system-ui, sans-serif';
 
 /** A colored PNG of a summary -- name per row, green for up, red for down, then who pays whom. */
 export async function summaryPng(d: Summary, names: (id: string) => string, game: boolean): Promise<Blob> {
   const W = 720, PAD = 40, ROW = 52, HEAD = 150;
-  const rowH = d.live ? 70 : ROW;
-  const liveLines = d.live ? 2 + (d.live.totalBack ? 1 : 0) + (d.live.totalCashOut ? 1 : 0) : 0;
-  const H = HEAD + 24 + d.rows.length * rowH + 70 + (d.live ? liveLines : Math.max(1, d.transfers.length)) * 40 + (d.live ? 50 : 80);
+  const LROW = 50;
+  const H = d.live ? HEAD + 24 + 36 + d.rows.length * LROW + LROW + 70 + 50
+    : HEAD + 24 + d.rows.length * ROW + 70 + Math.max(1, d.transfers.length) * 40 + 80;
   const scale = 2;
   const c = document.createElement('canvas');
   c.width = W * scale; c.height = H * scale;
@@ -30,23 +30,8 @@ export async function summaryPng(d: Summary, names: (id: string) => string, game
   x.globalAlpha = 1;
 
   let y = HEAD + 24;
+  if (d.live) return drawLiveTable(c, x, d, y, W, H, PAD, LROW);
   for (const r of d.rows) {
-    if (d.live) {
-      // Name, then "3 buy-ins · gave back $40 · cashed out $80" under it; what they've put in on the right.
-      x.fillStyle = BRASS; x.beginPath(); x.arc(PAD + 7, y + 30, 7, 0, Math.PI * 2); x.fill();
-      x.fillStyle = INK; x.font = `600 20px ${FONT}`; x.textAlign = 'left';
-      x.fillText(fit(x, r.name, W - 2 * PAD - 200), PAD + 28, y + 36);
-      const bits = [r.buyIns != null ? `${r.buyIns} buy-in${r.buyIns === 1 ? '' : 's'}` : null,
-        r.back ? `gave back ${formatMoney(r.back, d.currency)}` : null,
-        r.cashOut ? `cashed out ${formatMoney(r.cashOut, d.currency)}` : null].filter(Boolean).join('  ·  ');
-      if (bits) { x.fillStyle = INK_2; x.font = `500 15px ${FONT}`; x.fillText(fit(x, bits, W - 2 * PAD - 200), PAD + 28, y + 58); }
-      x.fillStyle = INK; x.font = `600 22px ${FONT}`; x.textAlign = 'right';
-      x.fillText(formatMoney(r.buyIn ?? 0, d.currency), W - PAD, y + 44);
-      x.textAlign = 'left';
-      y += rowH;
-      x.fillStyle = LINE; x.fillRect(PAD, y - 1, W - 2 * PAD, 1);
-      continue;
-    }
     const tone = r.cents > 0 ? GAIN : r.cents < 0 ? LOSS : INK_2;
     x.fillStyle = tone; x.beginPath(); x.arc(PAD + 7, y + ROW / 2, 7, 0, Math.PI * 2); x.fill();
     x.fillStyle = INK; x.font = `600 20px ${FONT}`; x.textAlign = 'left';
@@ -59,22 +44,6 @@ export async function summaryPng(d: Summary, names: (id: string) => string, game
   }
 
   y += 44;
-  if (d.live) {
-    // Still playing: nobody owes anything yet, so show what's on the table instead of payments.
-    const L = d.live;
-    const line = (label: string, cents: number, strong = false) => {
-      x.fillStyle = strong ? FELT : INK_2; x.font = `${strong ? 700 : 500} ${strong ? 21 : 19}px ${FONT}`; x.textAlign = 'left'; x.fillText(label, PAD, y);
-      x.fillStyle = strong ? FELT : INK; x.font = `600 ${strong ? 26 : 21}px ${DISPLAY}`; x.textAlign = 'right'; x.fillText(formatMoney(cents, d.currency), W - PAD, y);
-      x.textAlign = 'left'; y += 40;
-    };
-    line(L.buyIns != null ? `Bought in (${L.buyIns} × ${formatMoney(L.buyInAmount, d.currency)})` : 'Bought in', L.totalIn);
-    if (L.totalBack) line('Given back to the bank', L.totalBack);
-    if (L.totalCashOut) line('Cashed out', L.totalCashOut);
-    y += 6; x.fillStyle = LINE; x.fillRect(PAD, y - 30, W - 2 * PAD, 1);
-    line('Pot on the table', L.pot, true);
-    x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 28);
-    return toPng(c);
-  }
   x.fillStyle = INK; x.font = `600 22px ${DISPLAY}`; x.fillText('Settle up', PAD, y);
   y += 16;
   x.font = `500 19px ${FONT}`;
@@ -91,6 +60,72 @@ export async function summaryPng(d: Summary, names: (id: string) => string, game
   x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 28);
 
   return toPng(c);
+}
+
+/** A game still being played, as a table: buy-ins, money in, chips given back, cash-outs, and
+ *  each player's profit or loss once they've cashed out (green up, red down), then the pot. */
+function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summary, top: number, W: number, H: number, PAD: number, ROWH: number) {
+  const L = d.live!;
+  const money = (v: number) => formatMoney(v, d.currency);
+  // Right edges of the number columns; the name gets everything to the left of the first one.
+  const COLS = [{ label: 'Buy-ins', x: 300 }, { label: 'In', x: 385 }, { label: 'Back', x: 470 }, { label: 'Out', x: 565 }, { label: 'Net', x: W - PAD }];
+  const NAME_X = PAD + 22, NAME_W = 300 - 60 - NAME_X;
+  let y = top;
+
+  x.fillStyle = INK_2; x.font = `600 13px ${FONT}`;
+  x.textAlign = 'left'; x.fillText('PLAYER', NAME_X, y + 18);
+  x.textAlign = 'right'; COLS.forEach((col) => x.fillText(col.label.toUpperCase(), col.x, y + 18));
+  y += 36;
+
+  d.rows.forEach((r, i) => {
+    const cashedOut = (r.cashOut ?? 0) > 0;
+    const net = cashedOut ? (r.cashOut ?? 0) + (r.back ?? 0) - (r.buyIn ?? 0) : null;
+    const tone = net === null ? BRASS : net > 0 ? GAIN : net < 0 ? LOSS : INK_2;
+    if (i % 2 === 0) { x.fillStyle = ZEBRA; x.fillRect(PAD - 12, y, W - 2 * PAD + 24, ROWH); }
+    const mid = y + ROWH / 2 + 6;
+    x.fillStyle = tone; x.beginPath(); x.arc(PAD + 4, y + ROWH / 2, 6, 0, Math.PI * 2); x.fill();
+    x.fillStyle = INK; x.font = `600 18px ${FONT}`; x.textAlign = 'left';
+    x.fillText(fit(x, r.name, NAME_W), NAME_X, mid);
+    x.textAlign = 'right'; x.font = `500 18px ${FONT}`;
+    x.fillText(r.buyIns != null ? String(r.buyIns) : '–', COLS[0]!.x, mid);
+    x.fillText(money(r.buyIn ?? 0), COLS[1]!.x, mid);
+    x.fillStyle = r.back ? INK : INK_2; x.fillText(r.back ? money(r.back) : '–', COLS[2]!.x, mid);
+    x.fillStyle = cashedOut ? INK : INK_2; x.fillText(cashedOut ? money(r.cashOut!) : '–', COLS[3]!.x, mid);
+    x.fillStyle = tone; x.font = `700 18px ${FONT}`;
+    x.fillText(net === null ? 'playing' : net === 0 ? 'even' : formatMoney(net, d.currency, { sign: true }), COLS[4]!.x, mid);
+    y += ROWH;
+  });
+
+  // Totals row.
+  x.fillStyle = INK; x.fillRect(PAD - 12, y, W - 2 * PAD + 24, 2);
+  const mid = y + ROWH / 2 + 7;
+  x.font = `700 18px ${FONT}`; x.textAlign = 'left'; x.fillText('Total', NAME_X, mid);
+  x.textAlign = 'right';
+  x.fillText(L.buyIns != null ? String(L.buyIns) : '–', COLS[0]!.x, mid);
+  x.fillText(money(L.totalIn), COLS[1]!.x, mid);
+  x.fillText(L.totalBack ? money(L.totalBack) : '–', COLS[2]!.x, mid);
+  x.fillText(L.totalCashOut ? money(L.totalCashOut) : '–', COLS[3]!.x, mid);
+  y += ROWH + 12;
+
+  // The pot, on the felt.
+  x.fillStyle = FELT; roundRect(x, PAD - 12, y, W - 2 * PAD + 24, 54, 12); x.fill();
+  x.fillStyle = FELT_INK; x.textAlign = 'left'; x.font = `600 19px ${FONT}`;
+  x.fillText(L.buyInAmount ? `Pot on the table  ·  ${money(L.buyInAmount)} buy-in` : 'Pot on the table', PAD + 6, y + 34);
+  x.textAlign = 'right'; x.font = `600 26px ${DISPLAY}`; x.fillText(money(L.pot), W - PAD - 6, y + 36);
+  x.textAlign = 'left';
+
+  x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 24);
+  return toPng(c);
+}
+
+function roundRect(x: CanvasRenderingContext2D, left: number, top: number, w: number, h: number, rad: number) {
+  x.beginPath();
+  x.moveTo(left + rad, top);
+  x.arcTo(left + w, top, left + w, top + h, rad);
+  x.arcTo(left + w, top + h, left, top + h, rad);
+  x.arcTo(left, top + h, left, top, rad);
+  x.arcTo(left, top, left + w, top, rad);
+  x.closePath();
 }
 
 function toPng(c: HTMLCanvasElement): Promise<Blob> {
