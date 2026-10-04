@@ -70,7 +70,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Banner for any game currently in progress. The activity feed only shows what involves you, with a link to the full **Activity** page.
 
 **Accounts and profile**
-- **Sign in with Google**, or **by email** (no password to set, leak, or forget) — both via Supabase Auth. The email carries a link *and* a 6-digit code; the code works from any browser or mail app (Yahoo Mail's in-app browser, the installed app), where the link only works in the browser that asked for it. Either one auto-creates the account on first sign-in. For the code to appear, the Supabase **Magic Link** and **Confirm signup** email templates must include `{{ .Token }}` (Authentication → Email Templates).
+- **Sign in with Google** (no password to set, leak, or forget) via Supabase Auth; it auto-creates the account on first sign-in. Someone without Gmail can make a Google account with their existing email (Yahoo, Outlook, ...), and is linked to every group they were added to with that address.
 - Profile: display name, currency for totals, light / dark / system theme, card-game stats.
 - Groups are either a **Club** (recurring games, plus expenses) or an **Expenses** group (trips, rent — no games) — no separate "both" option, since a club already covers it.
 

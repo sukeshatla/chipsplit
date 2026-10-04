@@ -265,8 +265,7 @@ finalized game is blocked by a trigger while `group_is_settled` / `session_is_se
 finalized game's buy-in/cash-out rows are similarly locked from direct edits or deletes unless
 the game is reopened first or the caller is an admin.
 
-**Authentication** is Google OAuth or email (a magic link, or the 6-digit code in the same email,
-checked with `verifyOtp`), all via Supabase Auth using the PKCE
+**Authentication** is Google OAuth via Supabase Auth using the PKCE
 flow — this application's own code never sees, stores, or handles a password. No secrets are
 shipped to the client beyond the anon key, which is meant to be public; the `service_role` key
 is never used here.
@@ -294,7 +293,7 @@ test -> build -> deploy
     end
     subgraph SB["Supabase"]
         Auth["Auth
-Google OAuth + email OTP"]
+Google OAuth"]
         DB[("Postgres
 RLS + SECURITY DEFINER RPCs")]
     end
@@ -364,8 +363,7 @@ The feature set breaks into five coherent phases, each shippable and useful on i
 4. **Communication** — a per-group history log, cross-group notifications with an unread count,
    and `mailto:`-based summaries and targeted reminders.
 5. **Production hardening** — a full RLS/security pass (closing gaps where a direct API call
-   could bypass UI-level protections), a custom domain with GitHub-managed HTTPS, and passwordless
-   authentication via email magic link alongside Google.
+   could bypass UI-level protections), and a custom domain with GitHub-managed HTTPS.
 
 ## 8. Ideas for later
 
