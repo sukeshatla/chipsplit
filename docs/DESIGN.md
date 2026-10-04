@@ -265,7 +265,8 @@ finalized game is blocked by a trigger while `group_is_settled` / `session_is_se
 finalized game's buy-in/cash-out rows are similarly locked from direct edits or deletes unless
 the game is reopened first or the caller is an admin.
 
-**Authentication** is Google OAuth or an email magic link, both via Supabase Auth using the PKCE
+**Authentication** is Google OAuth or email (a magic link, or the 6-digit code in the same email,
+checked with `verifyOtp`), all via Supabase Auth using the PKCE
 flow — this application's own code never sees, stores, or handles a password. No secrets are
 shipped to the client beyond the anon key, which is meant to be public; the `service_role` key
 is never used here.

@@ -24,11 +24,12 @@ const SAMPLE = [
 ];
 
 export function LoginPage() {
-  const { status, supabaseReady, signInWithGoogle, sendMagicLink, startDemo } = useAuth();
+  const { status, supabaseReady, signInWithGoogle, sendMagicLink, verifyEmailCode, authError, startDemo } = useAuth();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
   const [linkSent, setLinkSent] = useState(false);
+  const [code, setCode] = useState('');
   if (status === 'signedIn') return <Navigate to="/" replace />;
 
   const google = async () => {
@@ -42,9 +43,18 @@ export function LoginPage() {
   const magicLink = async () => {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { toast.push('Enter a valid email', 'error'); return; }
     setBusy(true);
-    try { await sendMagicLink(email.trim()); setLinkSent(true); } catch (e) {
+    try { await sendMagicLink(email.trim()); setLinkSent(true); setCode(''); } catch (e) {
       toast.push(e instanceof Error ? e.message : 'Could not send the link', 'error');
     } finally {
+      setBusy(false);
+    }
+  };
+
+  const enterCode = async () => {
+    if (!/^\d{6,10}$/.test(code)) { toast.push('Enter the code from the email', 'error'); return; }
+    setBusy(true);
+    try { await verifyEmailCode(email.trim(), code); } catch (e) {
+      toast.push(e instanceof Error ? e.message : 'Could not sign in', 'error');
       setBusy(false);
     }
   };
@@ -82,20 +92,35 @@ export function LoginPage() {
             <div className="flex items-center gap-3 py-1 text-[12px] font-semibold text-ink-2">
               <span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" />
             </div>
+            {authError && !linkSent && <p role="alert" className="rounded-lg bg-loss/10 p-3 text-[13px] leading-relaxed text-loss">{authError}</p>}
             {linkSent ? (
-              <p className="rounded-lg bg-felt/10 p-3 text-[13px] leading-relaxed text-ink">
-                Check <b>{email}</b> for a sign-in link. No password needed{' — '}just open it on this device.
-              </p>
+              <>
+                <p className="rounded-lg bg-felt/10 p-3 text-[13px] leading-relaxed text-ink">
+                  We emailed <b>{email}</b>. Type the <b>6-digit code</b> from it here, or tap the link in it on this device.
+                </p>
+                <Input inputMode="numeric" autoComplete="one-time-code" maxLength={10} value={code} placeholder="123456" aria-label="Code from the email"
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => { if (e.key === 'Enter') enterCode(); }}
+                  className="h-12 text-center font-display text-xl tracking-[0.3em]" autoFocus />
+                <Button variant="primary" onClick={enterCode} loading={busy} className="h-12 text-[15px]">Sign in</Button>
+                <div className="flex justify-between text-[13px] font-semibold">
+                  <button type="button" className="text-ink-2 hover:text-ink" onClick={() => { setLinkSent(false); setCode(''); }}>Use a different email</button>
+                  <button type="button" className="text-felt hover:underline dark:text-gain" disabled={busy} onClick={magicLink}>Send a new code</button>
+                </div>
+              </>
             ) : (
               <>
                 <Input type="email" inputMode="email" autoComplete="email" value={email} placeholder="you@example.com" disabled={!supabaseReady}
                   onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') magicLink(); }} className="h-12" />
                 <Button onClick={magicLink} loading={busy} disabled={!supabaseReady} className="h-12 border-line text-[15px]">
-                  <Mail size={18} aria-hidden="true" /> Email me a sign-in link
+                  <Mail size={18} aria-hidden="true" /> Email me a sign-in code
                 </Button>
+                <button type="button" className="-mt-1 text-[13px] font-semibold text-ink-2 hover:text-ink" disabled={!supabaseReady}
+                  onClick={() => { if (/^\S+@\S+\.\S+$/.test(email.trim())) setLinkSent(true); else toast.push('Enter the email the code was sent to', 'error'); }}>
+                  Have a code already?
+                </button>
               </>
             )}
-            <Button variant="primary" onClick={startDemo} className="h-12 text-[15px]">Try the demo</Button>
+            {!linkSent && <Button variant="primary" onClick={startDemo} className="h-12 text-[15px]">Try the demo</Button>}
           </div>
           {!supabaseReady && (
             <p className="mt-4 rounded-lg bg-surface-2 p-3 text-[13px] leading-relaxed text-ink-2">

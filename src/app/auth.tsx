@@ -15,6 +15,10 @@ interface AuthCtx {
   supabaseReady: boolean;
   signInWithGoogle(): Promise<void>;
   sendMagicLink(email: string): Promise<void>;
+  /** The 6-digit code from the same email -- works in any browser or mail app, unlike the link. */
+  verifyEmailCode(email: string, code: string): Promise<void>;
+  /** Why the last sign-in link didn't work (expired, opened in another browser), if it didn't. */
+  authError: string | null;
   startDemo(): void;
   signOut(): Promise<void>;
 }
@@ -41,14 +45,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const [mode, setMode] = useState<Mode>(readMode);
   const [status, setStatus] = useState<Status>('loading');
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     if (mode === 'demo') { setStatus('signedIn'); return; }
     if (!supabase) { setStatus('signedOut'); return; }
     let alive = true;
-    supabase.auth.getSession().then(({ data }) => {
+    const url = new URL(window.location.href);
+    const hadCode = url.searchParams.has('code');
+    const urlError = url.searchParams.get('error_description');
+    supabase.auth.getSession().then(({ data, error }) => {
       if (!alive) return;
       setStatus(data.session ? 'signedIn' : 'signedOut');
+      // A link opened in a different browser or app than the one it was asked from can't finish
+      // (PKCE keeps half the secret in the asking browser) -- say so instead of silently looping.
+      if (!data.session && (urlError || error || hadCode)) {
+        setAuthError(urlError ?? "That sign-in link didn't work here. It may have expired, or been opened in a different browser or mail app. Type your email below, then use the 6-digit code from that same email, or send a new one.");
+      }
       cleanOAuthParams();
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -64,13 +77,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
-  /** Emails a one-time sign-in link; no password ever exists. Completes via the same
-   *  PKCE ?code= redirect handling as Google, once the person clicks the link. */
+  /** Emails a one-time sign-in link and 6-digit code; no password ever exists. The link completes
+   *  via the same PKCE ?code= redirect as Google; the code via verifyEmailCode. */
   const sendMagicLink = useCallback(async (email: string) => {
     if (!supabase) throw new Error('Supabase is not configured');
     const redirectTo = window.location.origin + window.location.pathname;
     const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
     if (error) throw error;
+  }, []);
+
+  const verifyEmailCode = useCallback(async (email: string, code: string) => {
+    if (!supabase) throw new Error('Supabase is not configured');
+    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' });
+    if (error) throw new Error(/expired|invalid/i.test(error.message) ? 'That code is wrong or has expired. Check the latest email, or send a new one.' : error.message);
+    setAuthError(null);
   }, []);
 
   const startDemo = useCallback(() => {
@@ -94,8 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthCtx>(() => ({
     status, mode, api: mode === 'demo' ? demoApi : supabaseApi, supabaseReady: supabaseConfigured,
-    signInWithGoogle, sendMagicLink, startDemo, signOut,
-  }), [status, mode, signInWithGoogle, sendMagicLink, startDemo, signOut]);
+    signInWithGoogle, sendMagicLink, verifyEmailCode, authError, startDemo, signOut,
+  }), [status, mode, signInWithGoogle, sendMagicLink, verifyEmailCode, authError, startDemo, signOut]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
