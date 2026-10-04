@@ -5,7 +5,7 @@ import { ChevronDown, Image, Mail, Share2 } from 'lucide-react';
 /** One strip of compact icon buttons for a page's actions -- Share first, then the rest. */
 export function ActionBar({ children }: { children: ReactNode }) {
   return (
-    <div className="flex w-full items-stretch divide-x divide-line rounded-xl border border-line bg-surface sm:w-auto">
+    <div className="flex items-stretch divide-x divide-line rounded-xl border border-line bg-surface">
       {children}
     </div>
   );

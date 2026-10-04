@@ -65,17 +65,19 @@ export function GroupPage() {
           <span>{g.members.length} people</span>
           <span>{myBal === 0 ? 'You are settled up' : <>You {myBal > 0 ? 'are owed' : 'owe'} <Amount cents={myBal} currency={g.currency} className="text-sm" /></>}</span>
         </span>}
-        actions={<ActionBar>
+        actions={<><ActionBar>
           <ShareMenu onEmail={() => { window.location.href = summaryMailto(g); }}
             onImage={() => shareSummaryImage(summaryData(g), (id) => memberName(g, id), false).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
           {g.kind === 'club' ? (<>
-            <ActionButton icon={<Club size={16} aria-hidden="true" />} onClick={() => nav(`/groups/${g.id}/rummy`)}>Rummy</ActionButton>
             <ActionButton primary icon={<Spade size={16} aria-hidden="true" />} onClick={() => setNewGame(true)}>New game</ActionButton>
           </>) : admin && (<>
             <ActionButton icon={<Upload size={16} aria-hidden="true" />} onClick={() => setImportOpen(true)}>Import</ActionButton>
             <ActionButton primary icon={<Receipt size={16} aria-hidden="true" />} onClick={() => setExpense('new')}>Expense</ActionButton>
           </>)}
-        </ActionBar>}
+        </ActionBar>
+        {/* Rummy is its own kind of game (rounds and points, not buy-ins), so it gets its own button. */}
+        {g.kind === 'club' && <Button className="h-10 rounded-xl" onClick={() => nav(`/groups/${g.id}/rummy`)}><Club size={16} aria-hidden="true" />Rummy</Button>}
+        </>}
       />
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
