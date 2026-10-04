@@ -73,7 +73,7 @@ export function LoginPage() {
           </div>
           {!supabaseReady && (
             <p className="mt-4 rounded-lg bg-surface-2 p-3 text-[13px] leading-relaxed text-ink-2">
-              Sign-in turns on once you add your Supabase keys to <code className="font-semibold text-ink">.env.local</code>. The README walks through it.
+              Sign-in turns on once you add <code className="font-semibold text-ink">VITE_SUPABASE_URL</code> and <code className="font-semibold text-ink">VITE_SUPABASE_ANON_KEY</code> to <code className="font-semibold text-ink">.env.local</code>.
             </p>
           )}
         </div>

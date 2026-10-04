@@ -51,6 +51,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 
 **Balances and settling up**
 - Each group shows where everyone stands and a **simplified debts** list, one line per payment; tap one to record it or send a reminder.
+- Group and finished-game pages have one action bar: **Share** first, then **Rummy / New game** in a club, or **Import / Expense** in an Expenses group.
 - **Share** (first button on a group or finished game): **Email summary** opens a pre-filled email (via `mailto:`, no email service required) with the date, place, everyone's balance and the settle-up list, game payments already made marked paid; **Share image** makes the same summary as a colored picture (share sheet on phones, download on desktop). A game's summary covers only its players; a group's covers every member. Anyone can be left off the email, per group, from their card on the Members tab.
 - **Remind**: a `mailto:` nudge addressed to just the one person who owes a specific payment, from that payment in the settle-up list.
 - Payment history with method (Cash, Zelle, Venmo, UPI, PayPal) and notes.
@@ -65,14 +66,14 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Only admins can add, edit, delete, or restore expenses, change group settings, or delete the group. Enforced server-side (Postgres RLS + triggers), so it holds even if someone bypasses the UI.
 
 **Dashboard**
-- Your overall balance, then your **Groups**, then **Friends** you have one-on-one expenses with, then a short recent-activity feed.
+- Your overall balance, then your **Groups**, then your **Friends** with each one's balance across every group and one-on-one (same numbers as the Friends page), then a short recent-activity feed.
 - Two quick actions: **Add expense** (one-on-one, above) and **New group**. Starting a game is a club-level action, done from inside that club.
 - Banner for any game currently in progress. The activity feed only shows what involves you, with a link to the full **Activity** page.
 
 **Accounts and profile**
 - **Sign in with Google** (no password to set, leak, or forget) via Supabase Auth; it auto-creates the account on first sign-in. Someone without Gmail can make a Google account with their existing email (Yahoo, Outlook, ...), and is linked to every group they were added to with that address.
 - Profile: display name, currency for totals, light / dark / system theme, card-game stats.
-- Groups are either a **Club** (recurring games, plus expenses) or an **Expenses** group (trips, rent — no games) — no separate "both" option, since a club already covers it.
+- Groups are either a **Club** (recurring games only) or an **Expenses** group (trips, rent — no games).
 
 **Built for low maintenance**
 - No server to run: the browser talks to Supabase directly, and **row-level security** in Postgres makes sure people only ever see groups they belong to.
@@ -80,4 +81,4 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - The whole database is a handful of SQL files in `supabase/migrations`, so you can rebuild it anytime.
 - Unit tests cover the settlement math and permission logic. GitHub Actions tests, builds, and deploys on every push.
 
-as-for-later)** for the full list and why each one's still open.
+Ideas for what's next (push notifications, receipt photos, realtime game entry, ...) are in **[docs/DESIGN.md § Ideas for later](docs/DESIGN.md#8-ideas-for-later)**.

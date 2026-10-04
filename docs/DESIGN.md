@@ -24,9 +24,10 @@ fees, no ads) over protecting strangers from each other.
 
 ### Core principles
 
-- **One ledger, two activities.** A single "Club" holds both recurring card games and shared
-  expenses, because in practice the two are the same social unit (the people you play with are
-  often the people you split the pizza with).
+- **One ledger, two activities.** Card games and shared expenses settle through the same
+  balances, because in practice the people you play with are often the people you split the
+  pizza with. Each group has one job — a **Club** tracks games, an **Expenses** group (or a
+  one-on-one) tracks costs — and your standing with each friend adds up across all of them.
 - **Exact money, always.** Every amount is integer cents internally; splits use largest-remainder
   distribution so a three-way split of $10.00 is always $3.34 + $3.33 + $3.33 — never a penny
   lost to rounding, never a value that doesn't sum back to the original total.
@@ -50,13 +51,17 @@ since nothing is keyed to a calendar date). Starting a new game defaults the pla
 the club's membership (or the previous game's roster, if there was one), so the common case —
 "same crew as last time" — takes one tap.
 
-A game moves through two states: **open** (buy-ins/cash-outs are still being entered, freely
-editable by anyone in the club) and **final** (locked; the settle-up list is generated from the
-results). Finalizing requires the table to balance — total cash-out must equal total buy-in —
-which catches counting mistakes before they become a wrong debt. A finalized game can be
-reopened for corrections, but its buy-in/cash-out rows become admin-protected once final (see
-[§4 Security model](#4-security-model)), so casual mistakes are fixable without exposing
-settled historical numbers to casual tampering.
+A game moves through two states: **open** (buy-ins/cash-outs are still being entered) and
+**final** (locked; the settle-up list is generated from the results). Finalizing requires the
+table to balance — total cash-out must equal total buy-in — which catches counting mistakes
+before they become a wrong debt. A game belongs to its **host**, whoever started it: only they
+can change its numbers, finalize or reopen it, mark its payments, or delete it, while everyone
+else in the club follows along live (see [§4 Security model](#4-security-model)). Games with no
+recorded host fall back to the club's admins. Deleting a game also deletes the payments recorded
+against it, so balances return to exactly what they were before the game.
+
+A club tracks games only — there's no way to add an expense to one. Expenses a club picked up
+before that rule still show on its Expenses tab and still count toward its balances.
 
 ### Expenses
 
@@ -68,11 +73,14 @@ or out) rather than four different interaction patterns, and percentage splits d
 even distribution of 100% rather than starting at zero, since "everyone splits this evenly" is
 the common case even within the percentage mode.
 
-A **quick expense** from the dashboard handles the one-off case — "we ate out, one person
-paid, that's the whole interaction" — without requiring a club or group to already exist. It
-finds an existing group with exactly that set of people, or creates a minimal one, so a
-recurring set of friends converges on one shared ledger over time instead of accumulating
-duplicate one-off groups.
+A **one-on-one expense** from the dashboard or a friend's page handles the one-off case — "we
+ate out, one person paid, that's the whole interaction" — without making a group. It lives in a
+small hidden "direct" group (`groups.is_direct`), reusing the one that already exists for that
+set of people, so splits, payments, and history work like any other expense while staying out of
+the Groups list and showing under Friends instead.
+
+Adding, editing, deleting, and restoring expenses is limited to group admins. A deleted expense
+is kept (`deleted_at`) and can be restored from the group's History.
 
 ### Friends
 
@@ -95,11 +103,20 @@ retroactively connect to their account without anyone doing anything.
 Balances reduce to one number per person per group (see [§3 Data model](#3-data-model)); a
 minimum-cash-flow algorithm turns that into the fewest payments that clear everyone. Settling
 up is deliberately low-ceremony — record a payment in one tap, with a method and note for your
-own records, no approval step from the other side. Two complementary, zero-infrastructure
-communication tools sit on top of this: a **summary** email (the full balance picture for a
-group or one game) and a **reminder** email (addressed to just the one person who owes a
-specific amount) — both built as `mailto:` links rather than sent by a service, trading
-"automatic" for "no email provider, no API key, no cost."
+own records, no approval step from the other side. The Dashboard and Friends page show each
+friend's balance summed across every group and one-on-one you share, per currency.
+
+Zero-infrastructure communication tools sit on top of this, under one **Share** button:
+
+- **Email summary** — a `mailto:` link with the date, place (for a game), everyone's balance,
+  and the settle-up list, with a game's already-recorded payments marked paid. A game's summary
+  covers only the people who played; a group's covers every member. Members can be opted out
+  of the recipient list per group.
+- **Share image** — the same summary drawn as a colored PNG in the browser (canvas), handed to
+  the phone's share sheet, or downloaded on desktop.
+- **Reminder** — a `mailto:` addressed to just the one person who owes a specific payment.
+
+All of these trade "automatic" for "no email provider, no API key, no cost."
 
 ### History and notifications
 
@@ -109,10 +126,11 @@ with an unread count, so staying current doesn't require checking each group ind
 
 ### Governance: group admins
 
-By default, everyone in a group is equally trusted — anyone can add an expense, log a game, or
-record a payment. A narrower set of actions (changing group settings, deleting the group,
-deleting an expense) requires **admin** status, which every member holds by default and can be
-narrowed to one or two people per group if a club or household wants a single owner. This
+By default, everyone in a group is equally trusted — anyone can start a game or record a
+payment. A narrower set of actions (adding, editing, or deleting expenses, changing group
+settings, deleting the group) requires **admin** status, which every member holds by default
+and can be narrowed to one or two people per group if a club or household wants a single owner.
+A game itself is controlled by its host, not by the admins. This
 mirrors real social structure: most groups don't need a designated authority, but the option
 exists without requiring it upfront.
 
@@ -234,7 +252,7 @@ two views into one identity wherever they overlap, so the same person is never s
 
 **Settlement is an invariant, not a convention.** A group's balances always sum to zero; the
 database enforces (not just the UI) that a group or a finalized game cannot be deleted while
-unsettled, and that a finalized game's results are locked from casual edits. See
+unsettled, and that only a game's host can change its results. See
 [§4](#4-security-model).
 
 ---
@@ -254,19 +272,23 @@ table it depends on:
 | `group_is_settled(gid)` | Does every member's balance in this group net to zero? |
 | `session_is_settled(sid)` | Does every player's balance in this game net to zero? |
 
-**Admin-gated actions** (changing group settings, deleting a group, deleting an expense) check
-`is_group_admin`. Adding an expense, a game, or a payment does not — participation stays open to
-every member. A trigger additionally blocks demoting the last admin in a group, so a group can
+**Admin-gated actions** (adding, editing, deleting, or restoring an expense, changing group
+settings, deleting a group) check `is_group_admin`. Starting a game or recording a group payment
+does not — participation stays open to every member. Changing or deleting a game, and marking
+its payments, is limited to the game's host (`game_sessions.created_by`), falling back to admins
+for older games with no host. A trigger additionally blocks demoting the last admin in a group, so a group can
 never lock itself out of its own governance.
 
 **Settlement invariants are enforced at the database, not the UI.** Deleting a group or a
 finalized game is blocked by a trigger while `group_is_settled` / `session_is_settled` is false
-— this holds even against a direct API call that bypasses the app's own UI entirely. A
-finalized game's buy-in/cash-out rows are similarly locked from direct edits or deletes unless
-the game is reopened first or the caller is an admin.
+— this holds even against a direct API call that bypasses the app's own UI entirely. A game's
+buy-in/cash-out rows are similarly writable only by its host.
 
-**Authentication** is Google OAuth via Supabase Auth using the PKCE
-flow — this application's own code never sees, stores, or handles a password. No secrets are
+**Authentication** is Google sign-in only, via Supabase Auth using the PKCE flow — this
+application's own code never sees, stores, or handles a password. Email sign-in is deliberately
+off: without a custom SMTP sender, Supabase only delivers auth emails to the project's own team.
+Someone without Gmail creates a Google account with their existing address (Yahoo, Outlook, ...),
+and `handle_new_user()` links them to every group they were added to by that email. No secrets are
 shipped to the client beyond the anon key, which is meant to be public; the `service_role` key
 is never used here.
 
@@ -340,8 +362,8 @@ code path is domain-aware beyond the build's base path.
 - **Not multi-tenant SaaS.** There's no organization/billing layer, no per-seat pricing, no
   admin console across groups — a single Supabase project serves one friend-and-family
   population, by design, to keep the free tier sufficient indefinitely.
-- **Email is intentionally manual.** Summaries and reminders are `mailto:` links, not
-  automatically sent messages — see [§2](#balances-settling-up-and-reminders). Automatic,
+- **Email is intentionally manual.** Summaries and reminders are `mailto:` links (or a shared
+  image), not automatically sent messages — see [§2](#balances-settling-up-and-reminders). Automatic,
   richly-formatted email is a real future option (§7) but requires standing up an email
   provider and a scheduled function, which is a deliberate line not crossed yet.
 - **No real-time collaboration.** Two people editing the same game simultaneously don't see each

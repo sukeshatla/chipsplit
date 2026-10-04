@@ -26,10 +26,8 @@ export interface DataApi {
   deleteGroup(id: string): Promise<void>;
   addMember(groupId: string, name: string, email: string | null): Promise<string>;
   addMemberFromContact(groupId: string, contactId: string): Promise<string>;
-  renameMember(memberId: string, name: string): Promise<void>;
   removeMember(memberId: string): Promise<void>;
   addContact(name: string, email: string | null): Promise<string>;
-  renameContact(contactId: string, name: string): Promise<void>;
   deleteContact(contactId: string): Promise<void>;
   /** Admin-only, like every expense write. */
   saveExpense(e: NewExpense, id?: string): Promise<void>;
