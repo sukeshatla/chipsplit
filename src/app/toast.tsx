@@ -12,7 +12,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const dismiss = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
   const push = useCallback((message: string, tone: Tone = 'success', action?: ToastAction) => {
     const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, message, tone, action }]);
+    // Only the newest Undo is offered, so it's always clear what it would reverse.
+    setToasts((t) => [...(action ? t.filter((x) => !x.action) : t), { id, message, tone, action }]);
     // Long enough to reach an Undo; plain confirmations clear quickly.
     setTimeout(() => dismiss(id), tone === 'error' || action ? 6000 : 2800);
   }, [dismiss]);

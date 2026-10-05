@@ -400,10 +400,9 @@ function Payments({ g, s, host }: { g: Group; s: GameSession; host: boolean }) {
   );
 }
 
-/** Chips a player hands back to the bank mid-game (so someone else can buy in). Opens as a
- *  one-tap confirm for the rebuy amount -- no keyboard -- and only shows an amount box if you
- *  tap Change. Also where mistakes get fixed without inventing a give-back: "Remove one rebuy"
- *  undoes an accidental +, and "Take back" removes one give-back at a time. */
+/** The − panel for one player: how many buy-ins and give-backs they have, one-tap fixes for a
+ *  mistaken + or give-back (the panel stays open so you see the counts change), and the main
+ *  "Give back" for chips handed to the bank mid-game. */
 function GiveBackDialog({ name, currency, rebuy, returned, buyIn, onGiveBack, onTakeBack, onRemoveRebuy, onClose }: {
   name: string; currency: string; rebuy: number; returned: number; buyIn: number;
   onGiveBack(cents: number): void; onTakeBack(cents: number): void; onRemoveRebuy(): void; onClose(): void;
@@ -412,36 +411,43 @@ function GiveBackDialog({ name, currency, rebuy, returned, buyIn, onGiveBack, on
   const [amount, setAmount] = useState(centsToInput(rebuy));
   const cents = parseMoney(amount);
   const valid = cents !== null && cents > 0;
+  const money = (v: number) => formatMoney(v, currency);
+  // "3 × $3 = $9" when it divides evenly by the buy-in amount, otherwise just the total.
+  const tally = (total: number) => (rebuy > 0 && total % rebuy === 0 && total > 0 ? `${total / rebuy} × ${money(rebuy)} = ${money(total)}` : money(total));
+  const undoBack = Math.min(rebuy, returned);
   return (
-    <Modal open onClose={onClose} title={`${name} gives back`}
+    <Modal open onClose={onClose} title={name}
       footer={<>
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="ghost" onClick={onClose}>Done</Button>
         <Button variant="primary" disabled={!valid} onClick={() => { onGiveBack(cents!); onClose(); }}>
-          <Minus size={16} aria-hidden="true" />Give back{valid ? ` ${formatMoney(cents!, currency)}` : ''}
+          <Minus size={16} aria-hidden="true" />Give back{valid ? ` ${money(cents!)}` : ''}
         </Button>
       </>}>
-      {editing ? (
-        <MoneyInput autoFocus currency={currency} aria-label="Amount given back" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value)} />
-      ) : (
-        <div className="flex items-center justify-between">
-          <span className="amount font-display text-2xl font-medium">{valid ? formatMoney(cents!, currency) : '—'}</span>
-          <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>Change</Button>
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="rounded-xl bg-surface-2 px-3 py-2.5">
+          <p className="text-[12px] font-semibold text-ink-2">Buy-ins</p>
+          <p className="amount mt-0.5 font-display text-lg font-semibold leading-tight">{tally(buyIn)}</p>
+          <Button size="sm" className="mt-2 w-full" disabled={buyIn <= rebuy} onClick={onRemoveRebuy}>
+            <Minus size={14} aria-hidden="true" />Remove 1
+          </Button>
         </div>
-      )}
-      <div className="mt-3 space-y-2 border-t border-line pt-3 text-[13px] text-ink-2">
-        {buyIn > rebuy && (
-          <p>Tapped + by mistake?{' '}
-            <button type="button" className="font-semibold text-felt hover:underline dark:text-gain" onClick={() => { onRemoveRebuy(); onClose(); }}>
-              Remove one {formatMoney(rebuy, currency)} rebuy
-            </button>
-          </p>
-        )}
-        {returned > 0 && (
-          <p>Gave back <b className="amount">{formatMoney(returned, currency)}</b> so far ·{' '}
-            <button type="button" className="font-semibold text-loss hover:underline" onClick={() => { onTakeBack(Math.min(rebuy, returned)); onClose(); }}>
-              Take back {formatMoney(Math.min(rebuy, returned), currency)}
-            </button>
-          </p>
+        <div className="rounded-xl bg-surface-2 px-3 py-2.5">
+          <p className="text-[12px] font-semibold text-ink-2">Gave back</p>
+          <p className="amount mt-0.5 font-display text-lg font-semibold leading-tight">{returned > 0 ? tally(returned) : 'None'}</p>
+          <Button size="sm" className="mt-2 w-full" disabled={returned <= 0} onClick={() => onTakeBack(undoBack)}>
+            <RotateCcw size={14} aria-hidden="true" />Undo 1
+          </Button>
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
+        <span className="text-[13px] text-ink-2">Chips going back to the bank</span>
+        {editing ? (
+          <MoneyInput autoFocus compact currency={currency} aria-label="Amount given back" className="w-28" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value)} />
+        ) : (
+          <span className="flex items-center gap-2">
+            <span className="amount font-display text-xl font-medium">{valid ? money(cents!) : '—'}</span>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>Change</Button>
+          </span>
         )}
       </div>
     </Modal>
