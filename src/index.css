@@ -55,17 +55,6 @@
   background-size: 6px 6px;
 }
 
-/* Dashboard standing: a dark card with the net on top (green when you're up, red when you're
-   down, slate when square) and "You get" / "You pay" tiles under it. Same in light and dark. */
-.stand-top { position: relative; isolation: isolate; overflow: hidden; }
-.stand-top::after {
-  content: ''; position: absolute; inset: 0; z-index: -1;
-  background: radial-gradient(90% 140% at 100% 0%, rgb(255 255 255 / 0.16), transparent 60%);
-}
-.stand-up { background: linear-gradient(135deg, #5cc08a 0%, #3f9e68 50%, #2f7f52 100%); }
-.stand-down { background: linear-gradient(135deg, #ec6f63 0%, #cf4a45 50%, #a93436 100%); }
-.stand-even { background: linear-gradient(135deg, #5f7f9e 0%, #4a6683 50%, #3a5169 100%); }
-
 @keyframes sheet-in { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
 .sheet-in { animation: sheet-in 180ms ease-out; }

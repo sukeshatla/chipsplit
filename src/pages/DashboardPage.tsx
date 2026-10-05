@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowRight, ArrowUpRight } from 'lucide-react';
+import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
 import { activity, friendBalances, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
@@ -13,10 +13,11 @@ import { QuickExpenseDialog } from '../components/dialogs/QuickExpenseDialog';
 const ACTIVITY_ICON = { expense: Receipt, game: Spade, payment: HandCoins };
 
 const TILE = {
-  gain: { box: 'border-[#3f9d68] bg-[#13281d]', icon: 'text-[#5fd391]' },
-  loss: { box: 'border-[#c4504a] bg-[#2b1618]', icon: 'text-[#ff8a80]' },
-  none: { box: 'border-[#2c3640] bg-[#1a2128]', icon: 'text-[#8a96a3]' },
+  gain: { box: 'border-[#3f9d68] bg-[#13281d]', icon: 'text-[#5fd391]', bar: 'bg-gradient-to-b from-[#6fe0a2] to-[#3f9d68]' },
+  loss: { box: 'border-[#c4504a] bg-[#2b1618]', icon: 'text-[#ff8a80]', bar: 'bg-gradient-to-b from-[#ff8a80] to-[#c4504a]' },
+  none: { box: 'border-[#2c3640] bg-[#1a2128]', icon: 'text-[#8a96a3]', bar: 'bg-[#5b6875]' },
 };
+const toneOf = (cents: number): keyof typeof TILE => (cents > 0 ? 'gain' : cents < 0 ? 'loss' : 'none');
 
 /** "You get" / "You pay": green when money is coming to you, red when you owe, grey at zero. */
 function StandTile({ label, cents, currency, tone, icon: Icon }: { label: string; cents: number; currency: string; tone: keyof typeof TILE; icon: typeof ArrowUpRight }) {
@@ -60,21 +61,25 @@ export function DashboardPage() {
           <Button variant="primary" onClick={() => setNewGroup(true)}><Plus size={16} aria-hidden="true" />New group</Button>
         </>} />
 
-      <section className="mb-5 rounded-2xl border border-white/10 bg-[#0e1417] p-2.5 text-white shadow-lg">
-        <div className={clsx('stand-top rounded-xl border border-white/10 px-4 py-3', t.net > 0 ? 'stand-up' : t.net < 0 ? 'stand-down' : 'stand-even')}>
-          <p className="text-[12px] font-bold uppercase tracking-[0.14em] opacity-90">{t.net > 0 ? "You're up" : t.net < 0 ? "You're down" : 'All square'}</p>
-          <p className="amount font-display text-4xl font-bold leading-tight tracking-tight md:text-5xl">{formatMoney(t.net, currency, { sign: true })}</p>
+      <section className="mb-5 space-y-2 rounded-2xl border border-white/10 bg-[#0e1417] p-2.5 text-white shadow-lg">
+        {/* Net with a colored accent bar: green when you're up, red when you owe, grey when square. */}
+        <div className={clsx('flex items-stretch gap-3 rounded-xl border border-white/10 px-3 py-3', { gain: 'bg-[#11241a]', loss: 'bg-[#281517]', none: 'bg-[#1a2128]' }[toneOf(t.net)])}>
+          <span className={clsx('w-1.5 shrink-0 rounded-full', TILE[toneOf(t.net)].bar)} aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-white/85">{t.net > 0 ? "You're up" : t.net < 0 ? 'You owe' : 'All square'}</p>
+            <p className="amount font-display text-4xl font-bold leading-tight tracking-tight md:text-5xl">{formatMoney(t.net, currency, { sign: true })}</p>
+          </div>
         </div>
-        <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <StandTile label="You get" cents={t.owed} currency={currency} tone={t.owed > 0 ? 'gain' : 'none'} icon={ArrowUpRight} />
-          <ArrowRight size={20} className={t.net > 0 ? 'text-[#5fd391]' : t.net < 0 ? 'text-[#ff8a80]' : 'text-[#8a96a3]'} aria-hidden="true" />
           <StandTile label="You pay" cents={t.owe} currency={currency} tone={t.owe > 0 ? 'loss' : 'none'} icon={ArrowDownRight} />
         </div>
-        {t.others.length > 0 && (
-          <p className="amount mt-2 rounded-xl border border-white/5 bg-white/[0.04] px-3 py-2 text-[13px] font-semibold text-white/85">
-            {t.others.map((m) => `${m.currency}: ${moneyPhrase(m, 'overall')}`).join('  ·  ')}
-          </p>
-        )}
+        {t.others.map((m) => (
+          <div key={m.currency} className="flex items-stretch gap-3 rounded-xl border border-white/5 bg-white/[0.04] px-3 py-2">
+            <span className={clsx('w-1 shrink-0 rounded-full', TILE[toneOf(m.cents)].bar)} aria-hidden="true" />
+            <p className="amount text-[14px] font-semibold text-white/90">{m.currency}: <span className={TILE[toneOf(m.cents)].icon}>{moneyPhrase(m, 'overall')}</span></p>
+          </div>
+        ))}
       </section>
 
       {openGames.length > 0 && (
