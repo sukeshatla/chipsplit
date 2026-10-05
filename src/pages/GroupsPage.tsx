@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Spade, Receipt, Users } from 'lucide-react';
 import { useData } from '../app/data';
 import { groupBalances, listedGroups, myMemberId } from '../lib/ledger';
-import { Amount, Avatar, Badge, Button, Card, EmptyState, PageHeader, Tabs, useShowMore } from '../components/ui';
+import { Amount, Button, Card, EmptyState, PageHeader, Tabs, useShowMore } from '../components/ui';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import type { GroupKind } from '../lib/types';
 
@@ -32,7 +32,7 @@ export function GroupsPage() {
   // Where you're owed most first, down to where you owe most.
   const shown = groups.filter((g) => filter === 'all' || (filter === 'games' ? g.kind === 'club' : g.kind === 'expenses'))
     .sort((a, b) => myBal(b) - myBal(a) || a.name.localeCompare(b.name));
-  const list = useShowMore(shown, 10);
+  const list = useShowMore(shown, 6);
 
   return (
     <>
@@ -47,42 +47,30 @@ export function GroupsPage() {
           {shown.length === 0 ? (
             <Card><EmptyState icon={<Users size={28} />} title="No groups here" body="Nothing matches this filter yet." /></Card>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Card>
               {list.visible.map((g) => {
                 const mine = myMemberId(g, me.id);
                 const bal = mine ? groupBalances(g).get(mine) ?? 0 : 0;
                 const games = g.sessions.filter((s) => s.status === 'final').length;
+                const detail = [
+                  KIND_LABEL[g.kind],
+                  `${g.members.length} people`,
+                  g.kind === 'club' ? `${games} game${games === 1 ? '' : 's'}` : `${g.expenses.length} expense${g.expenses.length === 1 ? '' : 's'}`,
+                ].join(' · ');
                 return (
-                  <Link key={g.id} to={`/groups/${g.id}`} className="block rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-ink/20 md:p-5">
-                    <div className="flex items-start gap-3">
-                      <GroupIcon kind={g.kind} size={44} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-display text-base font-medium md:text-lg">{g.name}</p>
-                        <Badge tone={g.kind === 'club' ? 'felt' : 'neutral'}>{KIND_LABEL[g.kind]}</Badge>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[12px] text-ink-2">{bal === 0 ? 'Settled' : bal > 0 ? "You're owed" : 'You owe'}</p>
-                        <Amount cents={Math.abs(bal) * Math.sign(bal)} currency={g.currency} className="text-base md:text-lg" />
-                      </div>
+                  <Link key={g.id} to={`/groups/${g.id}`} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0 hover:bg-surface-2/60 md:px-5">
+                    <GroupIcon kind={g.kind} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{g.name}</p>
+                      <p className="truncate text-[12px] text-ink-2">{detail}</p>
                     </div>
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="flex -space-x-2">
-                        {g.members.slice(0, 6).map((m) => <Avatar key={m.id} name={m.name} src={m.avatar_url} size={28} className="ring-2 ring-surface" />)}
-                        {g.members.length > 6 && <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-surface-2 text-[11px] font-semibold ring-2 ring-surface">+{g.members.length - 6}</span>}
-                      </div>
-                      <p className="text-[12px] text-ink-2">
-                        {[
-                          g.kind === 'club' && `${games} game${games === 1 ? '' : 's'}`,
-                          (g.kind === 'expenses' || g.expenses.length > 0) && `${g.expenses.length} expense${g.expenses.length === 1 ? '' : 's'}`,
-                        ].filter(Boolean).join(', ')}
-                      </p>
-                    </div>
+                    {bal === 0 ? <span className="text-[12px] text-ink-2">Settled</span> : <Amount cents={bal} currency={g.currency} sign />}
                   </Link>
                 );
               })}
-            </div>
+              {list.more}
+            </Card>
           )}
-          {list.hasMore && <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-surface [&>div]:border-t-0">{list.more}</div>}
         </>
       )}
       <CreateGroupDialog open={open} onClose={() => setOpen(false)} />
