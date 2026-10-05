@@ -83,7 +83,7 @@ export function GroupPage() {
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
       {tab === 'games' && <GamesTab g={g} onNew={() => setNewGame(true)} />}
-      {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} onAddExpense={admin && g.kind !== 'club' ? () => setExpense('new') : undefined} />}
+      {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} />}
       {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} admin={admin} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
       {tab === 'history' && <HistoryList g={g} />}
@@ -177,7 +177,7 @@ function ShareImageButton({ make, names }: { make(): Summary; names(id: string):
   );
 }
 
-function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: SettleDraft): void; onAddExpense?: () => void }) {
+function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void }) {
   const { run, busy } = useAction();
   const [confirmingPayment, setConfirmingPayment] = useState<Settlement | null>(null);
   const [cardMember, setCardMember] = useState<Member | null>(null);
@@ -200,10 +200,7 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       <div className="space-y-5">
         <Card>
-          <CardHeader title="Settle up" action={<div className="flex gap-2">
-            {onAddExpense && <Button size="sm" onClick={onAddExpense}><Receipt size={14} aria-hidden="true" />Add expense</Button>}
-            <ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} />
-          </div>} />
+          <CardHeader title="Settle up" action={<ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} />} />
           <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">Fewest payments to clear it all.</p>
           <div className="mt-2">
             {transfers.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Everyone is settled up.</p> :
