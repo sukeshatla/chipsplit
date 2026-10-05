@@ -8,15 +8,31 @@ const BRASS = 'rgb(150 112 20)', ZEBRA = 'rgb(242 246 244)';
 const FONT = 'Manrope, system-ui, -apple-system, "Segoe UI", sans-serif';
 const DISPLAY = '"Bricolage Grotesque", system-ui, sans-serif';
 
+/** Which part of a balances picture to draw; a big group's balances go out as two pictures. */
+type Part = 'both' | 'stands' | 'settle';
+/** Past this many rows (people up or down, plus payments), balances split into two pictures so
+ *  each stays phone-shaped instead of one very tall strip. */
+const SPLIT_AFTER = 20;
+
+/** The picture(s) to share: one, or for a big group's balances, "Where everyone stands" and "Settle up" apart. */
+export async function summaryPngs(d: Summary, names: (id: string) => string): Promise<Blob[]> {
+  const open = d.rows.filter((r) => r.cents !== 0).length;
+  if (d.board || d.live || open + d.transfers.length <= SPLIT_AFTER) return [await summaryPng(d, names)];
+  return [await summaryPng(d, names, 'stands'), await summaryPng(d, names, 'settle')];
+}
+
 /** A colored PNG of a summary -- name per row, green for up, red for down, then who pays whom. */
-export async function summaryPng(d: Summary, names: (id: string) => string): Promise<Blob> {
+export async function summaryPng(d: Summary, names: (id: string) => string, part: Part = 'both'): Promise<Blob> {
   // Tables (games, leaderboard) need the width; a balances picture reads better narrow.
   const W = d.board || d.live ? 720 : 560, PAD = 40, HEAD = 150;
-  const LROW = 50, BROW = 44;
   const open = d.rows.filter((r) => r.cents !== 0), settled = d.rows.filter((r) => r.cents === 0);
+  // Bigger groups get tighter rows (same text size) so the picture doesn't run long.
+  const LROW = 50, BROW = open.length + d.transfers.length > 8 ? 36 : 44;
+  const standsH = 36 + Math.max(1, open.length) * BROW + (settled.length ? 34 : 0);
+  const settleH = 36 + Math.max(1, d.transfers.length) * BROW;
   const H = d.board ? HEAD + 24 + 36 + Math.max(1, d.board.length) * LROW + 60
     : d.live ? HEAD + 24 + 36 + d.rows.length * LROW + LROW + (d.live.final ? 56 + Math.max(1, d.transfers.length) * 40 : 70) + 50
-    : HEAD + 20 + 36 + Math.max(1, open.length) * BROW + (settled.length ? 34 : 0) + 28 + 36 + Math.max(1, d.transfers.length) * BROW + 50;
+    : HEAD + 20 + (part === 'settle' ? 0 : standsH) + (part === 'both' ? 28 : 0) + (part === 'stands' ? 0 : settleH) + 50;
   const scale = 2;
   const c = document.createElement('canvas');
   c.width = W * scale; c.height = H * scale;
@@ -29,13 +45,13 @@ export async function summaryPng(d: Summary, names: (id: string) => string): Pro
   x.fillStyle = FELT_INK;
   x.font = `600 34px ${DISPLAY}`; x.fillText(fit(x, d.title, W - 2 * PAD), PAD, 64);
   x.globalAlpha = 0.85; x.font = `500 18px ${FONT}`;
-  x.fillText(fit(x, [d.when, d.place && `📍 ${d.place}`, d.live && !d.live.final && 'In progress'].filter(Boolean).join('   ·   '), W - 2 * PAD), PAD, 104);
+  x.fillText(fit(x, [d.when, d.place && `📍 ${d.place}`, d.live && !d.live.final && 'In progress', part === 'stands' ? '1 of 2' : part === 'settle' ? '2 of 2' : null].filter(Boolean).join('   ·   '), W - 2 * PAD), PAD, 104);
   x.globalAlpha = 1;
 
   let y = HEAD + 24;
   if (d.board) return drawBoard(c, x, d, y, W, H, PAD, LROW);
   if (d.live) return drawLiveTable(c, x, d, y, W, H, PAD, LROW);
-  return drawBalances(c, x, d, open, settled, names, y - 4, W, H, PAD, BROW);
+  return drawBalances(c, x, d, open, settled, names, y - 4, W, H, PAD, BROW, part);
 
 }
 
@@ -119,12 +135,13 @@ function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Sum
 /** Group balances, narrow and striped: who's up or down (settled-up people on one line), then
  *  the fewest payments to clear it all, with any recorded game payments marked paid. */
 function drawBalances(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summary, open: Summary['rows'], settled: Summary['rows'],
-  names: (id: string) => string, top: number, W: number, H: number, PAD: number, ROWH: number) {
+  names: (id: string) => string, top: number, W: number, H: number, PAD: number, ROWH: number, part: Part) {
   const money = (v: number) => formatMoney(v, d.currency);
   const band = (i: number, y: number) => { if (i % 2 === 0) { x.fillStyle = ZEBRA; x.fillRect(PAD - 12, y, W - 2 * PAD + 24, ROWH); } };
   const title = (text: string, y: number) => { x.fillStyle = INK; x.font = `600 19px ${DISPLAY}`; x.textAlign = 'left'; x.fillText(text, PAD, y + 24); };
   let y = top;
 
+  if (part !== 'settle') {
   title('Where everyone stands', y); y += 36;
   if (open.length === 0) { x.fillStyle = GAIN; x.font = `600 17px ${FONT}`; x.fillText('Everyone is settled up', PAD, y + 28); y += ROWH; }
   open.forEach((r, i) => {
@@ -144,7 +161,10 @@ function drawBalances(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summ
     y += 34;
   }
 
-  y += 28;
+  }
+
+  if (part === 'both') y += 28;
+  if (part !== 'stands') {
   title('Settle up', y); y += 36;
   if (d.transfers.length === 0) { x.textAlign = 'left'; x.fillStyle = GAIN; x.font = `600 17px ${FONT}`; x.fillText('Nothing to pay', PAD, y + 28); }
   const anyPaid = d.transfers.some((t) => t.paid);
@@ -158,6 +178,7 @@ function drawBalances(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summ
     if (t.paid) { x.fillStyle = GAIN; x.font = `600 15px ${FONT}`; x.fillText('Paid ✓', W - PAD, mid); }
     y += ROWH;
   });
+  }
 
   x.textAlign = 'left'; x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 22);
   return toPng(c);
@@ -218,16 +239,18 @@ function fit(x: CanvasRenderingContext2D, s: string, max: number) {
 
 /** Phone: the share sheet (Mail, WhatsApp, ...) with the image attached. Desktop: downloads it. */
 export async function shareSummaryImage(d: Summary, names: (id: string) => string) {
-  const blob = await summaryPng(d, names);
-  const name = `${d.title}${d.place ? ` ${d.place}` : ''} ${d.when}`.replace(/[^\w ,-]+/g, '').trim().replace(/\s+/g, '-') + '.png';
-  const file = new File([blob], name, { type: 'image/png' });
-  if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: `Chip n Split summary — ${d.title}` }); } catch (e) {
+  const blobs = await summaryPngs(d, names);
+  const base = `${d.title}${d.place ? ` ${d.place}` : ''} ${d.when}`.replace(/[^\w ,-]+/g, '').trim().replace(/\s+/g, '-');
+  const files = blobs.map((b, i) => new File([b], `${base}${blobs.length > 1 ? `-${i + 1}` : ''}.png`, { type: 'image/png' }));
+  if (navigator.canShare?.({ files })) {
+    try { await navigator.share({ files, title: `Chip n Split summary — ${d.title}` }); } catch (e) {
       if ((e as Error).name !== 'AbortError') throw e;
     }
     return;
   }
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  for (const f of files) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(f); a.download = f.name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
 }
