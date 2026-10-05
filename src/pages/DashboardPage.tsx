@@ -38,10 +38,10 @@ export function DashboardPage() {
   const groups = listedGroups(data);
   // Where you stand with each friend across every group and one-on-one -- same numbers as the Friends page.
   const currency = me.default_currency || 'USD';
-  // Biggest amount owed to you first, down to what you owe most -- same order everywhere.
-  const friends = friendBalances(data).sort((a, b) => b.net - a.net || a.name.localeCompare(b.name));
+  // Biggest amount first, whether you're owed or you owe; settled up last -- same order everywhere.
+  const friends = friendBalances(data).sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
   const myBal = (g: (typeof data.groups)[number]) => { const mine = myMemberId(g, me.id); return mine ? groupBalances(g).get(mine) ?? 0 : 0; };
-  const groupList = groups.map((g) => ({ g, bal: myBal(g) })).sort((a, b) => b.bal - a.bal || a.g.name.localeCompare(b.g.name));
+  const groupList = groups.map((g) => ({ g, bal: myBal(g) })).sort((a, b) => Math.abs(b.bal) - Math.abs(a.bal) || a.g.name.localeCompare(b.g.name));
   const groupsMore = useShowMore(groupList, 5);
   const friendsMore = useShowMore(friends, 5);
   const t = totals(data);

@@ -31,9 +31,9 @@ export function GroupsPage() {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
   const myBal = (g: (typeof groups)[number]) => { const mine = myMemberId(g, me.id); return mine ? groupBalances(g).get(mine) ?? 0 : 0; };
-  // Where you're owed most first, down to where you owe most.
+  // Biggest balance first, whether you're owed or you owe; settled groups last.
   const shown = groups.filter((g) => filter === 'all' || (filter === 'games' ? g.kind === 'club' : g.kind === 'expenses'))
-    .sort((a, b) => myBal(b) - myBal(a) || a.name.localeCompare(b.name));
+    .sort((a, b) => Math.abs(myBal(b)) - Math.abs(myBal(a)) || a.name.localeCompare(b.name));
   const list = useShowMore(shown, 6);
 
   return (
