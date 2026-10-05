@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Spade, Receipt, Users } from 'lucide-react';
 import { useData } from '../app/data';
 import { groupBalances, listedGroups, myMemberId } from '../lib/ledger';
-import { Amount, Avatar, Badge, Button, Card, EmptyState, PageHeader, Tabs } from '../components/ui';
+import { Amount, Avatar, Badge, Button, Card, EmptyState, PageHeader, Tabs, useShowMore } from '../components/ui';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import type { GroupKind } from '../lib/types';
 
@@ -28,7 +28,11 @@ export function GroupsPage() {
   const groups = listedGroups(data);
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
-  const shown = groups.filter((g) => filter === 'all' || (filter === 'games' ? g.kind === 'club' : g.kind === 'expenses'));
+  const myBal = (g: (typeof groups)[number]) => { const mine = myMemberId(g, me.id); return mine ? groupBalances(g).get(mine) ?? 0 : 0; };
+  // Where you're owed most first, down to where you owe most.
+  const shown = groups.filter((g) => filter === 'all' || (filter === 'games' ? g.kind === 'club' : g.kind === 'expenses'))
+    .sort((a, b) => myBal(b) - myBal(a) || a.name.localeCompare(b.name));
+  const list = useShowMore(shown, 10);
 
   return (
     <>
@@ -44,7 +48,7 @@ export function GroupsPage() {
             <Card><EmptyState icon={<Users size={28} />} title="No groups here" body="Nothing matches this filter yet." /></Card>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {shown.map((g) => {
+              {list.visible.map((g) => {
                 const mine = myMemberId(g, me.id);
                 const bal = mine ? groupBalances(g).get(mine) ?? 0 : 0;
                 const games = g.sessions.filter((s) => s.status === 'final').length;
@@ -78,6 +82,7 @@ export function GroupsPage() {
               })}
             </div>
           )}
+          {list.hasMore && <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-surface [&>div]:border-t-0">{list.more}</div>}
         </>
       )}
       <CreateGroupDialog open={open} onClose={() => setOpen(false)} />

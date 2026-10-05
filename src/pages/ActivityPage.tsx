@@ -3,13 +3,14 @@ import { Receipt, Spade, HandCoins } from 'lucide-react';
 import { useData } from '../app/data';
 import { activity } from '../lib/ledger';
 import { formatDate } from '../lib/money';
-import { Amount, BackLink, Card, EmptyState, PageHeader, Row } from '../components/ui';
+import { Amount, BackLink, Card, EmptyState, PageHeader, Row, useShowMore } from '../components/ui';
 
 const ACTIVITY_ICON = { expense: Receipt, game: Spade, payment: HandCoins };
 
 export function ActivityPage() {
   const data = useData();
   const feed = activity(data, 200);
+  const list = useShowMore(feed);
 
   return (
     <>
@@ -17,7 +18,7 @@ export function ActivityPage() {
       <Card>
         {feed.length === 0 ? (
           <EmptyState icon={<Receipt size={28} />} title="Nothing logged yet" body="Games, expenses, and payments show up here." />
-        ) : feed.map((a) => {
+        ) : list.visible.map((a) => {
           const Icon = ACTIVITY_ICON[a.kind];
           return (
             <Link key={a.id} to={a.link} className="block">
@@ -32,6 +33,7 @@ export function ActivityPage() {
             </Link>
           );
         })}
+        {list.more}
       </Card>
     </>
   );

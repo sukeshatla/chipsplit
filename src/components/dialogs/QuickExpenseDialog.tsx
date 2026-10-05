@@ -26,13 +26,15 @@ export function useDirectGroup() {
   const { mode } = useAuth();
   const qc = useQueryClient();
   const { run, busy } = useAction();
-  const find = async (friends: FriendRow[]): Promise<Group | null> => {
+  const find = async (friends: FriendRow[], currency = data.me.default_currency || 'USD'): Promise<Group | null> => {
     const wanted = new Set([`u:${data.me.id}`, ...friends.map((f) => f.key)]);
-    const existing = data.groups.find((g) => g.is_direct && isGroupAdmin(g, data.me.id)
+    // Fresh data, since a currency switch may have just created one.
+    const groups = qc.getQueryData<AppData>(['all', mode])?.groups ?? data.groups;
+    const existing = groups.find((g) => g.is_direct && g.currency === currency && isGroupAdmin(g, data.me.id)
       && g.members.length === wanted.size && g.members.every((m) => wanted.has(friendKey(m))));
     if (existing) return existing;
     const groupId = await run(async (api) => {
-      const id = await api.createGroup({ name: groupNameFor(friends.map((f) => f.name)), kind: 'expenses', currency: data.me.default_currency || 'USD', direct: true });
+      const id = await api.createGroup({ name: groupNameFor(friends.map((f) => f.name)), kind: 'expenses', currency, direct: true });
       for (const f of friends) {
         if (f.contactId) await api.addMemberFromContact(id, f.contactId);
         else await api.addMember(id, f.name, f.email);
@@ -74,7 +76,8 @@ export function QuickExpenseDialog({ open, onClose }: { open: boolean; onClose()
     else setError("Couldn't set that up. Try again.");
   };
 
-  if (group) return <ExpenseDialog group={group} expense={null} open={open} onClose={close} />;
+  if (group) return <ExpenseDialog group={group} expense={null} open={open} onClose={close}
+    onPickCurrency={(c) => direct.find(friends.filter((f) => picked.includes(f.key)), c)} />;
 
   return (
     <Modal open={open} onClose={close} title="Add expense"

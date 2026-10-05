@@ -55,6 +55,18 @@
   background-size: 6px 6px;
 }
 
+/* Dashboard standing: a bold gradient that says where you are at a glance -- green when you're
+   owed, warm red when you owe, deep teal when you're square. Same in light and dark. */
+.hero { color: #fff; position: relative; isolation: isolate; }
+.hero::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: radial-gradient(120% 90% at 100% 0%, rgb(255 255 255 / 0.18), transparent 55%);
+}
+.hero-gain { background: linear-gradient(135deg, #0f9d63 0%, #0b6b4b 55%, #08483a 100%); }
+.hero-loss { background: linear-gradient(135deg, #f0623f 0%, #c53a3a 55%, #8a2440 100%); }
+.hero-even { background: linear-gradient(135deg, #1f8fa3 0%, #176a80 55%, #10465a 100%); }
+.hero-tile { background: rgb(255 255 255 / 0.14); backdrop-filter: blur(2px); }
+
 @keyframes sheet-in { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
 .sheet-in { animation: sheet-in 180ms ease-out; }

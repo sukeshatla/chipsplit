@@ -24,7 +24,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - A game belongs to whoever **started** it: only they can change buy-ins and cash-outs, finalize or reopen it, mark its payments, or delete it. Everyone else in the club follows along live, read-only. (Rummy works the same way.)
 - Reopen a game to fix a mistake. Date, location, and rebuy amount are set when the game starts.
 - Deleting a game needs that game's own payments recorded, and removes them along with it, so everyone's balance is exactly what it was before the game. Deleting the whole club only needs the club's **total** balance settled (games + any older expenses + every payment).
-- **Leaderboard** per club: total won or lost, games played, winning nights, best night.
+- A club has tabs for **Games** (the list), **Leaderboard** (total won or lost, games played, winning nights, best night), and **Settle up** (who pays whom, where everyone stands, payments recorded).
 - A club can run more than one game on the same day — each is its own record, nothing is tied to a calendar day.
 - A club tracks games only. Shared costs go in an Expenses group or one-on-one; expenses a club already had stay visible on its Expenses tab.
 
@@ -37,7 +37,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 **Splitwise-style expenses**
 - Add expenses with one payer or **several payers**.
 - Split **equally**, by **shares** (e.g. one person owes 2 shares, everyone else 1), by **exact amounts**, or by **percentages** (defaults to an even split of 100%, not zero) — always to the exact cent. Every mode uses the same tap-to-include/exclude picker.
-- **One-on-one expenses**: from the Dashboard or a friend's page, add an expense with friends ("we ate out, one person paid") without making a group. These stay under **Friends**, never in your Groups list.
+- **One-on-one expenses**: from the Dashboard or a friend's page, add an expense with friends ("we ate out, one person paid") without making a group. These stay under **Friends**, never in your Groups list. Under **More options** pick **USD, INR, or GBP**; each currency keeps its own balance with that friend (never converted).
 - Tap an expense for a summary: who paid, who's in, and each share, with **Edit** and **Delete** for group admins. Expenses are grouped by month and show what you lent or borrowed.
 - A deleted expense can be **restored** from the group's History tab.
 - **Import from Excel or CSV** (`.xlsx`, `.xls`, `.csv`) with a preview that flags bad rows before anything is saved. A template is downloadable from the import dialog.
@@ -68,7 +68,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Only admins can add, edit, delete, or restore expenses, change group settings, or delete the group. Enforced server-side (Postgres RLS + triggers), so it holds even if someone bypasses the UI.
 
 **Dashboard**
-- Your overall balance, then your **Groups**, then your **Friends** with each one's balance across every group and one-on-one (same numbers as the Friends page), then a short recent-activity feed.
+- A bold banner with your overall balance (green when you're owed, red when you owe), then your **Groups** and **Friends** (top 5 each, most owed to you first, **Show more** for the rest), then a short recent-activity feed.
 - Two quick actions: **Add expense** (one-on-one, above) and **New group**. Starting a game is a club-level action, done from inside that club.
 - Banner for any game currently in progress. The activity feed only shows what involves you, with a link to the full **Activity** page.
 
@@ -77,6 +77,8 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - **First sign-in** asks you to confirm your name (prefilled from Google, with your email shown). That name is what everyone sees for you, everywhere.
 - Profile: display name, currency for totals, light / dark / system theme, card-game stats. Your profile email always matches your Google account.
 - Groups are either a **Club** (recurring games only) or an **Expenses** group (trips, rent — no games).
+
+- Long lists everywhere start short with **Show more** at the bottom, and balances are listed from most up to most down.
 
 **Built for low maintenance**
 - No server to run: the browser talks to Supabase directly, and **row-level security** in Postgres makes sure people only ever see groups they belong to.

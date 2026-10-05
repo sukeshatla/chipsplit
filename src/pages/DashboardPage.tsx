@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { clsx } from 'clsx';
 import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
 import { activity, friendBalances, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, pokerStats, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row } from '../components/ui';
+import { Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row, useShowMore } from '../components/ui';
 import { GroupIcon } from './GroupsPage';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import { QuickExpenseDialog } from '../components/dialogs/QuickExpenseDialog';
@@ -17,7 +18,12 @@ export function DashboardPage() {
   const groups = listedGroups(data);
   // Where you stand with each friend across every group and one-on-one -- same numbers as the Friends page.
   const currency = me.default_currency || 'USD';
-  const friends = friendBalances(data);
+  // Biggest amount owed to you first, down to what you owe most -- same order everywhere.
+  const friends = friendBalances(data).sort((a, b) => b.net - a.net || a.name.localeCompare(b.name));
+  const myBal = (g: (typeof data.groups)[number]) => { const mine = myMemberId(g, me.id); return mine ? groupBalances(g).get(mine) ?? 0 : 0; };
+  const groupList = groups.map((g) => ({ g, bal: myBal(g) })).sort((a, b) => b.bal - a.bal || a.g.name.localeCompare(b.g.name));
+  const groupsMore = useShowMore(groupList, 5);
+  const friendsMore = useShowMore(friends, 5);
   const t = totals(data);
   const feed = activity(data, 5, undefined, true);
   const poker = pokerStats(data);
@@ -35,25 +41,23 @@ export function DashboardPage() {
           <Button variant="primary" onClick={() => setNewGroup(true)}><Plus size={16} aria-hidden="true" />New group</Button>
         </>} />
 
-      <section className="felt mb-5 rounded-2xl p-4 md:p-7">
-        <p className="text-sm opacity-80">{t.net === 0 ? "You're all square" : t.net > 0 ? 'Overall, you are owed' : 'Overall, you owe'}</p>
-        <p className="amount mt-1 font-display text-4xl font-medium tracking-tight md:text-6xl">{formatMoney(Math.abs(t.net), currency)}</p>
-        <div className="mt-4 flex gap-6 border-t md:mt-5 md:gap-8 border-felt-ink/15 pt-4 text-sm">
-          <div>
-            <p className="flex items-center gap-1 opacity-75"><ArrowUpRight size={14} className="text-brass" aria-hidden="true" />Owed to you</p>
-            <p className="amount font-display text-lg text-brass md:text-xl">{formatMoney(t.owed, currency)}</p>
+      <section className={clsx('hero mb-5 rounded-3xl p-5 shadow-lg md:p-7', t.net > 0 ? 'hero-gain' : t.net < 0 ? 'hero-loss' : 'hero-even')}>
+        <p className="text-[12px] font-bold uppercase tracking-[0.14em] opacity-85">{t.net === 0 ? "You're all square" : t.net > 0 ? "You're owed" : 'You owe'}</p>
+        <p className="amount mt-1 font-display text-5xl font-semibold leading-none tracking-tight md:text-7xl">{formatMoney(Math.abs(t.net), currency)}</p>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="hero-tile rounded-2xl px-3.5 py-3">
+            <p className="flex items-center gap-1 text-[12px] font-semibold opacity-90"><ArrowUpRight size={14} aria-hidden="true" />Owed to you</p>
+            <p className="amount mt-0.5 font-display text-2xl font-semibold text-[#b7ffd9] md:text-3xl">{formatMoney(t.owed, currency)}</p>
           </div>
-          <div>
-            <p className="flex items-center gap-1 opacity-75"><ArrowDownRight size={14} className="text-loss" aria-hidden="true" />You owe</p>
-            <p className="amount font-display text-lg text-loss md:text-xl">{formatMoney(t.owe, currency)}</p>
+          <div className="hero-tile rounded-2xl px-3.5 py-3">
+            <p className="flex items-center gap-1 text-[12px] font-semibold opacity-90"><ArrowDownRight size={14} aria-hidden="true" />You owe</p>
+            <p className="amount mt-0.5 font-display text-2xl font-semibold text-[#ffd0c4] md:text-3xl">{formatMoney(t.owe, currency)}</p>
           </div>
-          {poker.games > 0 && (
-            <div className="hidden sm:block"><p className="opacity-75">Clubs, all time</p><p className="amount font-display text-xl">{formatMoney(poker.net, currency, { sign: true })}</p></div>
-          )}
         </div>
-        {t.others.length > 0 && (
-          <div className="mt-3 space-y-0.5 border-t border-felt-ink/15 pt-3 text-sm">
-            {t.others.map((m) => <p key={m.currency}><span className="opacity-75">In {m.currency}:</span> <span className="amount font-semibold">{moneyPhrase(m, 'overall')}</span></p>)}
+        {(poker.games > 0 || t.others.length > 0) && (
+          <div className="mt-3 flex flex-wrap gap-2 text-[12px] font-semibold">
+            {poker.games > 0 && <span className="hero-tile rounded-full px-3 py-1">Clubs, all time <span className="amount">{formatMoney(poker.net, currency, { sign: true })}</span></span>}
+            {t.others.map((m) => <span key={m.currency} className="hero-tile amount rounded-full px-3 py-1">{m.currency}: {moneyPhrase(m, 'overall')}</span>)}
           </div>
         )}
       </section>
@@ -80,9 +84,7 @@ export function DashboardPage() {
           {groups.length === 0 ? (
             <EmptyState icon={<Spade size={28} />} title="Start your first group" body="A club holds your card games, or make a group for shared expenses."
               action={<Button variant="primary" onClick={() => setNewGroup(true)}>Create group</Button>} />
-          ) : groups.slice(0, 8).map((g) => {
-            const mine = myMemberId(g, me.id);
-            const bal = mine ? groupBalances(g).get(mine) ?? 0 : 0;
+          ) : groupsMore.visible.map(({ g, bal }) => {
             return (
               <Link key={g.id} to={`/groups/${g.id}`} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0 hover:bg-surface-2/60 md:px-5">
                 <GroupIcon kind={g.kind} />
@@ -95,6 +97,7 @@ export function DashboardPage() {
             );
           })}
         </div>
+        {groupsMore.more}
       </Card>
 
       <Card className="mt-5">
@@ -104,7 +107,7 @@ export function DashboardPage() {
           {friends.length === 0 ? (
             <EmptyState icon={<Receipt size={28} />} title="No friends yet" body="Split something with a friend, or add them to a group."
               action={<Button onClick={() => setQuickExpense(true)}><Receipt size={16} aria-hidden="true" />Add expense</Button>} />
-          ) : friends.slice(0, 6).map((f) => (
+          ) : friendsMore.visible.map((f) => (
             <Link key={f.key} to={`/friends/${encodeURIComponent(f.key)}`} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-surface-2/60 md:px-5">
               <Avatar name={f.name} src={f.avatar_url} size={32} />
               <div className="min-w-0 flex-1">
@@ -115,6 +118,7 @@ export function DashboardPage() {
             </Link>
           ))}
         </div>
+        {friendsMore.more}
       </Card>
 
       <Card className="mt-5">

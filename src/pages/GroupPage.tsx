@@ -9,7 +9,7 @@ import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasAct
 import { shareSummaryImage } from '../lib/summaryImage';
 import { ActionBar, ActionButton, ShareMenu } from '../components/ActionBar';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Avatar, AvatarButton, BackLink, byMonth, DateTile, LIST_STEP, MonthHeader, ShowMore, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
+import { Amount, Avatar, AvatarButton, BackLink, byMonth, DateTile, LIST_STEP, MonthHeader, ShowMore, useShowMore, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KIND_LABEL } from './GroupsPage';
@@ -24,7 +24,7 @@ import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
 import { CURRENCIES, KindPicker } from '../components/dialogs/CreateGroupDialog';
 import type { Expense, Group, GroupKind, Member, Settlement } from '../lib/types';
 
-type Tab = 'games' | 'balances' | 'expenses' | 'members' | 'history';
+type Tab = 'games' | 'leaderboard' | 'balances' | 'expenses' | 'members' | 'history';
 
 export function GroupPage() {
   const { groupId } = useParams();
@@ -41,8 +41,9 @@ export function GroupPage() {
   if (!g) return <Navigate to="/groups" replace />;
 
   const tabs: { value: Tab; label: string }[] = [
-    ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Games' }] : []),
-    { value: 'balances', label: 'Balances' },
+    // A club is games only: the games list, the all-time leaderboard, and who pays whom.
+    ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Games' }, { value: 'leaderboard' as Tab, label: 'Leaderboard' }] : []),
+    { value: 'balances', label: g.kind === 'club' ? 'Settle up' : 'Balances' },
     ...(g.kind !== 'club' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
     { value: 'members', label: 'Members' },
     { value: 'history', label: 'History' },
@@ -82,6 +83,7 @@ export function GroupPage() {
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
       {tab === 'games' && <GamesTab g={g} onNew={() => setNewGame(true)} />}
+      {tab === 'leaderboard' && <LeaderboardTab g={g} />}
       {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} onAddExpense={admin && g.kind !== 'club' ? () => setExpense('new') : undefined} />}
       {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} admin={admin} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
@@ -96,62 +98,70 @@ export function GroupPage() {
 }
 
 function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
-  const board = pokerLeaderboard(g);
   const sessions = g.sessions.slice().sort((a, b) => b.played_on.localeCompare(a.played_on));
-  const [cardMember, setCardMember] = useState<Member | null>(null);
+  const list = useShowMore(sessions);
   if (sessions.length === 0) {
     return <Card><EmptyState icon={<Spade size={28} />} title="Deal the first game" body="Start a game, log buy-ins as people join, and cash-outs when the table breaks."
       action={<Button variant="primary" onClick={onNew}>Start game</Button>} /></Card>;
   }
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.1fr]">
-      <Card>
-        <CardHeader title={<span className="inline-flex items-center gap-2"><Trophy size={16} className="text-brass" aria-hidden="true" />Leaderboard</span>} />
-        <div className="mt-2">
-          {board.length === 0 ? <p className="px-5 pb-5 text-sm text-ink-2">Finish a game to start the leaderboard.</p> :
-            board.map((r, i) => (
-              <Row key={r.memberId}>
-                <span className="amount w-5 text-center font-display text-sm text-ink-2">{i + 1}</span>
-                <AvatarButton name={r.name} src={r.avatar_url} onClick={() => setCardMember(g.members.find((m) => m.id === r.memberId) ?? null)} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{memberShort(g, r.memberId)}</p>
-                  <p className="truncate text-[12px] text-ink-2">{r.games} games, won {r.wins}, best {formatMoney(r.best, g.currency)}</p>
+    <Card>
+      <CardHeader title="Games" action={<Button size="sm" onClick={onNew}><Plus size={14} aria-hidden="true" />New</Button>} />
+      <div className="mt-2">
+        {list.visible.map((s) => {
+          const pays = s.status === 'final' ? sessionPayments(g, s) : [];
+          const unpaid = pays.filter((p) => !p.settlementId).length;
+          const pot = s.results.reduce((a, r) => a + r.buy_in_cents, 0);
+          return (
+            <Link key={s.id} to={`/groups/${g.id}/games/${s.id}`} className="block">
+              <Row className="hover:bg-surface-2/60">
+                <div className="w-11 shrink-0 text-center">
+                  <p className="text-[11px] font-semibold text-ink-2">{formatDate(s.played_on, { month: 'short' })}</p>
+                  <p className="font-display text-xl font-medium leading-none">{formatDate(s.played_on, { day: 'numeric' })}</p>
                 </div>
-                <Amount cents={r.net} currency={g.currency} sign className="text-base" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{s.location ?? 'Game'}</p>
+                  <p className="truncate text-[12px] text-ink-2">{s.results.length} players, {formatMoney(pot, g.currency)} in play</p>
+                </div>
+                {s.status === 'open' ? <Badge tone="brass">In progress</Badge>
+                  : unpaid > 0 ? <Badge tone="loss">{unpaid} unpaid</Badge> : <Badge tone="gain">Settled</Badge>}
+                <ChevronRight size={16} className="text-ink-2" aria-hidden="true" />
               </Row>
-            ))}
-        </div>
-      </Card>
-      <Card>
-        <CardHeader title="Games" action={<Button size="sm" onClick={onNew}><Plus size={14} aria-hidden="true" />New</Button>} />
-        <div className="mt-2">
-          {sessions.map((s) => {
-            const pays = s.status === 'final' ? sessionPayments(g, s) : [];
-            const unpaid = pays.filter((p) => !p.settlementId).length;
-            const pot = s.results.reduce((a, r) => a + r.buy_in_cents, 0);
-            return (
-              <Link key={s.id} to={`/groups/${g.id}/games/${s.id}`} className="block">
-                <Row className="hover:bg-surface-2/60">
-                  <div className="w-11 shrink-0 text-center">
-                    <p className="text-[11px] font-semibold text-ink-2">{formatDate(s.played_on, { month: 'short' })}</p>
-                    <p className="font-display text-xl font-medium leading-none">{formatDate(s.played_on, { day: 'numeric' })}</p>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{s.location ?? 'Game'}</p>
-                    <p className="truncate text-[12px] text-ink-2">{s.results.length} players, {formatMoney(pot, g.currency)} in play</p>
-                  </div>
-                  {s.status === 'open' ? <Badge tone="brass">In progress</Badge>
-                    : unpaid > 0 ? <Badge tone="loss">{unpaid} unpaid</Badge> : <Badge tone="gain">Settled</Badge>}
-                  <ChevronRight size={16} className="text-ink-2" aria-hidden="true" />
-                </Row>
-              </Link>
-            );
-          })}
-        </div>
-      </Card>
+            </Link>
+          );
+        })}
+      </div>
+      {list.more}
+    </Card>
+  );
+}
+
+function LeaderboardTab({ g }: { g: Group }) {
+  const board = pokerLeaderboard(g);
+  const list = useShowMore(board);
+  const [cardMember, setCardMember] = useState<Member | null>(null);
+  return (
+    <Card>
+      <CardHeader title={<span className="inline-flex items-center gap-2"><Trophy size={16} className="text-brass" aria-hidden="true" />Leaderboard</span>} />
+      <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">All-time results across every finished game, biggest winner first.</p>
+      <div className="mt-2">
+        {board.length === 0 ? <p className="px-5 pb-5 text-sm text-ink-2">Finish a game to start the leaderboard.</p> :
+          list.visible.map((r, i) => (
+            <Row key={r.memberId}>
+              <span className="amount w-5 text-center font-display text-sm text-ink-2">{i + 1}</span>
+              <AvatarButton name={r.name} src={r.avatar_url} onClick={() => setCardMember(g.members.find((m) => m.id === r.memberId) ?? null)} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{memberShort(g, r.memberId)}</p>
+                <p className="truncate text-[12px] text-ink-2">{r.games} games, won {r.wins}, best {formatMoney(r.best, g.currency)}</p>
+              </div>
+              <Amount cents={r.net} currency={g.currency} sign className="text-base" />
+            </Row>
+          ))}
+      </div>
+      {list.more}
       <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)}
         extra={cardMember ? { label: 'All-time at the table', node: <Amount cents={board.find((b) => b.memberId === cardMember.id)?.net ?? 0} currency={g.currency} sign className="text-base" /> } : undefined} />
-    </div>
+    </Card>
   );
 }
 
@@ -161,8 +171,10 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
   const [cardMember, setCardMember] = useState<Member | null>(null);
   const memberById = (id: string) => g.members.find((m) => m.id === id) ?? null;
   const bal = groupBalances(g);
-  const transfers = simplify(bal);
+  // Biggest payment first, and people from most up to most down.
+  const transfers = simplify(bal).sort((a, b) => b.cents - a.cents);
   const history = g.settlements.slice().sort((a, b) => b.settled_on.localeCompare(a.settled_on) || b.created_at.localeCompare(a.created_at));
+  const payments = useShowMore(history, 10);
   const members = g.members.slice().sort((a, b) => (bal.get(b.id) ?? 0) - (bal.get(a.id) ?? 0));
 
   return (
@@ -202,7 +214,7 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
         <CardHeader title="Payments recorded" />
         <div className="mt-2">
           {history.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Payments you record show up here.</p> :
-            history.map((s) => (
+            payments.visible.map((s) => (
               <Row key={s.id}>
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gain/10 text-gain"><HandCoins size={16} aria-hidden="true" /></span>
                 <div className="min-w-0 flex-1">
@@ -216,6 +228,7 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
               </Row>
             ))}
         </div>
+        {payments.more}
       </Card>
       <ConfirmDialog open={!!confirmingPayment} onClose={() => setConfirmingPayment(null)} title="Delete this payment?" icon={Trash2} busy={busy}
         body={confirmingPayment && <>This removes the record of <b>{memberName(g, confirmingPayment.from_member)}</b> paying <b>{memberName(g, confirmingPayment.to_member)}</b> <b>{formatMoney(confirmingPayment.amount_cents, g.currency)}</b>. Their balances go back to what they owed before.</>}

@@ -174,7 +174,8 @@ export function FriendDetailPage() {
       {open && <ExpenseDetailDialog group={open.g} expense={open.e} onClose={() => setOpen(null)}
         onEdit={(e) => { setOpen(null); setEditing({ group: open.g, expense: e }); }} />}
       {editing && isGroupAdmin(editing.group, data.me.id) && (
-        <ExpenseDialog group={editing.group} expense={editing.expense} open onClose={() => setEditing(null)} />
+        <ExpenseDialog group={editing.group} expense={editing.expense} open onClose={() => setEditing(null)}
+          onPickCurrency={editing.expense ? undefined : (c) => direct.find([f], c)} />
       )}
     </>
   );

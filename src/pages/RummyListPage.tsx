@@ -7,7 +7,7 @@ import { formatDate, formatMoney } from '../lib/money';
 import { rummyPot, rummyStandings } from '../lib/rummy';
 import { useData } from '../app/data';
 import { shortName } from '../lib/ledger';
-import { Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../components/ui';
+import { Badge, Button, Card, EmptyState, PageHeader, Spinner, useShowMore } from '../components/ui';
 import { NewRummyGameDialog } from '../components/dialogs/NewRummyGameDialog';
 
 export function RummyListPage() {
@@ -15,6 +15,7 @@ export function RummyListPage() {
   const currency = useData().me.default_currency || 'USD';
   const [newGame, setNewGame] = useState(false);
   const q = useQuery({ queryKey: ['rummy-list', null], queryFn: () => api.loadRummyGames(null) });
+  const list = useShowMore(q.data ?? []);
 
   return (
     <>
@@ -33,7 +34,7 @@ export function RummyListPage() {
               action={<Button variant="primary" onClick={() => setNewGame(true)}>New rummy game</Button>} />
           ) : (
             <div className="mt-2">
-              {q.data.map((g) => {
+              {list.visible.map((g) => {
                 const leader = rummyStandings(g)[0];
                 return (
                   <Link key={g.id} to={`/rummy/${g.id}`} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0 hover:bg-surface-2/60 md:px-5">
@@ -51,6 +52,7 @@ export function RummyListPage() {
               })}
             </div>
           )}
+          {list.more}
         </Card>
       )}
       <NewRummyGameDialog open={newGame} onClose={() => setNewGame(false)} />

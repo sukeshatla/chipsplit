@@ -7,7 +7,7 @@ import { useAuth } from '../app/auth';
 import { shortName } from '../lib/ledger';
 import { rummyPot, rummyStandings } from '../lib/rummy';
 import { formatDate, formatMoney } from '../lib/money';
-import { BackLink, Badge, Button, Card, CardHeader, EmptyState, PageHeader, Row, Spinner } from '../components/ui';
+import { BackLink, Badge, Button, Card, CardHeader, EmptyState, PageHeader, Row, Spinner, useShowMore } from '../components/ui';
 import { NewRummyGameDialog } from '../components/dialogs/NewRummyGameDialog';
 import type { Group } from '../lib/types';
 
@@ -29,6 +29,7 @@ function RummyList({ g }: { g: Group }) {
   const { api } = useAuth();
   const [newGame, setNewGame] = useState(false);
   const q = useQuery({ queryKey: ['rummy-list', g.id], queryFn: () => api.loadRummyGames(g.id) });
+  const list = useShowMore(q.data ?? []);
 
   if (q.isLoading) return <Spinner />;
   if (q.isError) {
@@ -50,7 +51,7 @@ function RummyList({ g }: { g: Group }) {
           action={<Button variant="primary" onClick={() => setNewGame(true)}>Start a rummy game</Button>} />
       ) : (
         <div className="mt-2">
-          {games.map((rg) => {
+          {list.visible.map((rg) => {
             const leader = rummyStandings(rg)[0];
             return (
               <Link key={rg.id} to={`/rummy/${rg.id}`} className="block">
@@ -69,6 +70,7 @@ function RummyList({ g }: { g: Group }) {
           })}
         </div>
       )}
+      {list.more}
       <NewRummyGameDialog open={newGame} onClose={() => setNewGame(false)} group={g} />
     </Card>
   );

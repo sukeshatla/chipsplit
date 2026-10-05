@@ -4,7 +4,7 @@ import { CalendarDays, Check, Minus, Plus, SlidersHorizontal, UserPlus } from 'l
 import { Button, Field, IconButton, Input, Modal, MoneyInput, Select, Tabs, Avatar, enterToNext } from '../ui';
 import { useAction, useData } from '../../app/data';
 import { centsToInput, equalPercents, formatDate, formatMoney, parseMoney, splitByWeights, splitEqual, todayISO } from '../../lib/money';
-import { memberShort, myMemberId } from '../../lib/ledger';
+import { friendKey, memberShort, myMemberId } from '../../lib/ledger';
 import { AddMemberDialog } from './AddMemberDialog';
 import type { Expense, Group, Split } from '../../lib/types';
 
@@ -26,7 +26,17 @@ function SplitRow({ name, avatarUrl, on, toggle, children }: { name: string; ava
   );
 }
 
-export function ExpenseDialog({ group, expense, open, onClose }: { group: Group; expense: Expense | null; open: boolean; onClose(): void }) {
+/** One-on-one expenses can be in any of these; each currency keeps its own balance with that friend. */
+export const EXPENSE_CURRENCIES = ['USD', 'INR', 'GBP'];
+
+/**
+ * `onPickCurrency` (new one-on-one expenses only) offers USD / INR / GBP under More options.
+ * A direct group has one currency, so saving in another one goes to the direct group for the
+ * same people in that currency (found or created by the caller), with everyone mapped across.
+ */
+export function ExpenseDialog({ group, expense, open, onClose, onPickCurrency }: {
+  group: Group; expense: Expense | null; open: boolean; onClose(): void; onPickCurrency?: (currency: string) => Promise<Group | null>;
+}) {
   const { me } = useData();
   const { run, busy } = useAction();
   const mine = myMemberId(group, me.id) ?? group.members[0]?.id ?? '';
@@ -47,6 +57,8 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
   const [advanced, setAdvanced] = useState(false);
   const [quick, setQuick] = useState<Quick>('meEqual');
   const [editingDate, setEditingDate] = useState(false);
+  const [currency, setCurrency] = useState(group.currency);
+  const cur = onPickCurrency ? currency : group.currency;
 
   useEffect(() => {
     if (!open) return;
@@ -55,7 +67,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
       setDescription(''); setAmount(''); setDate(todayISO()); setCategory('general');
       setMultiPay(false); setPayer(mine); setPayAmounts({});
       setMode('equal'); setIncluded(group.members.map((m) => m.id)); setValues({});
-      setAdvanced(false); setQuick('meEqual'); setEditingDate(false);
+      setAdvanced(false); setQuick('meEqual'); setEditingDate(false); setCurrency(group.currency);
       return;
     }
     setDescription(expense.description); setAmount(centsToInput(expense.amount_cents));
@@ -118,7 +130,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
     if (mode === 'equal') return splitEqual(total, included);
     if (mode === 'shares') return splitByWeights(total, included.map((id) => ({ id, weight: Number(values[id]) || 1 })));
     if (mode === 'exact') {
-      if (exactSum !== total) return `Shares add up to ${formatMoney(exactSum, group.currency)}, not ${formatMoney(total, group.currency)}`;
+      if (exactSum !== total) return `Shares add up to ${formatMoney(exactSum, cur)}, not ${formatMoney(total, cur)}`;
       return included.map((id) => ({ member_id: id, amount_cents: parseMoney(values[id]) ?? 0 })).filter((s) => s.amount_cents > 0);
     }
     if (Math.abs(pctSum - 100) > 0.001) return `Percentages add up to ${Math.round(pctSum * 100) / 100}%, not 100%`;
@@ -127,7 +139,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
 
   function buildPayers(): Split[] | string {
     if (!multiPay) return [{ member_id: payer, amount_cents: total }];
-    if (paySum !== total) return `Payments add up to ${formatMoney(paySum, group.currency)}, not ${formatMoney(total, group.currency)}`;
+    if (paySum !== total) return `Payments add up to ${formatMoney(paySum, cur)}, not ${formatMoney(total, cur)}`;
     return group.members.map((m) => ({ member_id: m.id, amount_cents: parseMoney(payAmounts[m.id]) ?? 0 })).filter((p) => p.amount_cents > 0);
   }
 
@@ -139,8 +151,20 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
     if (typeof payers === 'string') { setError(payers); setAdvanced(true); return; }
     const shares = q ? q.shares : buildShares();
     if (typeof shares === 'string') { setError(shares); setAdvanced(true); return; }
+    // Another currency lives in the direct group for the same people in that currency.
+    let target = group;
+    let ps = payers, ss = shares;
+    if (onPickCurrency && currency !== group.currency) {
+      const g = await onPickCurrency(currency);
+      if (!g) { setError(`Couldn't set up ${currency} for these people. Try again.`); return; }
+      const byKey = new Map(g.members.map((m) => [friendKey(m), m.id]));
+      const across = (id: string) => { const m = group.members.find((x) => x.id === id); return (m && byKey.get(friendKey(m))) ?? id; };
+      target = g;
+      ps = payers.map((p) => ({ ...p, member_id: across(p.member_id) }));
+      ss = shares.map((x) => ({ ...x, member_id: across(x.member_id) }));
+    }
     const ok = await run((api) => api.saveExpense({
-      group_id: group.id, description: description.trim(), category, amount_cents: total, spent_on: date, payers, shares,
+      group_id: target.id, description: description.trim(), category, amount_cents: total, spent_on: date, payers: ps, shares: ss,
     }, expense?.id), expense ? 'Expense updated' : 'Expense added');
     if (ok !== undefined) onClose();
   };
@@ -155,7 +179,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
           <Field label="What was it for?">
             <Input value={description} placeholder="Pizza and drinks" enterKeyHint="next" onChange={(e) => setDescription(e.target.value)} />
           </Field>
-          <Field label="Amount"><MoneyInput currency={group.currency} value={amount} placeholder="0.00" enterKeyHint="done" onChange={(e) => setAmount(e.target.value)} /></Field>
+          <Field label="Amount"><MoneyInput currency={cur} value={amount} placeholder="0.00" enterKeyHint="done" onChange={(e) => setAmount(e.target.value)} /></Field>
         </div>
         {editingDate ? (
           <Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
@@ -191,6 +215,18 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
             </div>
           )
         ) : (<>
+          {onPickCurrency && (
+            <Field label="Currency">
+              <div role="radiogroup" aria-label="Currency" className="inline-flex rounded-lg border border-line p-0.5">
+                {EXPENSE_CURRENCIES.map((c) => (
+                  <button key={c} type="button" role="radio" aria-checked={currency === c} onClick={() => setCurrency(c)}
+                    className={clsx('h-8 rounded-md px-3.5 text-[13px] font-semibold', currency === c ? 'bg-felt text-felt-ink' : 'text-ink-2 hover:text-ink')}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          )}
           <Field label="Paid by">
             <div className="flex gap-2">
               {!multiPay && (
@@ -211,13 +247,13 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
               {group.members.map((m) => (
                 <div key={m.id} className="flex items-center gap-2">
                   <span className="w-24 truncate text-sm">{m.name}</span>
-                  <MoneyInput currency={group.currency} className="flex-1" value={payAmounts[m.id] ?? ''} placeholder="0" data-entry="paid" enterKeyHint="next" onKeyDown={enterToNext}
+                  <MoneyInput currency={cur} className="flex-1" value={payAmounts[m.id] ?? ''} placeholder="0" data-entry="paid" enterKeyHint="next" onKeyDown={enterToNext}
                     onChange={(e) => setPayAmounts((p) => ({ ...p, [m.id]: e.target.value }))} />
                 </div>
               ))}
             </div>
             <p className={clsx('mt-2 text-right text-[13px]', paySum === total ? 'text-gain' : 'text-ink-2')}>
-              {formatMoney(paySum, group.currency)} of {formatMoney(total, group.currency)}
+              {formatMoney(paySum, cur)} of {formatMoney(total, cur)}
             </p>
           </div>
         )}
@@ -244,7 +280,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
               if (mode === 'equal') {
                 const each = included.length ? Math.floor(total / included.length) : 0;
                 return <SplitRow key={m.id} name={m.name} avatarUrl={m.avatar_url} on={on} toggle={toggle}>
-                  <span className="amount shrink-0 text-[13px] text-ink-2">{formatMoney(each, group.currency)}</span>
+                  <span className="amount shrink-0 text-[13px] text-ink-2">{formatMoney(each, cur)}</span>
                 </SplitRow>;
               }
               if (mode === 'shares') {
@@ -258,13 +294,13 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
                     <IconButton label={`Fewer shares for ${m.name}`} onClick={() => setShares((mine?.weight ?? 1) - 1)}><Minus size={14} /></IconButton>
                     <span className="amount w-4 text-center text-sm">{mine?.weight ?? 1}</span>
                     <IconButton label={`More shares for ${m.name}`} onClick={() => setShares((mine?.weight ?? 1) + 1)}><Plus size={14} /></IconButton>
-                    <span className="amount w-16 text-right text-[13px] text-ink-2">{formatMoney(amount, group.currency)}</span>
+                    <span className="amount w-16 text-right text-[13px] text-ink-2">{formatMoney(amount, cur)}</span>
                   </div>
                 </SplitRow>;
               }
               if (mode === 'exact') {
                 return <SplitRow key={m.id} name={m.name} avatarUrl={m.avatar_url} on={on} toggle={toggle}>
-                  <MoneyInput currency={group.currency} className="w-28 shrink-0" value={values[m.id] ?? ''} placeholder="0" data-entry="split" enterKeyHint="next" onKeyDown={enterToNext}
+                  <MoneyInput currency={cur} className="w-28 shrink-0" value={values[m.id] ?? ''} placeholder="0" data-entry="split" enterKeyHint="next" onKeyDown={enterToNext}
                     onChange={(e) => setValues((v) => ({ ...v, [m.id]: e.target.value }))} />
                 </SplitRow>;
               }
@@ -279,7 +315,7 @@ export function ExpenseDialog({ group, expense, open, onClose }: { group: Group;
           </div>
           {remaining !== null && (
             <p className={clsx('mt-2 text-right text-[13px]', remaining === 0 ? 'text-gain' : 'text-ink-2')}>
-              {remaining === 0 ? 'Every cent assigned' : `${formatMoney(Math.abs(remaining), group.currency)} ${remaining > 0 ? 'left to assign' : 'over'}`}
+              {remaining === 0 ? 'Every cent assigned' : `${formatMoney(Math.abs(remaining), cur)} ${remaining > 0 ? 'left to assign' : 'over'}`}
             </p>
           )}
           {mode === 'percent' && (

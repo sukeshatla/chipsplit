@@ -4,7 +4,7 @@ import { Search, HeartHandshake, UserPlus } from 'lucide-react';
 import { useData } from '../app/data';
 import { friendsList, moneyPhrase, totals, STATUS_LABEL } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
-import { Avatar, BalanceText, Button, Card, EmptyState, Input, PageHeader } from '../components/ui';
+import { Avatar, BalanceText, Button, Card, EmptyState, Input, PageHeader, useShowMore } from '../components/ui';
 import { AddFriendDialog } from '../components/dialogs/AddFriendDialog';
 
 export function FriendsPage() {
@@ -12,7 +12,10 @@ export function FriendsPage() {
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
   const currency = data.me.default_currency || 'USD';
-  const friends = friendsList(data).filter((f) => f.name.toLowerCase().includes(q.trim().toLowerCase()));
+  // Biggest amount owed to you first, down to what you owe most.
+  const friends = friendsList(data).filter((f) => f.name.toLowerCase().includes(q.trim().toLowerCase()))
+    .sort((a, b) => b.net - a.net || a.name.localeCompare(b.name));
+  const list = useShowMore(friends);
   const t = totals(data);
 
   return (
@@ -37,7 +40,7 @@ export function FriendsPage() {
           <EmptyState icon={<HeartHandshake size={28} />} title={q ? 'No one by that name' : 'No friends yet'}
             body={q ? 'Try a shorter search.' : 'Add a friend directly, or add them to a group — either way they show up here.'}
             action={!q && <Button variant="primary" onClick={() => setAdding(true)}><UserPlus size={16} aria-hidden="true" />Add friend</Button>} />
-        ) : friends.map((f) => (
+        ) : list.visible.map((f) => (
           <Link key={f.key} to={`/friends/${encodeURIComponent(f.key)}`}
             className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-surface-2/60 md:px-5">
             <Avatar name={f.name} src={f.avatar_url} size={36} />
@@ -50,6 +53,7 @@ export function FriendsPage() {
             <BalanceText cents={f.net} currency={f.currency} />
           </Link>
         ))}
+        {list.more}
       </Card>
       <AddFriendDialog open={adding} onClose={() => setAdding(false)} />
     </>

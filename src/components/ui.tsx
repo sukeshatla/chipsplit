@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { forwardRef, useEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { ArrowLeft, X, Loader2 } from 'lucide-react';
@@ -265,16 +265,26 @@ export function byMonth<T>(items: T[], date: (x: T) => string): [string, T[]][] 
 
 /** Long lists start short: the first `step` items, then "Show more" adds another `step`. */
 export const LIST_STEP = 15;
-export function ShowMore({ shown, total, onMore, onAll }: { shown: number; total: number; onMore(): void; onAll(): void }) {
+export function ShowMore({ shown, total, onMore, onAll, step = LIST_STEP }: { shown: number; total: number; onMore(): void; onAll(): void; step?: number }) {
   if (shown >= total) return null;
   return (
     <div className="flex items-center justify-center gap-4 border-t border-line px-4 py-2.5">
       <button type="button" className="text-[13px] font-semibold text-felt hover:underline dark:text-gain" onClick={onMore}>
-        Show {Math.min(LIST_STEP, total - shown)} more
+        Show {Math.min(step, total - shown)} more
       </button>
       <button type="button" className="text-[13px] font-semibold text-ink-2 hover:text-ink" onClick={onAll}>Show all {total}</button>
     </div>
   );
+}
+
+/** The one pattern for every long list: `visible` is what to render, `more` goes at the bottom of the card. */
+export function useShowMore<T>(items: T[], step = LIST_STEP) {
+  const [shown, setShown] = useState(step);
+  return {
+    visible: items.slice(0, shown),
+    hasMore: shown < items.length,
+    more: <ShowMore shown={shown} total={items.length} step={step} onMore={() => setShown((n) => n + step)} onAll={() => setShown(items.length)} />,
+  };
 }
 
 export function Spinner() {

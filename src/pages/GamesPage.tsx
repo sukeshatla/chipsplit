@@ -3,7 +3,7 @@ import { Spade, ChevronRight } from 'lucide-react';
 import { useData } from '../app/data';
 import { myMemberId, pokerStats, resultNet, sessionPayments } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Badge, Card, EmptyState, PageHeader, Row } from '../components/ui';
+import { Amount, Badge, Card, EmptyState, PageHeader, Row, useShowMore } from '../components/ui';
 
 export function GamesPage() {
   const data = useData();
@@ -12,6 +12,7 @@ export function GamesPage() {
   const all = data.groups
     .flatMap((g) => g.sessions.map((s) => ({ g, s })))
     .sort((a, b) => (a.s.status === b.s.status ? b.s.played_on.localeCompare(a.s.played_on) : a.s.status === 'open' ? -1 : 1));
+  const list = useShowMore(all);
 
   return (
     <>
@@ -36,7 +37,7 @@ export function GamesPage() {
       <Card>
         {all.length === 0 ? (
           <EmptyState icon={<Spade size={28} />} title="No games yet" body="Open a Club and start one from its Games tab." />
-        ) : all.map(({ g, s }) => {
+        ) : list.visible.map(({ g, s }) => {
           const mine = myMemberId(g, data.me.id);
           const r = s.results.find((x) => x.member_id === mine);
           const unpaid = s.status === 'final' ? sessionPayments(g, s).filter((p) => !p.settlementId).length : 0;
@@ -60,6 +61,7 @@ export function GamesPage() {
             </Link>
           );
         })}
+        {list.more}
       </Card>
     </>
   );
