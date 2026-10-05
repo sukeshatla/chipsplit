@@ -58,13 +58,13 @@ export function GroupsPage() {
                   g.kind === 'club' ? `${games} game${games === 1 ? '' : 's'}` : `${g.expenses.length} expense${g.expenses.length === 1 ? '' : 's'}`,
                 ].join(' · ');
                 return (
-                  <Link key={g.id} to={`/groups/${g.id}`} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0 hover:bg-surface-2/60 md:px-5">
-                    <GroupIcon kind={g.kind} />
+                  <Link key={g.id} to={`/groups/${g.id}`} className="flex items-center gap-3.5 border-b border-line px-4 py-3.5 last:border-b-0 hover:bg-surface-2/60 md:px-5">
+                    <GroupIcon kind={g.kind} size={48} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{g.name}</p>
-                      <p className="truncate text-[12px] text-ink-2">{detail}</p>
+                      <p className="truncate text-[15px] font-semibold">{g.name}</p>
+                      <p className="truncate text-[13px] text-ink-2">{detail}</p>
                     </div>
-                    {bal === 0 ? <span className="text-[12px] text-ink-2">Settled</span> : <Amount cents={bal} currency={g.currency} sign />}
+                    {bal === 0 ? <span className="text-[13px] text-ink-2">Settled</span> : <Amount cents={bal} currency={g.currency} sign className="text-base font-semibold" />}
                   </Link>
                 );
               })}
