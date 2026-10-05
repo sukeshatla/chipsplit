@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
 import { activity, friendBalances, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
@@ -11,6 +11,25 @@ import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import { QuickExpenseDialog } from '../components/dialogs/QuickExpenseDialog';
 
 const ACTIVITY_ICON = { expense: Receipt, game: Spade, payment: HandCoins };
+
+const TILE = {
+  gain: { box: 'border-[#3f9d68] bg-[#13281d]', icon: 'text-[#5fd391]' },
+  loss: { box: 'border-[#c4504a] bg-[#2b1618]', icon: 'text-[#ff8a80]' },
+  none: { box: 'border-[#2c3640] bg-[#1a2128]', icon: 'text-[#8a96a3]' },
+};
+
+/** "You get" / "You pay": green when money is coming to you, red when you owe, grey at zero. */
+function StandTile({ label, cents, currency, tone, icon: Icon }: { label: string; cents: number; currency: string; tone: keyof typeof TILE; icon: typeof ArrowUpRight }) {
+  return (
+    <div className={clsx('flex items-start gap-2 rounded-xl border px-3 py-2', TILE[tone].box)}>
+      <Icon size={18} className={clsx('mt-0.5 shrink-0', TILE[tone].icon)} aria-hidden="true" />
+      <div className="min-w-0">
+        <p className="text-[12px] font-semibold text-white/80">{label}</p>
+        <p className="amount truncate font-display text-xl font-bold leading-tight md:text-2xl">{formatMoney(cents, currency)}</p>
+      </div>
+    </div>
+  );
+}
 
 export function DashboardPage() {
   const data = useData();
@@ -41,24 +60,20 @@ export function DashboardPage() {
           <Button variant="primary" onClick={() => setNewGroup(true)}><Plus size={16} aria-hidden="true" />New group</Button>
         </>} />
 
-      <section className={clsx('hero mb-5 rounded-2xl p-2 shadow-md', t.net > 0 ? 'hero-gain' : t.net < 0 ? 'hero-loss' : 'hero-even')}>
-        {/* Net on the left with its sign; what comes to you and what you pay on the right. */}
-        <div className="grid grid-cols-[1.3fr_1fr] gap-1.5">
-          <div className="hero-tile row-span-2 flex flex-col justify-center rounded-xl px-3 py-2">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] opacity-90">{t.net > 0 ? "You're up" : t.net < 0 ? "You're down" : 'All square'}</p>
-            <p className="amount font-display text-3xl font-bold leading-tight tracking-tight md:text-4xl">{formatMoney(t.net, currency, { sign: true })}</p>
-          </div>
-          <div className="hero-tile flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5">
-            <span className="flex items-center gap-1 text-[12px] font-semibold opacity-90"><ArrowUpRight size={13} aria-hidden="true" />You get</span>
-            <span className="amount font-display text-lg font-bold md:text-xl">{formatMoney(t.owed, currency)}</span>
-          </div>
-          <div className="hero-tile flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5">
-            <span className="flex items-center gap-1 text-[12px] font-semibold opacity-90"><ArrowDownRight size={13} aria-hidden="true" />You pay</span>
-            <span className="amount font-display text-lg font-bold md:text-xl">{formatMoney(t.owe, currency)}</span>
-          </div>
+      <section className="mb-5 rounded-2xl border border-white/10 bg-[#0e1417] p-2.5 text-white shadow-lg">
+        <div className={clsx('stand-top rounded-xl border border-white/10 px-4 py-3', t.net > 0 ? 'stand-up' : t.net < 0 ? 'stand-down' : 'stand-even')}>
+          <p className="text-[12px] font-bold uppercase tracking-[0.14em] opacity-90">{t.net > 0 ? "You're up" : t.net < 0 ? "You're down" : 'All square'}</p>
+          <p className="amount font-display text-4xl font-bold leading-tight tracking-tight md:text-5xl">{formatMoney(t.net, currency, { sign: true })}</p>
+        </div>
+        <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <StandTile label="You get" cents={t.owed} currency={currency} tone={t.owed > 0 ? 'gain' : 'none'} icon={ArrowUpRight} />
+          <ArrowRight size={20} className={t.net > 0 ? 'text-[#5fd391]' : t.net < 0 ? 'text-[#ff8a80]' : 'text-[#8a96a3]'} aria-hidden="true" />
+          <StandTile label="You pay" cents={t.owe} currency={currency} tone={t.owe > 0 ? 'loss' : 'none'} icon={ArrowDownRight} />
         </div>
         {t.others.length > 0 && (
-          <p className="amount mt-1.5 px-1 text-[12px] font-semibold opacity-90">{t.others.map((m) => `${m.currency}: ${moneyPhrase(m, 'overall')}`).join('  ·  ')}</p>
+          <p className="amount mt-2 rounded-xl border border-white/5 bg-white/[0.04] px-3 py-2 text-[13px] font-semibold text-white/85">
+            {t.others.map((m) => `${m.currency}: ${moneyPhrase(m, 'overall')}`).join('  ·  ')}
+          </p>
         )}
       </section>
 

@@ -55,17 +55,16 @@
   background-size: 6px 6px;
 }
 
-/* Dashboard standing: a bold gradient that says where you are at a glance -- green when you're
-   owed, warm red when you owe, deep teal when you're square. Same in light and dark. */
-.hero { color: #fff; position: relative; isolation: isolate; }
-.hero::after {
-  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
-  background: radial-gradient(120% 90% at 100% 0%, rgb(255 255 255 / 0.18), transparent 55%);
+/* Dashboard standing: a dark card with the net on top (green when you're up, red when you're
+   down, slate when square) and "You get" / "You pay" tiles under it. Same in light and dark. */
+.stand-top { position: relative; isolation: isolate; overflow: hidden; }
+.stand-top::after {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: radial-gradient(90% 140% at 100% 0%, rgb(255 255 255 / 0.16), transparent 60%);
 }
-.hero-gain { background: linear-gradient(120deg, #12c97a 0%, #00a86b 45%, #008f7a 100%); }
-.hero-loss { background: linear-gradient(120deg, #ff7a45 0%, #f5455c 50%, #d6246e 100%); }
-.hero-even { background: linear-gradient(120deg, #2fb8ff 0%, #2f80ed 50%, #5b5bf0 100%); }
-.hero-tile { background: rgb(255 255 255 / 0.18); }
+.stand-up { background: linear-gradient(135deg, #5cc08a 0%, #3f9e68 50%, #2f7f52 100%); }
+.stand-down { background: linear-gradient(135deg, #ec6f63 0%, #cf4a45 50%, #a93436 100%); }
+.stand-even { background: linear-gradient(135deg, #5f7f9e 0%, #4a6683 50%, #3a5169 100%); }
 
 @keyframes sheet-in { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
