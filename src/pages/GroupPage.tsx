@@ -24,7 +24,7 @@ import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
 import { CURRENCIES, KindPicker } from '../components/dialogs/CreateGroupDialog';
 import type { Expense, Group, GroupKind, Member, Settlement } from '../lib/types';
 
-type Tab = 'games' | 'leaderboard' | 'balances' | 'expenses' | 'members' | 'history';
+type Tab = 'games' | 'balances' | 'expenses' | 'members' | 'history';
 
 export function GroupPage() {
   const { groupId } = useParams();
@@ -41,8 +41,8 @@ export function GroupPage() {
   if (!g) return <Navigate to="/groups" replace />;
 
   const tabs: { value: Tab; label: string }[] = [
-    // A club is games only: the games list, the all-time leaderboard, and who pays whom.
-    ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Games' }, { value: 'leaderboard' as Tab, label: 'Leaderboard' }] : []),
+    // A club is games only: games (with the leaderboard under them), and who pays whom.
+    ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Games' }] : []),
     { value: 'balances', label: g.kind === 'club' ? 'Settle up' : 'Balances' },
     ...(g.kind !== 'club' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
     { value: 'members', label: 'Members' },
@@ -83,7 +83,6 @@ export function GroupPage() {
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
       {tab === 'games' && <GamesTab g={g} onNew={() => setNewGame(true)} />}
-      {tab === 'leaderboard' && <LeaderboardTab g={g} />}
       {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} onAddExpense={admin && g.kind !== 'club' ? () => setExpense('new') : undefined} />}
       {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} admin={admin} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
@@ -104,7 +103,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
     return <Card><EmptyState icon={<Spade size={28} />} title="Deal the first game" body="Start a game, log buy-ins as people join, and cash-outs when the table breaks."
       action={<Button variant="primary" onClick={onNew}>Start game</Button>} /></Card>;
   }
-  return (
+  return (<div className="space-y-5">
     <Card>
       <CardHeader title="Games" action={<Button size="sm" onClick={onNew}><Plus size={14} aria-hidden="true" />New</Button>} />
       <div className="mt-2">
@@ -133,17 +132,19 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
       </div>
       {list.more}
     </Card>
-  );
+    <Leaderboard g={g} />
+  </div>);
 }
 
-function LeaderboardTab({ g }: { g: Group }) {
+function Leaderboard({ g }: { g: Group }) {
   const board = pokerLeaderboard(g);
   const list = useShowMore(board);
   const [cardMember, setCardMember] = useState<Member | null>(null);
   return (
     <Card>
       <CardHeader title={<span className="inline-flex items-center gap-2"><Trophy size={16} className="text-brass" aria-hidden="true" />Leaderboard</span>} />
-      <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">All-time results across every finished game, biggest winner first.</p>
+      {/* pokerLeaderboard() sums cash-out + chips given back − buy-in over finalized games only; payments never enter it. */}
+      <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">What each player won or lost at the table across finished games — paying up afterwards doesn't change it.</p>
       <div className="mt-2">
         {board.length === 0 ? <p className="px-5 pb-5 text-sm text-ink-2">Finish a game to start the leaderboard.</p> :
           list.visible.map((r, i) => (

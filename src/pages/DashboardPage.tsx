@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
-import { activity, friendBalances, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, pokerStats, totals } from '../lib/ledger';
+import { activity, friendBalances, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row, useShowMore } from '../components/ui';
 import { GroupIcon } from './GroupsPage';
@@ -26,7 +26,6 @@ export function DashboardPage() {
   const friendsMore = useShowMore(friends, 5);
   const t = totals(data);
   const feed = activity(data, 5, undefined, true);
-  const poker = pokerStats(data);
   const openGames = data.groups.flatMap((g) => g.sessions.filter((s) => s.status === 'open').map((s) => ({ g, s })));
   const [newGroup, setNewGroup] = useState(false);
   const [quickExpense, setQuickExpense] = useState(false);
@@ -41,24 +40,19 @@ export function DashboardPage() {
           <Button variant="primary" onClick={() => setNewGroup(true)}><Plus size={16} aria-hidden="true" />New group</Button>
         </>} />
 
-      <section className={clsx('hero mb-5 rounded-3xl p-5 shadow-lg md:p-7', t.net > 0 ? 'hero-gain' : t.net < 0 ? 'hero-loss' : 'hero-even')}>
-        <p className="text-[12px] font-bold uppercase tracking-[0.14em] opacity-85">{t.net === 0 ? "You're all square" : t.net > 0 ? "You're owed" : 'You owe'}</p>
-        <p className="amount mt-1 font-display text-5xl font-semibold leading-none tracking-tight md:text-7xl">{formatMoney(Math.abs(t.net), currency)}</p>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="hero-tile rounded-2xl px-3.5 py-3">
-            <p className="flex items-center gap-1 text-[12px] font-semibold opacity-90"><ArrowUpRight size={14} aria-hidden="true" />Owed to you</p>
-            <p className="amount mt-0.5 font-display text-2xl font-semibold text-[#b7ffd9] md:text-3xl">{formatMoney(t.owed, currency)}</p>
+      <section className={clsx('hero mb-5 rounded-2xl px-4 py-3.5 shadow-md md:px-6 md:py-5', t.net > 0 ? 'hero-gain' : t.net < 0 ? 'hero-loss' : 'hero-even')}>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-85">{t.net === 0 ? "You're all square" : t.net > 0 ? "You're owed" : 'You owe'}</p>
+            <p className="amount font-display text-4xl font-semibold leading-tight tracking-tight md:text-5xl">{formatMoney(Math.abs(t.net), currency)}</p>
           </div>
-          <div className="hero-tile rounded-2xl px-3.5 py-3">
-            <p className="flex items-center gap-1 text-[12px] font-semibold opacity-90"><ArrowDownRight size={14} aria-hidden="true" />You owe</p>
-            <p className="amount mt-0.5 font-display text-2xl font-semibold text-[#ffd0c4] md:text-3xl">{formatMoney(t.owe, currency)}</p>
+          <div className="shrink-0 space-y-1 text-right text-[13px] font-semibold">
+            <p className="hero-tile flex items-center justify-end gap-1 rounded-full px-2.5 py-0.5"><ArrowUpRight size={13} aria-hidden="true" /><span className="amount text-[#b7ffd9]">{formatMoney(t.owed, currency)}</span><span className="opacity-85">owed</span></p>
+            <p className="hero-tile flex items-center justify-end gap-1 rounded-full px-2.5 py-0.5"><ArrowDownRight size={13} aria-hidden="true" /><span className="amount text-[#ffd0c4]">{formatMoney(t.owe, currency)}</span><span className="opacity-85">you owe</span></p>
           </div>
         </div>
-        {(poker.games > 0 || t.others.length > 0) && (
-          <div className="mt-3 flex flex-wrap gap-2 text-[12px] font-semibold">
-            {poker.games > 0 && <span className="hero-tile rounded-full px-3 py-1">Clubs, all time <span className="amount">{formatMoney(poker.net, currency, { sign: true })}</span></span>}
-            {t.others.map((m) => <span key={m.currency} className="hero-tile amount rounded-full px-3 py-1">{m.currency}: {moneyPhrase(m, 'overall')}</span>)}
-          </div>
+        {t.others.length > 0 && (
+          <p className="amount mt-2 text-[12px] font-semibold opacity-90">{t.others.map((m) => `${m.currency}: ${moneyPhrase(m, 'overall')}`).join('  ·  ')}</p>
         )}
       </section>
 
