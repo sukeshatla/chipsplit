@@ -12,12 +12,12 @@ export const KIND_LABEL: Record<GroupKind, string> = { club: 'Club', expenses: '
 type Filter = 'all' | 'games' | 'expenses';
 const FILTERS: { value: Filter; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'games', label: 'Clubs' }, { value: 'expenses', label: 'Trips & expenses' }];
 
-export function GroupIcon({ kind, size = 36 }: { kind: GroupKind; size?: number }) {
+export function GroupIcon({ kind, size = 40 }: { kind: GroupKind; size?: number }) {
   const Icon = kind === 'club' ? Spade : Receipt;
   return (
     <span style={{ width: size, height: size }}
       className={kind === 'club' ? 'felt inline-flex shrink-0 items-center justify-center rounded-xl' : 'inline-flex shrink-0 items-center justify-center rounded-xl bg-surface-2 text-ink'}>
-      <Icon size={size * 0.46} aria-hidden="true" />
+      <Icon size={size * 0.5} strokeWidth={2.4} aria-hidden="true" />
     </span>
   );
 }

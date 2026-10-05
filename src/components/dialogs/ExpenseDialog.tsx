@@ -12,6 +12,23 @@ type SplitMode = 'equal' | 'shares' | 'exact' | 'percent';
 /** Two-person shortcuts, Splitwise-style: who paid, and whether it's halved or all on the other. */
 type Quick = 'meEqual' | 'meAll' | 'themEqual' | 'themAll';
 
+/** A label and a two-choice pill switch on one line. */
+function Seg({ label, value, options, onChange }: { label: string; value: string; options: [string, string][]; onChange(v: string): void }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-14 shrink-0 text-[13px] text-ink-2">{label}</span>
+      <div role="radiogroup" aria-label={label} className="flex min-w-0 flex-1 rounded-lg border border-line p-0.5">
+        {options.map(([v, text]) => (
+          <button key={v} type="button" role="radio" aria-checked={value === v} onClick={() => onChange(v)}
+            className={clsx('h-8 min-w-0 flex-1 truncate rounded-md px-2 text-[13px] font-semibold', value === v ? 'bg-felt text-felt-ink' : 'text-ink-2 hover:text-ink')}>
+            {text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** One row in the "who's in this split" list: a checkable toggle, plus the mode's own control when included. */
 function SplitRow({ name, avatarUrl, on, toggle, children }: { name: string; avatarUrl?: string | null; on: boolean; toggle(): void; children?: ReactNode }) {
   return (
@@ -174,8 +191,8 @@ export function ExpenseDialog({ group, expense, open, onClose, onPickCurrency }:
   return (
     <Modal open={open} onClose={onClose} title={expense ? 'Edit expense' : 'Add an expense'} wide
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} onClick={submit}>{expense ? 'Save changes' : 'Add expense'}</Button></>}>
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_11rem]">
+      <div className="space-y-3">
+        <div className="grid grid-cols-[1fr_7.5rem] gap-2.5 sm:grid-cols-[1fr_11rem]">
           <Field label="What was it for?">
             <Input value={description} placeholder="Pizza and drinks" enterKeyHint="next" onChange={(e) => setDescription(e.target.value)} />
           </Field>
@@ -191,19 +208,14 @@ export function ExpenseDialog({ group, expense, open, onClose, onPickCurrency }:
 
         {!advanced ? (
           twoPeople ? (
-            <div role="radiogroup" aria-label="Who paid, and how it splits" className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-              {([
-                ['meEqual', `${label(mine)} paid, split equally`],
-                ['meAll', `${label(mine)} paid, ${isMe(other) ? 'you owe' : `${label(other)} owes`} the full amount`],
-                ['themEqual', `${label(other)} paid, split equally`],
-                ['themAll', `${label(other)} paid, ${isMe(mine) ? 'you owe' : `${label(mine)} owes`} the full amount`],
-              ] as [Quick, string][]).map(([v, text]) => (
-                <button key={v} type="button" role="radio" aria-checked={quick === v} onClick={() => setQuick(v)}
-                  className={clsx('flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm', quick === v ? 'border-felt bg-felt/10 font-semibold' : 'border-line text-ink-2')}>
-                  <span className={clsx('h-3.5 w-3.5 shrink-0 rounded-full border-2', quick === v ? 'border-felt bg-felt dark:border-gain dark:bg-gain' : 'border-line')} />
-                  <span className="min-w-0">{text}</span>
-                </button>
-              ))}
+            // Two short toggles instead of four big options: who paid, and halved or all on the other.
+            <div className="space-y-2">
+              <Seg label="Paid by" value={quick.startsWith('me') ? 'me' : 'them'}
+                options={[['me', label(mine)], ['them', label(other)]]}
+                onChange={(v) => setQuick(`${v}${quick.endsWith('Equal') ? 'Equal' : 'All'}` as Quick)} />
+              <Seg label="Split" value={quick.endsWith('Equal') ? 'Equal' : 'All'}
+                options={[['Equal', 'Equally'], ['All', `${quick.startsWith('me') ? label(other) : label(mine)} ${(quick.startsWith('me') ? isMe(other) : isMe(mine)) ? 'owe' : 'owes'} all`]]}
+                onChange={(v) => setQuick(`${quick.startsWith('me') ? 'me' : 'them'}${v}` as Quick)} />
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
@@ -331,7 +343,7 @@ export function ExpenseDialog({ group, expense, open, onClose, onPickCurrency }:
             if (twoPeople) { setPayer(quick.startsWith('me') ? mine : other); setIncluded(quick.endsWith('Equal') ? [mine, other] : [quick.startsWith('me') ? other : mine]); }
             setMode('equal'); setAdvanced(true);
           }}>
-            <SlidersHorizontal size={13} aria-hidden="true" />More options: several payers, shares, exact amounts
+            <SlidersHorizontal size={13} aria-hidden="true" />More options
           </button>
         )}
         {error && <p className="rounded-lg bg-loss/10 px-3 py-2 text-[13px] text-loss">{error}</p>}
