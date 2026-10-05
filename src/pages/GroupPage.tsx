@@ -68,7 +68,7 @@ export function GroupPage() {
         </span>}
         actions={<><ActionBar>
           <ShareMenu onEmail={() => { window.location.href = summaryMailto(g); }}
-            onImage={() => shareSummaryImage(summaryData(g), (id) => memberName(g, id), false).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
+            onImage={() => shareSummaryImage(summaryData(g), (id) => memberName(g, id)).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
           {g.kind === 'club' ? (<>
             <ActionButton primary icon={<Spade size={16} aria-hidden="true" />} onClick={() => setNewGame(true)}>New game</ActionButton>
           </>) : admin && (<>
@@ -171,7 +171,7 @@ function Leaderboard({ g }: { g: Group }) {
 function ShareImageButton({ make, names }: { make(): Summary; names(id: string): string }) {
   const toast = useToast();
   return (
-    <Button size="sm" onClick={() => shareSummaryImage(make(), names, false).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
+    <Button size="sm" onClick={() => shareSummaryImage(make(), names).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
       <Share2 size={14} aria-hidden="true" />Share
     </Button>
   );
@@ -192,12 +192,18 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
     const x = bal.get(a.id) ?? 0, y = bal.get(b.id) ?? 0;
     return Number(x === 0) - Number(y === 0) || y - x || a.name.localeCompare(b.name);
   });
+  // Settled-up people stay out of the way until asked for.
+  const settledCount = members.filter((m) => (bal.get(m.id) ?? 0) === 0).length;
+  const [showSettled, setShowSettled] = useState(false);
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       <div className="space-y-5">
         <Card>
-          <CardHeader title="Settle up" action={onAddExpense && <Button size="sm" onClick={onAddExpense}><Receipt size={14} aria-hidden="true" />Add expense</Button>} />
+          <CardHeader title="Settle up" action={<div className="flex gap-2">
+            {onAddExpense && <Button size="sm" onClick={onAddExpense}><Receipt size={14} aria-hidden="true" />Add expense</Button>}
+            <ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} />
+          </div>} />
           <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">Fewest payments to clear it all.</p>
           <div className="mt-2">
             {transfers.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Everyone is settled up.</p> :
@@ -214,9 +220,9 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
           </div>
         </Card>
         <Card>
-          <CardHeader title="Where everyone stands" action={<ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} />} />
+          <CardHeader title="Where everyone stands" />
           <div className="mt-2">
-            {members.map((m) => (
+            {(showSettled ? members : members.filter((m) => (bal.get(m.id) ?? 0) !== 0)).map((m) => (
               <Row key={m.id}>
                 <AvatarButton name={m.name} src={m.avatar_url} onClick={() => setCardMember(m)} />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">{shortName(m.name, g.members.map((x) => x.name))}</span>
@@ -224,6 +230,13 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
               </Row>
             ))}
           </div>
+          {settledCount > 0 && (
+            <div className="flex justify-center border-t border-line px-4 py-2.5">
+              <button type="button" className="text-[13px] font-semibold text-felt hover:underline dark:text-gain" onClick={() => setShowSettled((v) => !v)}>
+                {showSettled ? 'Hide settled up' : `Show ${settledCount} settled up`}
+              </button>
+            </div>
+          )}
         </Card>
       </div>
       <Card>

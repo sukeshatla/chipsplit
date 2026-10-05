@@ -3,18 +3,20 @@ import type { Summary } from './ledger';
 
 // The light theme's colors (src/index.css), fixed so the picture looks the same wherever it's sent.
 const FELT = 'rgb(14 77 58)', FELT_INK = 'rgb(230 243 236)', GAIN = 'rgb(21 122 80)', LOSS = 'rgb(190 58 40)';
-const INK = 'rgb(20 33 29)', INK_2 = 'rgb(84 102 95)', LINE = 'rgb(218 226 222)', PAPER = '#ffffff';
+const INK = 'rgb(20 33 29)', INK_2 = 'rgb(84 102 95)', PAPER = '#ffffff';
 const BRASS = 'rgb(150 112 20)', ZEBRA = 'rgb(242 246 244)';
 const FONT = 'Manrope, system-ui, -apple-system, "Segoe UI", sans-serif';
 const DISPLAY = '"Bricolage Grotesque", system-ui, sans-serif';
 
 /** A colored PNG of a summary -- name per row, green for up, red for down, then who pays whom. */
-export async function summaryPng(d: Summary, names: (id: string) => string, game: boolean): Promise<Blob> {
-  const W = 720, PAD = 40, ROW = 52, HEAD = 150;
-  const LROW = 50;
+export async function summaryPng(d: Summary, names: (id: string) => string): Promise<Blob> {
+  // Tables (games, leaderboard) need the width; a balances picture reads better narrow.
+  const W = d.board || d.live ? 720 : 560, PAD = 40, HEAD = 150;
+  const LROW = 50, BROW = 44;
+  const open = d.rows.filter((r) => r.cents !== 0), settled = d.rows.filter((r) => r.cents === 0);
   const H = d.board ? HEAD + 24 + 36 + Math.max(1, d.board.length) * LROW + 60
     : d.live ? HEAD + 24 + 36 + d.rows.length * LROW + LROW + (d.live.final ? 56 + Math.max(1, d.transfers.length) * 40 : 70) + 50
-    : HEAD + 24 + d.rows.length * ROW + 70 + Math.max(1, d.transfers.length) * 40 + 80;
+    : HEAD + 20 + 36 + Math.max(1, open.length) * BROW + (settled.length ? 34 : 0) + 28 + 36 + Math.max(1, d.transfers.length) * BROW + 50;
   const scale = 2;
   const c = document.createElement('canvas');
   c.width = W * scale; c.height = H * scale;
@@ -33,35 +35,8 @@ export async function summaryPng(d: Summary, names: (id: string) => string, game
   let y = HEAD + 24;
   if (d.board) return drawBoard(c, x, d, y, W, H, PAD, LROW);
   if (d.live) return drawLiveTable(c, x, d, y, W, H, PAD, LROW);
-  for (const r of d.rows) {
-    const tone = r.cents > 0 ? GAIN : r.cents < 0 ? LOSS : INK_2;
-    x.fillStyle = tone; x.beginPath(); x.arc(PAD + 7, y + ROW / 2, 7, 0, Math.PI * 2); x.fill();
-    x.fillStyle = INK; x.font = `600 20px ${FONT}`; x.textAlign = 'left';
-    x.fillText(fit(x, r.name, W - 2 * PAD - 260), PAD + 28, y + ROW / 2 + 7);
-    x.fillStyle = tone; x.font = `600 22px ${FONT}`; x.textAlign = 'right';
-    x.fillText(r.cents === 0 ? (game ? 'even' : 'settled') : formatMoney(r.cents, d.currency, { sign: true }), W - PAD, y + ROW / 2 + 8);
-    x.textAlign = 'left';
-    y += ROW;
-    x.fillStyle = LINE; x.fillRect(PAD, y - 1, W - 2 * PAD, 1);
-  }
+  return drawBalances(c, x, d, open, settled, names, y - 4, W, H, PAD, BROW);
 
-  y += 44;
-  x.fillStyle = INK; x.font = `600 22px ${DISPLAY}`; x.fillText('Settle up', PAD, y);
-  y += 16;
-  x.font = `500 19px ${FONT}`;
-  if (d.transfers.length === 0) { x.fillStyle = GAIN; x.fillText('Everyone is settled up', PAD, y + 26); y += 40; }
-  const anyPaid = d.transfers.some((t) => t.paid);
-  for (const t of d.transfers) {
-    x.fillStyle = t.paid ? INK_2 : INK; x.textAlign = 'left';
-    x.fillText(fit(x, `${names(t.from)}  →  ${names(t.to)}`, W - 2 * PAD - 260), PAD, y + 26);
-    x.textAlign = 'right'; x.font = `600 19px ${FONT}`; x.fillText(formatMoney(t.cents, d.currency), W - PAD - (anyPaid ? 92 : 0), y + 26);
-    if (t.paid) { x.fillStyle = GAIN; x.fillText('Paid ✓', W - PAD, y + 26); }
-    x.textAlign = 'left'; x.font = `500 19px ${FONT}`;
-    y += 40;
-  }
-  x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 28);
-
-  return toPng(c);
 }
 
 /** A game still being played, as a table: buy-ins, money in, chips given back, cash-outs, and
@@ -141,6 +116,53 @@ function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Sum
   return toPng(c);
 }
 
+/** Group balances, narrow and striped: who's up or down (settled-up people on one line), then
+ *  the fewest payments to clear it all, with any recorded game payments marked paid. */
+function drawBalances(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summary, open: Summary['rows'], settled: Summary['rows'],
+  names: (id: string) => string, top: number, W: number, H: number, PAD: number, ROWH: number) {
+  const money = (v: number) => formatMoney(v, d.currency);
+  const band = (i: number, y: number) => { if (i % 2 === 0) { x.fillStyle = ZEBRA; x.fillRect(PAD - 12, y, W - 2 * PAD + 24, ROWH); } };
+  const title = (text: string, y: number) => { x.fillStyle = INK; x.font = `600 19px ${DISPLAY}`; x.textAlign = 'left'; x.fillText(text, PAD, y + 24); };
+  let y = top;
+
+  title('Where everyone stands', y); y += 36;
+  if (open.length === 0) { x.fillStyle = GAIN; x.font = `600 17px ${FONT}`; x.fillText('Everyone is settled up', PAD, y + 28); y += ROWH; }
+  open.forEach((r, i) => {
+    band(i, y);
+    const mid = y + ROWH / 2 + 6, tone = r.cents > 0 ? GAIN : LOSS;
+    x.fillStyle = tone; x.beginPath(); x.arc(PAD + 4, y + ROWH / 2, 5.5, 0, Math.PI * 2); x.fill();
+    x.fillStyle = INK; x.font = `600 17px ${FONT}`; x.textAlign = 'left'; x.fillText(fit(x, r.name, W - 2 * PAD - 190), PAD + 20, mid);
+    x.textAlign = 'right';
+    x.fillStyle = tone; x.font = `700 18px ${FONT}`; x.fillText(money(Math.abs(r.cents)), W - PAD, mid);
+    const amountW = x.measureText(money(Math.abs(r.cents))).width;
+    x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText(r.cents > 0 ? 'gets back' : 'owes', W - PAD - amountW - 10, mid);
+    y += ROWH;
+  });
+  if (settled.length) {
+    x.textAlign = 'left'; x.fillStyle = INK_2; x.font = `500 14px ${FONT}`;
+    x.fillText(fit(x, `Settled up: ${settled.map((r) => r.name).join(', ')}`, W - 2 * PAD), PAD, y + 24);
+    y += 34;
+  }
+
+  y += 28;
+  title('Settle up', y); y += 36;
+  if (d.transfers.length === 0) { x.textAlign = 'left'; x.fillStyle = GAIN; x.font = `600 17px ${FONT}`; x.fillText('Nothing to pay', PAD, y + 28); }
+  const anyPaid = d.transfers.some((t) => t.paid);
+  d.transfers.forEach((t, i) => {
+    band(i, y);
+    const mid = y + ROWH / 2 + 6;
+    x.textAlign = 'left'; x.font = `600 17px ${FONT}`;
+    x.fillStyle = t.paid ? INK_2 : INK; x.fillText(fit(x, `${names(t.from)}  →  ${names(t.to)}`, W - 2 * PAD - 170), PAD, mid);
+    x.textAlign = 'right'; x.font = `700 18px ${FONT}`;
+    x.fillText(money(t.cents), W - PAD - (anyPaid ? 80 : 0), mid);
+    if (t.paid) { x.fillStyle = GAIN; x.font = `600 15px ${FONT}`; x.fillText('Paid ✓', W - PAD, mid); }
+    y += ROWH;
+  });
+
+  x.textAlign = 'left'; x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 22);
+  return toPng(c);
+}
+
 /** Rank, player, games, nights won, best night, and all-time total (green up, red down). */
 function drawBoard(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summary, top: number, W: number, H: number, PAD: number, ROWH: number) {
   const rows = d.board!;
@@ -195,8 +217,8 @@ function fit(x: CanvasRenderingContext2D, s: string, max: number) {
 }
 
 /** Phone: the share sheet (Mail, WhatsApp, ...) with the image attached. Desktop: downloads it. */
-export async function shareSummaryImage(d: Summary, names: (id: string) => string, game: boolean) {
-  const blob = await summaryPng(d, names, game);
+export async function shareSummaryImage(d: Summary, names: (id: string) => string) {
+  const blob = await summaryPng(d, names);
   const name = `${d.title}${d.place ? ` ${d.place}` : ''} ${d.when}`.replace(/[^\w ,-]+/g, '').trim().replace(/\s+/g, '-') + '.png';
   const file = new File([blob], name, { type: 'image/png' });
   if (navigator.canShare?.({ files: [file] })) {

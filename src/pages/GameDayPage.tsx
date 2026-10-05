@@ -181,14 +181,14 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
           {final ? (
             <ActionBar>
               <ShareMenu onEmail={() => { window.location.href = summaryMailto(g, s.id); }}
-                onImage={() => shareSummaryImage(gameTableData(g, s, s.results), (id) => memberName(g, id), true).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
+                onImage={() => shareSummaryImage(gameTableData(g, s, s.results), (id) => memberName(g, id)).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
               {host && <ActionButton icon={<LockOpen size={16} aria-hidden="true" />} onClick={reopen}>Reopen</ActionButton>}
             </ActionBar>
           ) : (<>
             {/* Mid-game: just the picture of who's in for how much (no email -- nobody owes anything yet). */}
             <ActionBar>
               <ActionButton icon={<Share2 size={16} aria-hidden="true" />}
-                onClick={() => shareSummaryImage(gameTableData(g, s, rows), (id) => memberName(g, id), true).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
+                onClick={() => shareSummaryImage(gameTableData(g, s, rows), (id) => memberName(g, id)).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
                 Share
               </ActionButton>
             </ActionBar>
