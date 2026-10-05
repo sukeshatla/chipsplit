@@ -25,7 +25,8 @@ export function DashboardPage() {
   const groupsMore = useShowMore(groupList, 5);
   const friendsMore = useShowMore(friends, 5);
   const t = totals(data);
-  const feed = activity(data, 5, undefined, true);
+  const feed = activity(data, 200, undefined, true);
+  const feedMore = useShowMore(feed, 5);
   const openGames = data.groups.flatMap((g) => g.sessions.filter((s) => s.status === 'open').map((s) => ({ g, s })));
   const [newGroup, setNewGroup] = useState(false);
   const [quickExpense, setQuickExpense] = useState(false);
@@ -78,7 +79,7 @@ export function DashboardPage() {
       )}
 
       <Card>
-        <CardHeader title="Groups" action={groups.length > 0 && <Link to="/groups" className="text-[13px] font-semibold text-felt dark:text-gain">See all</Link>} />
+        <CardHeader title="Groups" />
         <div className="mt-2">
           {groups.length === 0 ? (
             <EmptyState icon={<Spade size={28} />} title="Start your first group" body="A club holds your card games, or make a group for shared expenses."
@@ -100,7 +101,7 @@ export function DashboardPage() {
       </Card>
 
       <Card className="mt-5">
-        <CardHeader title="Friends" action={<Link to="/friends" className="text-[13px] font-semibold text-felt dark:text-gain">See all</Link>} />
+        <CardHeader title="Friends" />
         <p className="px-4 text-[12px] text-ink-2 md:px-5">Across all your groups and one-on-one.</p>
         <div className="mt-1">
           {friends.length === 0 ? (
@@ -121,11 +122,11 @@ export function DashboardPage() {
       </Card>
 
       <Card className="mt-5">
-        <CardHeader title="Recent activity" action={feed.length > 0 && <Link to="/activity" className="text-[13px] font-semibold text-felt dark:text-gain">See more</Link>} />
+        <CardHeader title="Recent activity" />
         <div className="mt-2">
           {feed.length === 0 ? (
             <EmptyState icon={<Receipt size={28} />} title="Nothing logged yet" body="Games, expenses, and payments show up here." />
-          ) : feed.map((a) => {
+          ) : feedMore.visible.map((a) => {
             const Icon = ACTIVITY_ICON[a.kind];
             return (
               <Link key={a.id} to={a.link} className="block">
@@ -141,6 +142,7 @@ export function DashboardPage() {
             );
           })}
         </div>
+        {feedMore.more}
       </Card>
 
       <CreateGroupDialog open={newGroup} onClose={() => setNewGroup(false)} />

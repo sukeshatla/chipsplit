@@ -70,7 +70,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 **Dashboard**
 - A colored banner (green when you're up, red when you're down): your net with its sign in a big box, and **You get** / **You pay** beside it. Then your **Groups** and **Friends** (top 5 each, most owed to you first, **Show all** for the rest), then a short recent-activity feed.
 - Two quick actions: **Add expense** (one-on-one, above) and **New group**. Starting a game is a club-level action, done from inside that club.
-- Banner for any game currently in progress. The activity feed only shows what involves you, with a link to the full **Activity** page.
+- Banner for any game currently in progress. The activity feed only shows what involves you: the latest 5, then **Show all**.
 
 **Accounts and profile**
 - **Sign in with Google** (no password to set, leak, or forget) via Supabase Auth; it auto-creates the account on first sign-in. Someone without Gmail can make a Google account with their existing email (Yahoo, Outlook, ...), and is linked to every group they were added to with that address.
@@ -78,7 +78,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Profile: display name, currency for totals, light / dark / system theme, card-game stats. Your profile email always matches your Google account.
 - Groups are either a **Club** (recurring games only) or an **Expenses** group (trips, rent — no games).
 
-- Long lists everywhere start short with one **Show all** at the bottom, and balances are listed from most up to most down.
+- Long lists everywhere start short with one **Show all** at the bottom (the only expand control in the app; no "See all" links), and balances are listed from most up to most down.
 
 **Built for low maintenance**
 - No server to run: the browser talks to Supabase directly, and **row-level security** in Postgres makes sure people only ever see groups they belong to.
