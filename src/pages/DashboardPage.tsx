@@ -41,24 +41,24 @@ export function DashboardPage() {
           <Button variant="primary" onClick={() => setNewGroup(true)}><Plus size={16} aria-hidden="true" />New group</Button>
         </>} />
 
-      <section className={clsx('hero mb-5 rounded-2xl p-3 shadow-md md:p-4', t.net > 0 ? 'hero-gain' : t.net < 0 ? 'hero-loss' : 'hero-even')}>
+      <section className={clsx('hero mb-5 rounded-2xl p-2 shadow-md', t.net > 0 ? 'hero-gain' : t.net < 0 ? 'hero-loss' : 'hero-even')}>
         {/* Net on the left with its sign; what comes to you and what you pay on the right. */}
-        <div className="grid grid-cols-[1.25fr_1fr] gap-2.5">
-          <div className="hero-tile row-span-2 flex flex-col justify-center rounded-xl px-3.5 py-3">
-            <p className="text-[12px] font-bold uppercase tracking-[0.12em] opacity-90">{t.net > 0 ? "You're up" : t.net < 0 ? "You're down" : 'All square'}</p>
-            <p className="amount font-display text-[2.6rem] font-semibold leading-none tracking-tight md:text-6xl">{formatMoney(t.net, currency, { sign: true })}</p>
+        <div className="grid grid-cols-[1.3fr_1fr] gap-1.5">
+          <div className="hero-tile row-span-2 flex flex-col justify-center rounded-xl px-3 py-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] opacity-90">{t.net > 0 ? "You're up" : t.net < 0 ? "You're down" : 'All square'}</p>
+            <p className="amount font-display text-3xl font-bold leading-tight tracking-tight md:text-4xl">{formatMoney(t.net, currency, { sign: true })}</p>
           </div>
-          <div className="hero-tile rounded-xl px-3 py-2">
-            <p className="flex items-center gap-1 text-[12px] font-semibold opacity-90"><ArrowUpRight size={13} aria-hidden="true" />You get</p>
-            <p className="amount font-display text-2xl font-semibold leading-tight text-[#b7ffd9] md:text-3xl">{formatMoney(t.owed, currency)}</p>
+          <div className="hero-tile flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5">
+            <span className="flex items-center gap-1 text-[12px] font-semibold opacity-90"><ArrowUpRight size={13} aria-hidden="true" />You get</span>
+            <span className="amount font-display text-lg font-bold md:text-xl">{formatMoney(t.owed, currency)}</span>
           </div>
-          <div className="hero-tile rounded-xl px-3 py-2">
-            <p className="flex items-center gap-1 text-[12px] font-semibold opacity-90"><ArrowDownRight size={13} aria-hidden="true" />You pay</p>
-            <p className="amount font-display text-2xl font-semibold leading-tight text-[#ffd0c4] md:text-3xl">{formatMoney(t.owe, currency)}</p>
+          <div className="hero-tile flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5">
+            <span className="flex items-center gap-1 text-[12px] font-semibold opacity-90"><ArrowDownRight size={13} aria-hidden="true" />You pay</span>
+            <span className="amount font-display text-lg font-bold md:text-xl">{formatMoney(t.owe, currency)}</span>
           </div>
         </div>
         {t.others.length > 0 && (
-          <p className="amount mt-2 px-1 text-[12px] font-semibold opacity-90">{t.others.map((m) => `${m.currency}: ${moneyPhrase(m, 'overall')}`).join('  ·  ')}</p>
+          <p className="amount mt-1.5 px-1 text-[12px] font-semibold opacity-90">{t.others.map((m) => `${m.currency}: ${moneyPhrase(m, 'overall')}`).join('  ·  ')}</p>
         )}
       </section>
 

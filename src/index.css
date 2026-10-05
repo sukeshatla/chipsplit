@@ -62,10 +62,10 @@
   content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
   background: radial-gradient(120% 90% at 100% 0%, rgb(255 255 255 / 0.18), transparent 55%);
 }
-.hero-gain { background: linear-gradient(135deg, #0f9d63 0%, #0b6b4b 55%, #08483a 100%); }
-.hero-loss { background: linear-gradient(135deg, #f0623f 0%, #c53a3a 55%, #8a2440 100%); }
-.hero-even { background: linear-gradient(135deg, #1f8fa3 0%, #176a80 55%, #10465a 100%); }
-.hero-tile { background: rgb(255 255 255 / 0.14); backdrop-filter: blur(2px); }
+.hero-gain { background: linear-gradient(120deg, #12c97a 0%, #00a86b 45%, #008f7a 100%); }
+.hero-loss { background: linear-gradient(120deg, #ff7a45 0%, #f5455c 50%, #d6246e 100%); }
+.hero-even { background: linear-gradient(120deg, #2fb8ff 0%, #2f80ed 50%, #5b5bf0 100%); }
+.hero-tile { background: rgb(255 255 255 / 0.18); }
 
 @keyframes sheet-in { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
