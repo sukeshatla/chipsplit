@@ -263,27 +263,25 @@ export function byMonth<T>(items: T[], date: (x: T) => string): [string, T[]][] 
   return [...m];
 }
 
-/** Long lists start short: the first `step` items, then "Show more" adds another `step`. */
+/** Long lists start short (the first `step` items) with one "Show all" at the bottom. */
 export const LIST_STEP = 15;
-export function ShowMore({ shown, total, onMore, onAll, step = LIST_STEP }: { shown: number; total: number; onMore(): void; onAll(): void; step?: number }) {
+export function ShowMore({ shown, total, onAll }: { shown: number; total: number; onAll(): void }) {
   if (shown >= total) return null;
   return (
-    <div className="flex items-center justify-center gap-4 border-t border-line px-4 py-2.5">
-      <button type="button" className="text-[13px] font-semibold text-felt hover:underline dark:text-gain" onClick={onMore}>
-        Show {Math.min(step, total - shown)} more
-      </button>
-      <button type="button" className="text-[13px] font-semibold text-ink-2 hover:text-ink" onClick={onAll}>Show all {total}</button>
+    <div className="flex items-center justify-center border-t border-line px-4 py-2.5">
+      <button type="button" className="text-[13px] font-semibold text-felt hover:underline dark:text-gain" onClick={onAll}>Show all {total}</button>
     </div>
   );
 }
 
 /** The one pattern for every long list: `visible` is what to render, `more` goes at the bottom of the card. */
 export function useShowMore<T>(items: T[], step = LIST_STEP) {
-  const [shown, setShown] = useState(step);
+  const [all, setAll] = useState(false);
+  const shown = all ? items.length : step;
   return {
     visible: items.slice(0, shown),
     hasMore: shown < items.length,
-    more: <ShowMore shown={shown} total={items.length} step={step} onMore={() => setShown((n) => n + step)} onAll={() => setShown(items.length)} />,
+    more: <ShowMore shown={shown} total={items.length} onAll={() => setAll(true)} />,
   };
 }
 

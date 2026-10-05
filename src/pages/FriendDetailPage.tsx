@@ -140,7 +140,7 @@ export function FriendDetailPage() {
               })}
             </div>
           ))}
-          <ShowMore shown={shown} total={timeline.length} onMore={() => setShown((n) => n + LIST_STEP)} onAll={() => setShown(timeline.length)} />
+          <ShowMore shown={shown} total={timeline.length} onAll={() => setShown(timeline.length)} />
         </Card>
 
         <Card>

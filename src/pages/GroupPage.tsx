@@ -41,9 +41,9 @@ export function GroupPage() {
   if (!g) return <Navigate to="/groups" replace />;
 
   const tabs: { value: Tab; label: string }[] = [
-    // A club is games only: games (with the leaderboard under them), and who pays whom.
+    // A club is games only: games (with the leaderboard under them), then Balances.
     ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Games' }] : []),
-    { value: 'balances', label: g.kind === 'club' ? 'Settle up' : 'Balances' },
+    { value: 'balances', label: 'Balances' },
     ...(g.kind !== 'club' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
     { value: 'members', label: 'Members' },
     { value: 'history', label: 'History' },
@@ -144,7 +144,7 @@ function Leaderboard({ g }: { g: Group }) {
     <Card>
       <CardHeader title={<span className="inline-flex items-center gap-2"><Trophy size={16} className="text-brass" aria-hidden="true" />Leaderboard</span>} />
       {/* pokerLeaderboard() sums cash-out + chips given back − buy-in over finalized games only; payments never enter it. */}
-      <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">What each player won or lost at the table across finished games — paying up afterwards doesn't change it.</p>
+      <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">All-time table results, not who owes what now.</p>
       <div className="mt-2">
         {board.length === 0 ? <p className="px-5 pb-5 text-sm text-ink-2">Finish a game to start the leaderboard.</p> :
           list.visible.map((r, i) => (
@@ -176,14 +176,18 @@ function BalancesTab({ g, onSettle, onAddExpense }: { g: Group; onSettle(d: Sett
   const transfers = simplify(bal).sort((a, b) => b.cents - a.cents);
   const history = g.settlements.slice().sort((a, b) => b.settled_on.localeCompare(a.settled_on) || b.created_at.localeCompare(a.created_at));
   const payments = useShowMore(history, 10);
-  const members = g.members.slice().sort((a, b) => (bal.get(b.id) ?? 0) - (bal.get(a.id) ?? 0));
+  // Up the most first, then those who owe, and anyone settled up last.
+  const members = g.members.slice().sort((a, b) => {
+    const x = bal.get(a.id) ?? 0, y = bal.get(b.id) ?? 0;
+    return Number(x === 0) - Number(y === 0) || y - x || a.name.localeCompare(b.name);
+  });
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       <div className="space-y-5">
         <Card>
           <CardHeader title="Settle up" action={onAddExpense && <Button size="sm" onClick={onAddExpense}><Receipt size={14} aria-hidden="true" />Add expense</Button>} />
-          <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">The fewest payments that square everyone in this group.</p>
+          <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">Fewest payments to clear it all.</p>
           <div className="mt-2">
             {transfers.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Everyone is settled up.</p> :
               transfers.map((t) => (
@@ -284,7 +288,7 @@ function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMem
           </div>
         ))}
       </div>
-      <ShowMore shown={shown} total={list.length} onMore={() => setShown((n) => n + LIST_STEP)} onAll={() => setShown(list.length)} />
+      <ShowMore shown={shown} total={list.length} onAll={() => setShown(list.length)} />
       <ExpenseDetailDialog group={g} expense={detail} onClose={() => openDetail(null)}
         onEdit={(e) => { openDetail(null); onEdit(e); }} />
     </Card>

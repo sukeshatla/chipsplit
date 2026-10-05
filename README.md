@@ -24,7 +24,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - A game belongs to whoever **started** it: only they can change buy-ins and cash-outs, finalize or reopen it, mark its payments, or delete it. Everyone else in the club follows along live, read-only. (Rummy works the same way.)
 - Reopen a game to fix a mistake. Date, location, and rebuy amount are set when the game starts.
 - Deleting a game needs that game's own payments recorded, and removes them along with it, so everyone's balance is exactly what it was before the game. Deleting the whole club only needs the club's **total** balance settled (games + any older expenses + every payment).
-- A club has a **Games** tab (the games list, with the **Leaderboard** under it: total won or lost at the table across finished games, games played, winning nights, best night; payments don't change it) and a **Settle up** tab (who pays whom, where everyone stands, payments recorded).
+- A club has a **Games** tab (the games list, with the **Leaderboard** under it: total won or lost at the table across finished games, games played, winning nights, best night; payments don't change it) and a **Balances** tab (the fewest payments to settle, where everyone stands with settled-up people last, payments recorded).
 - A club can run more than one game on the same day — each is its own record, nothing is tied to a calendar day.
 - A club tracks games only. Shared costs go in an Expenses group or one-on-one; expenses a club already had stay visible on its Expenses tab.
 
@@ -68,7 +68,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Only admins can add, edit, delete, or restore expenses, change group settings, or delete the group. Enforced server-side (Postgres RLS + triggers), so it holds even if someone bypasses the UI.
 
 **Dashboard**
-- A compact colored banner with your overall balance (green when you're owed, red when you owe) and what's owed each way, then your **Groups** and **Friends** (top 5 each, most owed to you first, **Show more** for the rest), then a short recent-activity feed.
+- A colored banner (green when you're up, red when you're down): your net with its sign in a big box, and **You get** / **You pay** beside it. Then your **Groups** and **Friends** (top 5 each, most owed to you first, **Show all** for the rest), then a short recent-activity feed.
 - Two quick actions: **Add expense** (one-on-one, above) and **New group**. Starting a game is a club-level action, done from inside that club.
 - Banner for any game currently in progress. The activity feed only shows what involves you, with a link to the full **Activity** page.
 
@@ -78,7 +78,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Profile: display name, currency for totals, light / dark / system theme, card-game stats. Your profile email always matches your Google account.
 - Groups are either a **Club** (recurring games only) or an **Expenses** group (trips, rent — no games).
 
-- Long lists everywhere start short with **Show more** at the bottom, and balances are listed from most up to most down.
+- Long lists everywhere start short with one **Show all** at the bottom, and balances are listed from most up to most down.
 
 **Built for low maintenance**
 - No server to run: the browser talks to Supabase directly, and **row-level security** in Postgres makes sure people only ever see groups they belong to.
