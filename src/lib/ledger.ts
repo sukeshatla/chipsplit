@@ -384,7 +384,7 @@ export interface Summary {
   transfers: (Transfer & { paid?: boolean })[];
   recipients: string[];
   /** Set for a game still in progress: nobody owes anything yet, so it shows what's on the table. */
-  live?: { buyInAmount: number; totalIn: number; buyIns: number | null; totalBack: number; totalCashOut: number; pot: number };
+  live?: { final: boolean; buyInAmount: number; totalIn: number; buyIns: number | null; totalBack: number; totalCashOut: number; pot: number };
 }
 
 /**
@@ -411,10 +411,14 @@ export function summaryData(g: Group, sessionId?: string): Summary {
   };
 }
 
-/** A game still being played, from the rows on screen (the host's may not be saved yet):
- *  each player's buy-in and anything taken out so far, biggest buy-in first. */
+/** One game as a table: each player's buy-ins, money in, chips given back, cash-out, and net.
+ *  In progress, `rows` are the ones on screen (the host's may not be saved yet) and the net is
+ *  known only once someone cashes out; once final, everyone's net counts and the payments are
+ *  listed (recorded ones marked paid). Winners first. */
 type LiveRow = Pick<SessionResult, 'member_id' | 'buy_in_cents' | 'cash_out_cents' | 'returned_cents'>;
-export function liveGameData(g: Group, s: GameSession, rows: LiveRow[]): Summary {
+export function gameTableData(g: Group, s: GameSession, allRows: LiveRow[]): Summary {
+  const final = s.status === 'final';
+  const rows = final ? allRows.filter((r) => playedIn(r as SessionResult)) : allRows;
   const unit = s.default_buy_in_cents || 0;
   const count = (cents: number) => (unit > 0 && cents % unit === 0 ? cents / unit : null);
   const totalIn = rows.reduce((a, r) => a + r.buy_in_cents, 0);
@@ -422,9 +426,9 @@ export function liveGameData(g: Group, s: GameSession, rows: LiveRow[]): Summary
   const totalCashOut = rows.reduce((a, r) => a + r.cash_out_cents, 0);
   const counts = rows.map((r) => count(r.buy_in_cents));
   // Best to worst: winners (biggest first), then anyone still playing (net unknown), then even,
-  // then losers (smallest loss first). Net is only known once someone has cashed out.
+  // then losers (smallest loss first). Mid-game a net is only known once someone has cashed out.
   const rank = (r: { buyIn: number; back: number; cashOut: number }) => {
-    if (r.cashOut <= 0) return 0.5;
+    if (!final && r.cashOut <= 0) return 0.5;
     const net = r.cashOut + r.back - r.buyIn;
     return net > 0 ? 1e12 + net : net === 0 ? 0 : -1e12 + net;
   };
@@ -437,10 +441,10 @@ export function liveGameData(g: Group, s: GameSession, rows: LiveRow[]): Summary
       id: r.member_id, name: memberName(g, r.member_id), cents: 0,
       buyIn: r.buy_in_cents, buyIns: counts[i]!, back: r.returned_cents ?? 0, cashOut: r.cash_out_cents,
     })).sort((a, b) => rank(b) - rank(a) || b.buyIn - a.buyIn || a.name.localeCompare(b.name)),
-    transfers: [],
+    transfers: final ? sessionPayments(g, s).map(({ settlementId, ...t }) => ({ ...t, paid: !!settlementId })) : [],
     recipients: [],
     live: {
-      buyInAmount: unit, totalIn, totalBack, totalCashOut,
+      final, buyInAmount: unit, totalIn, totalBack, totalCashOut,
       buyIns: counts.every((c) => c !== null) ? counts.reduce<number>((a, c) => a + c!, 0) : null,
       // Chips still in play: everything bought, minus what went back to the bank or was cashed out.
       pot: totalIn - totalBack - totalCashOut,

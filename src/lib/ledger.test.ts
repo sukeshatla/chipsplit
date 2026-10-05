@@ -248,31 +248,47 @@ describe('summaryData', async () => {
   });
 });
 
-describe('liveGameData', async () => {
-  const { liveGameData } = await import('./ledger');
+describe('gameTableData', async () => {
+  const { gameTableData } = await import('./ledger');
   it('counts buy-ins (first included) and chips given back, and what is left in the pot', () => {
     const mem = (id: string) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id.toUpperCase(), email: null, email_opt_out: false, is_admin: true });
     const g = { id: 'g', name: 'Club', kind: 'club', currency: 'USD', created_by: null, created_at: '', members: ['a', 'b'].map(mem), expenses: [], settlements: [], sessions: [] } as unknown as Group;
     const s = { id: 's', played_on: '2026-10-04', location: null, status: 'open', default_buy_in_cents: 5000 } as GameSession;
-    const d = liveGameData(g, s, [
+    const d = gameTableData(g, s, [
       { member_id: 'a', buy_in_cents: 5000, cash_out_cents: 0, returned_cents: 0 },
       { member_id: 'b', buy_in_cents: 10000, cash_out_cents: 0, returned_cents: 2000 },
     ]);
     expect(d.rows.map((r) => [r.id, r.buyIns, r.back])).toEqual([['b', 2, 2000], ['a', 1, 0]]);
-    expect(d.live).toEqual({ buyInAmount: 5000, totalIn: 15000, buyIns: 3, totalBack: 2000, totalCashOut: 0, pot: 13000 });
+    expect(d.live).toEqual({ final: false, buyInAmount: 5000, totalIn: 15000, buyIns: 3, totalBack: 2000, totalCashOut: 0, pot: 13000 });
     expect(d.transfers).toEqual([]);
   });
 });
 
-describe('liveGameData order', async () => {
-  const { liveGameData } = await import('./ledger');
+describe('gameTableData order', async () => {
+  const { gameTableData } = await import('./ledger');
   it('puts winners first, then players still in, then even, then losers', () => {
     const mem = (id: string) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id, email: null, email_opt_out: false, is_admin: true });
     const g = { id: 'g', name: 'Club', kind: 'club', currency: 'USD', created_by: null, created_at: '', members: ['w1', 'w2', 'p', 'e', 'l1', 'l2'].map(mem), expenses: [], settlements: [], sessions: [] } as unknown as Group;
     const s = { id: 's', played_on: '2026-10-04', location: null, status: 'open', default_buy_in_cents: 500 } as GameSession;
     const row = (member_id: string, buy_in_cents: number, cash_out_cents: number) => ({ member_id, buy_in_cents, cash_out_cents, returned_cents: 0 });
-    const d = liveGameData(g, s, [row('l2', 1000, 200), row('p', 1500, 0), row('w1', 500, 900), row('e', 500, 500), row('w2', 500, 1500), row('l1', 500, 400)]);
+    const d = gameTableData(g, s, [row('l2', 1000, 200), row('p', 1500, 0), row('w1', 500, 900), row('e', 500, 500), row('w2', 500, 1500), row('l1', 500, 400)]);
     expect(d.rows.map((r) => r.id)).toEqual(['w2', 'w1', 'p', 'e', 'l1', 'l2']);
+  });
+});
+
+describe('gameTableData, finished game', async () => {
+  const { gameTableData } = await import('./ledger');
+  it('ranks everyone by net, drops sat-out rows, and lists payments with paid marks', () => {
+    const mem = (id: string) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id, email: null, email_opt_out: false, is_admin: true });
+    const s = { id: 's', played_on: '2026-10-04', location: null, status: 'final', default_buy_in_cents: 500, results: [] } as unknown as GameSession;
+    const row = (member_id: string, buy_in_cents: number, cash_out_cents: number) => ({ member_id, buy_in_cents, cash_out_cents, returned_cents: 0 });
+    const results = [row('a', 500, 0), row('b', 500, 1000), row('c', 0, 0)];
+    const g = { id: 'g', name: 'Club', kind: 'club', currency: 'USD', created_by: null, created_at: '', members: ['a', 'b', 'c'].map(mem), expenses: [],
+      sessions: [{ ...s, results }], settlements: [{ id: 'p', group_id: 'g', from_member: 'a', to_member: 'b', amount_cents: 500, session_id: 's' }] } as unknown as Group;
+    const d = gameTableData(g, g.sessions[0]!, results);
+    expect(d.rows.map((r) => r.id)).toEqual(['b', 'a']);
+    expect(d.live?.final).toBe(true);
+    expect(d.transfers).toEqual([{ from: 'a', to: 'b', cents: 500, paid: true }]);
   });
 });
 

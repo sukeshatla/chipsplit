@@ -6,7 +6,7 @@ import { Check, Loader2, Lock, Minus, LockOpen, Mail, Plus, RotateCcw, Share2, T
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { useToast } from '../app/toast';
-import { isGameHost, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, liveGameData, summaryData, summaryMailto } from '../lib/ledger';
+import { isGameHost, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, gameTableData, summaryMailto } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
 import { ActionBar, ActionButton, ShareMenu } from '../components/ActionBar';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
@@ -181,14 +181,14 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
           {final ? (
             <ActionBar>
               <ShareMenu onEmail={() => { window.location.href = summaryMailto(g, s.id); }}
-                onImage={() => shareSummaryImage(summaryData(g, s.id), (id) => memberName(g, id), true).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
+                onImage={() => shareSummaryImage(gameTableData(g, s, s.results), (id) => memberName(g, id), true).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
               {host && <ActionButton icon={<LockOpen size={16} aria-hidden="true" />} onClick={reopen}>Reopen</ActionButton>}
             </ActionBar>
           ) : (<>
             {/* Mid-game: just the picture of who's in for how much (no email -- nobody owes anything yet). */}
             <ActionBar>
               <ActionButton icon={<Share2 size={16} aria-hidden="true" />}
-                onClick={() => shareSummaryImage(liveGameData(g, s, rows), (id) => memberName(g, id), true).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
+                onClick={() => shareSummaryImage(gameTableData(g, s, rows), (id) => memberName(g, id), true).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
                 Share
               </ActionButton>
             </ActionBar>

@@ -12,7 +12,7 @@ const DISPLAY = '"Bricolage Grotesque", system-ui, sans-serif';
 export async function summaryPng(d: Summary, names: (id: string) => string, game: boolean): Promise<Blob> {
   const W = 720, PAD = 40, ROW = 52, HEAD = 150;
   const LROW = 50;
-  const H = d.live ? HEAD + 24 + 36 + d.rows.length * LROW + LROW + 70 + 50
+  const H = d.live ? HEAD + 24 + 36 + d.rows.length * LROW + LROW + (d.live.final ? 56 + Math.max(1, d.transfers.length) * 40 : 70) + 50
     : HEAD + 24 + d.rows.length * ROW + 70 + Math.max(1, d.transfers.length) * 40 + 80;
   const scale = 2;
   const c = document.createElement('canvas');
@@ -26,7 +26,7 @@ export async function summaryPng(d: Summary, names: (id: string) => string, game
   x.fillStyle = FELT_INK;
   x.font = `600 34px ${DISPLAY}`; x.fillText(fit(x, d.title, W - 2 * PAD), PAD, 64);
   x.globalAlpha = 0.85; x.font = `500 18px ${FONT}`;
-  x.fillText(fit(x, [d.when, d.place && `📍 ${d.place}`, d.live && 'In progress'].filter(Boolean).join('   ·   '), W - 2 * PAD), PAD, 104);
+  x.fillText(fit(x, [d.when, d.place && `📍 ${d.place}`, d.live && !d.live.final && 'In progress'].filter(Boolean).join('   ·   '), W - 2 * PAD), PAD, 104);
   x.globalAlpha = 1;
 
   let y = HEAD + 24;
@@ -68,18 +68,18 @@ function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Sum
   const L = d.live!;
   const money = (v: number) => formatMoney(v, d.currency);
   // Right edges of the number columns; the name gets everything to the left of the first one.
-  const COLS = [{ label: 'Buy-ins', x: 300 }, { label: 'In', x: 385 }, { label: 'Back', x: 470 }, { label: 'Out', x: 565 }, { label: 'Net', x: W - PAD }];
-  const NAME_X = PAD + 22, NAME_W = 300 - 60 - NAME_X;
+  const COLS = [{ label: 'Buy-ins', x: 296 }, { label: 'Bought in', x: 390 }, { label: 'Gave back', x: 487 }, { label: 'Cash-out', x: 582 }, { label: 'Net', x: W - PAD }];
+  const NAME_X = PAD + 22, NAME_W = 296 - 64 - NAME_X;
   let y = top;
 
-  x.fillStyle = INK_2; x.font = `600 13px ${FONT}`;
-  x.textAlign = 'left'; x.fillText('PLAYER', NAME_X, y + 18);
-  x.textAlign = 'right'; COLS.forEach((col) => x.fillText(col.label.toUpperCase(), col.x, y + 18));
+  x.fillStyle = INK_2; x.font = `700 13px ${FONT}`;
+  x.textAlign = 'left'; x.fillText('Player', NAME_X, y + 18);
+  x.textAlign = 'right'; COLS.forEach((col) => x.fillText(col.label, col.x, y + 18));
   y += 36;
 
   d.rows.forEach((r, i) => {
     const cashedOut = (r.cashOut ?? 0) > 0;
-    const net = cashedOut ? (r.cashOut ?? 0) + (r.back ?? 0) - (r.buyIn ?? 0) : null;
+    const net = L.final || cashedOut ? (r.cashOut ?? 0) + (r.back ?? 0) - (r.buyIn ?? 0) : null;
     const tone = net === null ? BRASS : net > 0 ? GAIN : net < 0 ? LOSS : INK_2;
     if (i % 2 === 0) { x.fillStyle = ZEBRA; x.fillRect(PAD - 12, y, W - 2 * PAD + 24, ROWH); }
     const mid = y + ROWH / 2 + 6;
@@ -90,7 +90,7 @@ function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Sum
     x.fillText(r.buyIns != null ? String(r.buyIns) : '–', COLS[0]!.x, mid);
     x.fillText(money(r.buyIn ?? 0), COLS[1]!.x, mid);
     x.fillStyle = r.back ? INK : INK_2; x.fillText(r.back ? money(r.back) : '–', COLS[2]!.x, mid);
-    x.fillStyle = cashedOut ? INK : INK_2; x.fillText(cashedOut ? money(r.cashOut!) : '–', COLS[3]!.x, mid);
+    x.fillStyle = cashedOut || L.final ? INK : INK_2; x.fillText(cashedOut || L.final ? money(r.cashOut ?? 0) : '–', COLS[3]!.x, mid);
     x.fillStyle = tone; x.font = `700 18px ${FONT}`;
     x.fillText(net === null ? 'playing' : net === 0 ? 'even' : formatMoney(net, d.currency, { sign: true }), COLS[4]!.x, mid);
     y += ROWH;
@@ -106,6 +106,27 @@ function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Sum
   x.fillText(L.totalBack ? money(L.totalBack) : '–', COLS[2]!.x, mid);
   x.fillText(L.totalCashOut ? money(L.totalCashOut) : '–', COLS[3]!.x, mid);
   y += ROWH + 12;
+
+  if (L.final) {
+    // Finished: who pays whom, with payments already recorded marked paid.
+    y += 26;
+    x.fillStyle = INK; x.font = `600 21px ${DISPLAY}`; x.textAlign = 'left'; x.fillText('Settle up', PAD, y);
+    y += 10;
+    const anyPaid = d.transfers.some((t) => t.paid);
+    if (d.transfers.length === 0) { x.fillStyle = GAIN; x.font = `600 18px ${FONT}`; x.fillText('Everyone is settled up', PAD, y + 28); }
+    for (const t of d.transfers) {
+      x.textAlign = 'left'; x.fillStyle = t.paid ? INK_2 : INK; x.font = `500 18px ${FONT}`;
+      const who = (id: string) => d.rows.find((row) => row.id === id)?.name ?? '';
+      x.fillText(fit(x, `${who(t.from)}  →  ${who(t.to)}`, W - 2 * PAD - 220), PAD, y + 28);
+      x.textAlign = 'right'; x.font = `600 18px ${FONT}`;
+      x.fillText(money(t.cents), W - PAD - (anyPaid ? 92 : 0), y + 28);
+      if (t.paid) { x.fillStyle = GAIN; x.fillText('Paid ✓', W - PAD, y + 28); }
+      y += 40;
+    }
+    x.textAlign = 'left';
+    x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 24);
+    return toPng(c);
+  }
 
   // The pot, on the felt.
   x.fillStyle = FELT; roundRect(x, PAD - 12, y, W - 2 * PAD + 24, 54, 12); x.fill();
