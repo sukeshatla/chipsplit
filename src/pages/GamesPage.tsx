@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Spade, ChevronRight } from 'lucide-react';
 import { useData } from '../app/data';
-import { myMemberId, pokerStats, resultNet, sessionPayments } from '../lib/ledger';
+import { myMemberId, playedIn, pokerStats, resultNet, sessionPayments } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Badge, Card, EmptyState, PageHeader, Row, useShowMore } from '../components/ui';
 
@@ -9,14 +9,15 @@ export function GamesPage() {
   const data = useData();
   const stats = pokerStats(data);
   const currency = data.me.default_currency || 'USD';
+  // Only buy-in games you actually played in (rummy has its own page per club).
   const all = data.groups
-    .flatMap((g) => g.sessions.map((s) => ({ g, s })))
+    .flatMap((g) => { const mine = myMemberId(g, data.me.id); return g.sessions.filter((s) => s.results.some((r) => r.member_id === mine && playedIn(r))).map((s) => ({ g, s })); })
     .sort((a, b) => (a.s.status === b.s.status ? b.s.played_on.localeCompare(a.s.played_on) : a.s.status === 'open' ? -1 : 1));
   const list = useShowMore(all);
 
   return (
     <>
-      <PageHeader title="Club Games" subtitle="Every game night across your clubs." />
+      <PageHeader title="Club Games" subtitle="Poker nights you played, across your clubs." />
 
       {stats.games > 0 && (
         <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -36,7 +37,7 @@ export function GamesPage() {
 
       <Card>
         {all.length === 0 ? (
-          <EmptyState icon={<Spade size={28} />} title="No games yet" body="Open a Club and start one from its Games tab." />
+          <EmptyState icon={<Spade size={28} />} title="No games yet" body="Games you play in your clubs show up here." />
         ) : list.visible.map(({ g, s }) => {
           const mine = myMemberId(g, data.me.id);
           const r = s.results.find((x) => x.member_id === mine);
@@ -50,11 +51,10 @@ export function GamesPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{g.name}{s.location ? `, ${s.location}` : ''}</p>
-                  <p className="truncate text-[12px] text-ink-2">{s.results.length} players, {formatMoney(s.results.reduce((a, x) => a + x.buy_in_cents, 0), g.currency)} in play</p>
+                  <p className="truncate text-[12px] text-ink-2">{s.results.filter(playedIn).length} players, {formatMoney(s.results.reduce((a, x) => a + x.buy_in_cents, 0), g.currency)} in play</p>
                 </div>
                 {s.status === 'open' ? <Badge tone="brass">In progress</Badge>
-                  : r ? <Amount cents={resultNet(r)} currency={g.currency} sign />
-                    : <span className="text-[12px] text-ink-2">sat out</span>}
+                  : r && <Amount cents={resultNet(r)} currency={g.currency} sign />}
                 {unpaid > 0 && <Badge tone="loss">{unpaid} unpaid</Badge>}
                 <ChevronRight size={16} className="text-ink-2" aria-hidden="true" />
               </Row>

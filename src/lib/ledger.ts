@@ -2,6 +2,12 @@ import type { AppData, ChangeLogEntry, GameSession, Group, SessionResult } from 
 import { settle, type Transfer } from './settle';
 import { formatDate, formatMoney } from './money';
 
+/** Someone actually played: bought in, cashed out, or gave chips back. A row of zeros is someone
+ *  who was put at the table but sat out. */
+export function playedIn(r: SessionResult): boolean {
+  return r.buy_in_cents > 0 || r.cash_out_cents > 0 || (r.returned_cents ?? 0) > 0;
+}
+
 /** One player's result for a game: everything they took out (final stack + chips given back) minus what they bought. */
 export function resultNet(r: SessionResult): number {
   return r.cash_out_cents + (r.returned_cents ?? 0) - r.buy_in_cents;
@@ -330,6 +336,7 @@ export function pokerLeaderboard(g: Group): LeaderRow[] {
   for (const s of g.sessions) {
     if (s.status !== 'final') continue;
     for (const r of s.results) {
+      if (!playedIn(r)) continue;
       const net = resultNet(r);
       const row = rows.get(r.member_id) ?? { memberId: r.member_id, name: memberName(g, r.member_id), avatar_url: memberAvatar(g, r.member_id), net: 0, games: 0, wins: 0, best: 0 };
       row.net += net;
@@ -349,7 +356,7 @@ export function pokerStats(data: AppData) {
     for (const s of g.sessions) {
       if (s.status !== 'final') continue;
       const r = s.results.find((x) => x.member_id === mine);
-      if (!r) continue;
+      if (!r || !playedIn(r)) continue;
       const n = resultNet(r);
       net += n; games += 1;
       if (n > 0) wins += 1;
@@ -387,7 +394,7 @@ export interface Summary {
  */
 export function summaryData(g: Group, sessionId?: string): Summary {
   const session = sessionId ? g.sessions.find((s) => s.id === sessionId) : undefined;
-  const players = session?.results.filter((r) => r.buy_in_cents > 0 || r.cash_out_cents > 0 || (r.returned_cents ?? 0) > 0);
+  const players = session?.results.filter(playedIn);
   const bal = players ? new Map(players.map((r) => [r.member_id, resultNet(r)])) : groupBalances(g);
   const rows = [...bal].map(([id, cents]) => ({ id, name: memberName(g, id), cents }))
     .sort((a, b) => b.cents - a.cents || a.name.localeCompare(b.name));

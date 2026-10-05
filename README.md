@@ -25,6 +25,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Reopen a game to fix a mistake. Date, location, and rebuy amount are set when the game starts.
 - Deleting a game needs that game's own payments recorded, and removes them along with it, so everyone's balance is exactly what it was before the game. Deleting the whole club only needs the club's **total** balance settled (games + any older expenses + every payment).
 - A club has a **Games** tab (the games list, with the **Leaderboard** under it: total won or lost at the table across finished games, games played, winning nights, best night; payments don't change it) and a **Balances** tab (the fewest payments to settle, where everyone stands with settled-up people last, payments recorded).
+- **Club Games** (main menu) lists only the buy-in games you played, across all your clubs, with your totals; games you sat out or weren't in are left out. Rummy stays on each club's Rummy page.
 - A club can run more than one game on the same day — each is its own record, nothing is tied to a calendar day.
 - A club tracks games only. Shared costs go in an Expenses group or one-on-one; expenses a club already had stay visible on its Expenses tab.
 
