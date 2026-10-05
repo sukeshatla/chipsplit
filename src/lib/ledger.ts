@@ -384,6 +384,8 @@ export interface Summary {
   transfers: (Transfer & { paid?: boolean })[];
   recipients: string[];
   /** Set for a game still in progress: nobody owes anything yet, so it shows what's on the table. */
+  /** Set for a leaderboard picture instead of balances. */
+  board?: LeaderRow[];
   live?: { final: boolean; buyInAmount: number; totalIn: number; buyIns: number | null; totalBack: number; totalCashOut: number; pot: number };
 }
 
@@ -396,18 +398,33 @@ export function summaryData(g: Group, sessionId?: string): Summary {
   const session = sessionId ? g.sessions.find((s) => s.id === sessionId) : undefined;
   const players = session?.results.filter(playedIn);
   const bal = players ? new Map(players.map((r) => [r.member_id, resultNet(r)])) : groupBalances(g);
+  // Up the most first, then those who owe, and anyone at zero last.
   const rows = [...bal].map(([id, cents]) => ({ id, name: memberName(g, id), cents }))
-    .sort((a, b) => b.cents - a.cents || a.name.localeCompare(b.name));
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; // local, not UTC
+    .sort((a, b) => Number(a.cents === 0) - Number(b.cents === 0) || b.cents - a.cents || a.name.localeCompare(b.name));
   return {
     title: g.name,
-    when: formatDate(session?.played_on ?? today, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+    when: session ? formatDate(session.played_on, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+      : `Group balances as of ${formatDate(todayLocal(), { month: 'short', day: 'numeric', year: 'numeric' })}`,
     place: session?.location || null,
     currency: g.currency,
     rows,
     transfers: session ? sessionPayments(g, session).map(({ settlementId, ...t }) => ({ ...t, paid: !!settlementId })) : simplify(bal),
     recipients: g.members.filter((m) => m.email && !m.email_opt_out && bal.has(m.id)).map((m) => m.email!),
+  };
+}
+
+function todayLocal() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; // local, not UTC
+}
+
+/** The club leaderboard as a picture: all-time table results, not current balances. */
+export function leaderboardData(g: Group): Summary {
+  return {
+    title: g.name,
+    when: `All-time leaderboard · ${formatDate(todayLocal(), { month: 'short', day: 'numeric', year: 'numeric' })}`,
+    place: null, currency: g.currency, rows: [], transfers: [], recipients: [],
+    board: pokerLeaderboard(g),
   };
 }
 

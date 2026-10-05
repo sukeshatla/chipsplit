@@ -12,7 +12,8 @@ const DISPLAY = '"Bricolage Grotesque", system-ui, sans-serif';
 export async function summaryPng(d: Summary, names: (id: string) => string, game: boolean): Promise<Blob> {
   const W = 720, PAD = 40, ROW = 52, HEAD = 150;
   const LROW = 50;
-  const H = d.live ? HEAD + 24 + 36 + d.rows.length * LROW + LROW + (d.live.final ? 56 + Math.max(1, d.transfers.length) * 40 : 70) + 50
+  const H = d.board ? HEAD + 24 + 36 + Math.max(1, d.board.length) * LROW + 60
+    : d.live ? HEAD + 24 + 36 + d.rows.length * LROW + LROW + (d.live.final ? 56 + Math.max(1, d.transfers.length) * 40 : 70) + 50
     : HEAD + 24 + d.rows.length * ROW + 70 + Math.max(1, d.transfers.length) * 40 + 80;
   const scale = 2;
   const c = document.createElement('canvas');
@@ -30,6 +31,7 @@ export async function summaryPng(d: Summary, names: (id: string) => string, game
   x.globalAlpha = 1;
 
   let y = HEAD + 24;
+  if (d.board) return drawBoard(c, x, d, y, W, H, PAD, LROW);
   if (d.live) return drawLiveTable(c, x, d, y, W, H, PAD, LROW);
   for (const r of d.rows) {
     const tone = r.cents > 0 ? GAIN : r.cents < 0 ? LOSS : INK_2;
@@ -136,6 +138,38 @@ function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Sum
   x.textAlign = 'left';
 
   x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 24);
+  return toPng(c);
+}
+
+/** Rank, player, games, nights won, best night, and all-time total (green up, red down). */
+function drawBoard(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summary, top: number, W: number, H: number, PAD: number, ROWH: number) {
+  const rows = d.board!;
+  const money = (v: number) => formatMoney(v, d.currency);
+  const COLS = [{ label: 'Games', x: 420 }, { label: 'Won', x: 495 }, { label: 'Best', x: 585 }, { label: 'Total', x: W - PAD }];
+  const RANK_X = PAD + 8, NAME_X = PAD + 34, NAME_W = 420 - 70 - NAME_X;
+  let y = top;
+  x.fillStyle = INK_2; x.font = `700 13px ${FONT}`;
+  x.textAlign = 'center'; x.fillText('#', RANK_X, y + 18);
+  x.textAlign = 'left'; x.fillText('Player', NAME_X, y + 18);
+  x.textAlign = 'right'; COLS.forEach((col) => x.fillText(col.label, col.x, y + 18));
+  y += 36;
+  if (rows.length === 0) { x.textAlign = 'left'; x.font = `500 18px ${FONT}`; x.fillText('Finish a game to start the leaderboard.', PAD, y + 30); }
+  rows.forEach((r, i) => {
+    const tone = r.net > 0 ? GAIN : r.net < 0 ? LOSS : INK_2;
+    if (i % 2 === 0) { x.fillStyle = ZEBRA; x.fillRect(PAD - 12, y, W - 2 * PAD + 24, ROWH); }
+    const mid = y + ROWH / 2 + 6;
+    x.fillStyle = i < 3 ? BRASS : INK_2; x.font = `700 17px ${FONT}`; x.textAlign = 'center'; x.fillText(String(i + 1), RANK_X, mid);
+    x.fillStyle = INK; x.font = `600 18px ${FONT}`; x.textAlign = 'left'; x.fillText(fit(x, r.name, NAME_W), NAME_X, mid);
+    x.textAlign = 'right'; x.font = `500 18px ${FONT}`;
+    x.fillText(String(r.games), COLS[0]!.x, mid);
+    x.fillText(String(r.wins), COLS[1]!.x, mid);
+    x.fillText(r.best > 0 ? formatMoney(r.best, d.currency, { sign: true }) : '–', COLS[2]!.x, mid);
+    x.fillStyle = tone; x.font = `700 18px ${FONT}`;
+    x.fillText(r.net === 0 ? money(0) : formatMoney(r.net, d.currency, { sign: true }), COLS[3]!.x, mid);
+    y += ROWH;
+  });
+  x.textAlign = 'left';
+  x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Table results only, not current balances  ·  Chip n Split', PAD, H - 24);
   return toPng(c);
 }
 
