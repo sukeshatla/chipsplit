@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { clsx } from 'clsx';
 import { Plus, Spade, Receipt, Users } from 'lucide-react';
 import { useData } from '../app/data';
-import { groupBalances, listedGroups, myMemberId } from '../lib/ledger';
-import { Amount, Button, Card, EmptyState, PageHeader, Tabs, useShowMore } from '../components/ui';
+import { groupBalances, listedGroups, myMemberId, sessionPayments } from '../lib/ledger';
+import { formatDate, formatMoney } from '../lib/money';
+import { Badge, Button, Card, EmptyState, PageHeader, Tabs, useShowMore } from '../components/ui';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import type { GroupKind } from '../lib/types';
 
@@ -47,30 +49,42 @@ export function GroupsPage() {
           {shown.length === 0 ? (
             <Card><EmptyState icon={<Users size={28} />} title="No groups here" body="Nothing matches this filter yet." /></Card>
           ) : (
-            <Card>
+            <div className="space-y-3">
               {list.visible.map((g) => {
                 const mine = myMemberId(g, me.id);
                 const bal = mine ? groupBalances(g).get(mine) ?? 0 : 0;
-                const games = g.sessions.filter((s) => s.status === 'final').length;
-                const detail = [
-                  KIND_LABEL[g.kind],
+                const finals = g.sessions.filter((s) => s.status === 'final');
+                const live = g.sessions.some((s) => s.status === 'open');
+                const unpaid = finals.reduce((a, s) => a + sessionPayments(g, s).filter((p) => !p.settlementId).length, 0);
+                const dates = g.kind === 'club' ? g.sessions.map((s) => s.played_on) : g.expenses.map((e) => e.spent_on);
+                const lastDate = dates.sort()[dates.length - 1];
+                const counts = [
                   `${g.members.length} people`,
-                  g.kind === 'club' ? `${games} game${games === 1 ? '' : 's'}` : `${g.expenses.length} expense${g.expenses.length === 1 ? '' : 's'}`,
+                  g.kind === 'club' ? `${finals.length} game${finals.length === 1 ? '' : 's'}` : `${g.expenses.length} expense${g.expenses.length === 1 ? '' : 's'}`,
                 ].join(' · ');
                 return (
-                  <Link key={g.id} to={`/groups/${g.id}`} className="flex items-center gap-3.5 border-b border-line px-4 py-3.5 last:border-b-0 hover:bg-surface-2/60 md:px-5">
-                    <GroupIcon kind={g.kind} size={48} />
+                  <Link key={g.id} to={`/groups/${g.id}`}
+                    className="flex items-center gap-4 rounded-2xl border border-line bg-surface px-4 py-4 transition-colors hover:border-ink/20 md:px-5">
+                    <GroupIcon kind={g.kind} size={52} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-semibold">{g.name}</p>
-                      <p className="truncate text-[13px] text-ink-2">{detail}</p>
+                      <p className="truncate text-base font-semibold">{g.name}</p>
+                      <p className="truncate text-[13px] text-ink-2">{counts}</p>
+                      <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-ink-2">
+                        {lastDate && <span>Last {g.kind === 'club' ? 'game' : 'expense'} {formatDate(lastDate, { month: 'short', day: 'numeric' })}</span>}
+                        {live && <Badge tone="brass">Game in progress</Badge>}
+                        {unpaid > 0 && <Badge tone="loss">{unpaid} unpaid</Badge>}
+                      </p>
                     </div>
-                    {bal === 0 ? <span className="text-[13px] text-ink-2">Settled</span> : <Amount cents={bal} currency={g.currency} sign className="text-base font-semibold" />}
+                    <div className="shrink-0 text-right">
+                      <p className="text-[12px] text-ink-2">{bal > 0 ? 'You get' : bal < 0 ? 'You pay' : 'Settled'}</p>
+                      {bal !== 0 && <p className={clsx('amount font-display text-lg font-semibold', bal > 0 ? 'text-gain' : 'text-loss')}>{formatMoney(Math.abs(bal), g.currency)}</p>}
+                    </div>
                   </Link>
                 );
               })}
-              {list.more}
-            </Card>
+            </div>
           )}
+          {list.hasMore && <div className="mt-3 overflow-hidden rounded-2xl border border-line bg-surface [&>div]:border-t-0">{list.more}</div>}
         </>
       )}
       <CreateGroupDialog open={open} onClose={() => setOpen(false)} />

@@ -106,13 +106,13 @@ export function DashboardPage() {
               action={<Button variant="primary" onClick={() => setNewGroup(true)}>Create group</Button>} />
           ) : groupsMore.visible.map(({ g, bal }) => {
             return (
-              <Link key={g.id} to={`/groups/${g.id}`} className="flex items-center gap-3.5 border-b border-line px-4 py-3.5 last:border-b-0 hover:bg-surface-2/60 md:px-5">
-                <GroupIcon kind={g.kind} size={48} />
+              <Link key={g.id} to={`/groups/${g.id}`} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0 hover:bg-surface-2/60 md:px-5">
+                <GroupIcon kind={g.kind} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-semibold">{g.name}</p>
-                  <p className="text-[13px] text-ink-2">{g.members.length} people</p>
+                  <p className="truncate text-sm font-semibold">{g.name}</p>
+                  <p className="text-[12px] text-ink-2">{g.members.length} people</p>
                 </div>
-                <Amount cents={bal} currency={g.currency} sign className="text-base font-semibold" />
+                <Amount cents={bal} currency={g.currency} sign />
               </Link>
             );
           })}
