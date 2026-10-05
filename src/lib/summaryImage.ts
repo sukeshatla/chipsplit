@@ -16,22 +16,25 @@ const SPLIT_AFTER = 20;
 
 /** The picture(s) to share: one, or for a big group's balances, "Where everyone stands" and "Settle up" apart. */
 export async function summaryPngs(d: Summary, names: (id: string) => string): Promise<Blob[]> {
-  const open = d.rows.filter((r) => r.cents !== 0).length;
-  if (d.board || d.live || open + d.transfers.length <= SPLIT_AFTER) return [await summaryPng(d, names)];
+  // Balances count people up or down; a finished game counts its players. Both add the payments.
+  const rows = d.live ? d.rows.length : d.rows.filter((r) => r.cents !== 0).length;
+  if (d.board || (d.live && !d.live.final) || rows + d.transfers.length <= SPLIT_AFTER) return [await summaryPng(d, names)];
   return [await summaryPng(d, names, 'stands'), await summaryPng(d, names, 'settle')];
 }
 
 /** A colored PNG of a summary -- name per row, green for up, red for down, then who pays whom. */
 export async function summaryPng(d: Summary, names: (id: string) => string, part: Part = 'both'): Promise<Blob> {
   // Tables (games, leaderboard) need the width; a balances picture reads better narrow.
-  const W = d.board || d.live ? 720 : 560, PAD = 40, HEAD = 150;
+  const W = d.board || (d.live && part !== 'settle') ? 720 : 560, PAD = 40, HEAD = 150;
   const open = d.rows.filter((r) => r.cents !== 0), settled = d.rows.filter((r) => r.cents === 0);
   // Bigger groups get tighter rows (same text size) so the picture doesn't run long.
-  const LROW = 50, BROW = open.length + d.transfers.length > 8 ? 36 : 44;
+  const big = (d.live ? d.rows.length : open.length) + d.transfers.length > 8;
+  const LROW = d.live && big ? 42 : 50, BROW = big ? 36 : 44;
   const standsH = 36 + Math.max(1, open.length) * BROW + (settled.length ? 34 : 0);
   const settleH = 36 + Math.max(1, d.transfers.length) * BROW;
   const H = d.board ? HEAD + 24 + 36 + Math.max(1, d.board.length) * LROW + 60
-    : d.live ? HEAD + 24 + 36 + d.rows.length * LROW + LROW + (d.live.final ? 56 + Math.max(1, d.transfers.length) * 40 : 70) + 50
+    : d.live ? HEAD + 24 + (part === 'settle' ? 0 : 36 + d.rows.length * LROW + LROW) + (part === 'both' ? 16 : 0)
+      + (!d.live.final ? 70 : part === 'stands' ? 0 : settleH) + 50
     : HEAD + 20 + (part === 'settle' ? 0 : standsH) + (part === 'both' ? 28 : 0) + (part === 'stands' ? 0 : settleH) + 50;
   const scale = 2;
   const c = document.createElement('canvas');
@@ -50,14 +53,15 @@ export async function summaryPng(d: Summary, names: (id: string) => string, part
 
   let y = HEAD + 24;
   if (d.board) return drawBoard(c, x, d, y, W, H, PAD, LROW);
-  if (d.live) return drawLiveTable(c, x, d, y, W, H, PAD, LROW);
+  if (d.live) return drawLiveTable(c, x, d, y, W, H, PAD, LROW, BROW, part);
   return drawBalances(c, x, d, open, settled, names, y - 4, W, H, PAD, BROW, part);
 
 }
 
 /** A game still being played, as a table: buy-ins, money in, chips given back, cash-outs, and
  *  each player's profit or loss once they've cashed out (green up, red down), then the pot. */
-function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summary, top: number, W: number, H: number, PAD: number, ROWH: number) {
+function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summary, top: number, W: number, H: number, PAD: number, ROWH: number,
+  SROW: number, part: Part) {
   const L = d.live!;
   const money = (v: number) => formatMoney(v, d.currency);
   // Right edges of the number columns; the name gets everything to the left of the first one.
@@ -65,6 +69,7 @@ function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Sum
   const NAME_X = PAD + 22, NAME_W = 296 - 64 - NAME_X;
   let y = top;
 
+  if (part !== 'settle') {
   x.fillStyle = INK_2; x.font = `700 13px ${FONT}`;
   x.textAlign = 'left'; x.fillText('Player', NAME_X, y + 18);
   x.textAlign = 'right'; COLS.forEach((col) => x.fillText(col.label, col.x, y + 18));
@@ -100,22 +105,27 @@ function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Sum
   x.fillText(L.totalCashOut ? money(L.totalCashOut) : '–', COLS[3]!.x, mid);
   y += ROWH + 12;
 
+  }
+
   if (L.final) {
-    // Finished: who pays whom, with payments already recorded marked paid.
-    y += 26;
-    x.fillStyle = INK; x.font = `600 21px ${DISPLAY}`; x.textAlign = 'left'; x.fillText('Settle up', PAD, y);
-    y += 10;
+    // Finished: who pays whom, striped like the table, with payments already recorded marked paid.
+    if (part === 'stands') { x.textAlign = 'left'; x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 24); return toPng(c); }
+    if (part === 'both') y += 4;
+    x.fillStyle = INK; x.font = `600 21px ${DISPLAY}`; x.textAlign = 'left'; x.fillText('Settle up', PAD, y + 24);
+    y += 36;
     const anyPaid = d.transfers.some((t) => t.paid);
     if (d.transfers.length === 0) { x.fillStyle = GAIN; x.font = `600 18px ${FONT}`; x.fillText('Everyone is settled up', PAD, y + 28); }
-    for (const t of d.transfers) {
-      x.textAlign = 'left'; x.fillStyle = t.paid ? INK_2 : INK; x.font = `500 18px ${FONT}`;
-      const who = (id: string) => d.rows.find((row) => row.id === id)?.name ?? '';
-      x.fillText(fit(x, `${who(t.from)}  →  ${who(t.to)}`, W - 2 * PAD - 220), PAD, y + 28);
-      x.textAlign = 'right'; x.font = `600 18px ${FONT}`;
-      x.fillText(money(t.cents), W - PAD - (anyPaid ? 92 : 0), y + 28);
-      if (t.paid) { x.fillStyle = GAIN; x.fillText('Paid ✓', W - PAD, y + 28); }
-      y += 40;
-    }
+    const who = (id: string) => d.rows.find((row) => row.id === id)?.name ?? '';
+    d.transfers.forEach((t, i) => {
+      if (i % 2 === 0) { x.fillStyle = ZEBRA; x.fillRect(PAD - 12, y, W - 2 * PAD + 24, SROW); }
+      const mid = y + SROW / 2 + 6;
+      x.textAlign = 'left'; x.fillStyle = t.paid ? INK_2 : INK; x.font = `600 18px ${FONT}`;
+      x.fillText(fit(x, `${who(t.from)}  →  ${who(t.to)}`, W - 2 * PAD - 220), PAD, mid);
+      x.textAlign = 'right'; x.font = `700 18px ${FONT}`;
+      x.fillText(money(t.cents), W - PAD - (anyPaid ? 92 : 0), mid);
+      if (t.paid) { x.fillStyle = GAIN; x.font = `600 16px ${FONT}`; x.fillText('Paid ✓', W - PAD, mid); }
+      y += SROW;
+    });
     x.textAlign = 'left';
     x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText('Chip n Split', PAD, H - 24);
     return toPng(c);
