@@ -12,9 +12,9 @@ export function FriendsPage() {
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
   const currency = data.me.default_currency || 'USD';
-  // Biggest amount owed to you first, down to what you owe most.
+  // Biggest amount first, whether you're owed or you owe; settled up last.
   const friends = friendsList(data).filter((f) => f.name.toLowerCase().includes(q.trim().toLowerCase()))
-    .sort((a, b) => b.net - a.net || a.name.localeCompare(b.name));
+    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
   const list = useShowMore(friends);
   const t = totals(data);
 
