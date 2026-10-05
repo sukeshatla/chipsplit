@@ -56,7 +56,7 @@
 }
 
 @keyframes sheet-in { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes toast-in { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
 .sheet-in { animation: sheet-in 180ms ease-out; }
 .toast-in { animation: toast-in 160ms ease-out; }
 @media (prefers-reduced-motion: reduce) { .sheet-in, .toast-in { animation: none; } }

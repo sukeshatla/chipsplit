@@ -16,6 +16,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - A **Club** is a standing group for people you play with regularly — create it once, then start as many games in it as you want, whenever you want.
 - Starting a new game suggests the club's members as the roster (last game's players if there was one); pick who's actually at the table tonight. The **buy-in per player is required** every time (last game's amount is one tap away), and every player starts with one buy-in.
 - Log buy-ins as people sit down. The **+** button adds a rebuy in one tap; **−** records chips a player gives back to the bank mid-game (so someone else can buy in), any amount, any number of times. Given-back chips count like cash already taken out.
+- Mistakes are one tap to fix: every rebuy and give-back shows a toast with **Undo**; the **−** popup also offers **Remove one rebuy** (for an accidental +) and **Take back** one give-back at a time, so nobody's numbers get padded with fake give-backs.
 - Enter cash-outs when the table breaks. A live **table check** shows whether total cash-outs match total buy-ins.
 - Everything on an open game **saves automatically**: taps (rebuy, give back, adding or removing a player) right away, typed amounts a moment after you stop typing.
 - Built for entering a full table on a phone: one line per player, a **Buy-ins / Cash-outs** switch so only one box shows at a time, and the keyboard's **Next** key jumps straight to the next player.

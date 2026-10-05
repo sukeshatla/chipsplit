@@ -134,13 +134,26 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   }, []);
 
   const edit = (id: string, patch: Partial<Line>) => apply((ls) => ls.map((l) => (l.member_id === id ? { ...l, ...patch } : l)), 'soon');
-  const tapEdit = (id: string, patch: Partial<Line>) => apply((ls) => ls.map((l) => (l.member_id === id ? { ...l, ...patch } : l)), 'now');
   const addLine = (id: string) => {
     if (!id) return;
     apply((ls) => [...ls, { member_id: id, buyIn: centsToInput(rebuy), cashOut: '', returned: 0 }], 'now');
     setAdding('');
   };
   const removeLine = (id: string) => apply((ls) => ls.filter((x) => x.member_id !== id), 'now');
+  // Rebuys and give-backs are taps, so each one says what it did and can be undone right there.
+  const changeCents = (id: string, field: 'buyIn' | 'returned', delta: number) => apply((ls) => ls.map((l) => {
+    if (l.member_id !== id) return l;
+    if (field === 'returned') return { ...l, returned: Math.max(0, l.returned + delta) };
+    return { ...l, buyIn: centsToInput(Math.max(0, (parseMoney(l.buyIn) ?? 0) + delta)) };
+  }), 'now');
+  const addRebuy = (id: string) => {
+    changeCents(id, 'buyIn', rebuy);
+    toast.push(`${memberShort(g, id)}: rebuy +${formatMoney(rebuy, g.currency)}`, 'success', { label: 'Undo', onClick: () => changeCents(id, 'buyIn', -rebuy) });
+  };
+  const giveBack = (id: string, cents: number) => {
+    changeCents(id, 'returned', cents);
+    toast.push(`${memberShort(g, id)} gave back ${formatMoney(cents, g.currency)}`, 'success', { label: 'Undo', onClick: () => changeCents(id, 'returned', -cents) });
+  };
   const validate = () => {
     if (parsed.some((r) => r.buy_in_cents < 0 || r.cash_out_cents < 0)) return 'Amounts can\'t be negative';
     const bad = lines.find((l) => (l.buyIn && parseMoney(l.buyIn) === null) || (l.cashOut && parseMoney(l.cashOut) === null));
@@ -271,7 +284,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
                       data-entry="buyin" enterKeyHint="next" onKeyDown={enterToNext} onBlur={() => { if (timer.current !== undefined) void persist(); }}
                       onChange={(e) => edit(l.member_id, { buyIn: e.target.value })} />
                     <IconButton label={`Rebuy ${formatMoney(rebuy, g.currency)} for ${name}`} className="h-9 w-8 shrink-0 border border-line"
-                      onClick={() => tapEdit(l.member_id, { buyIn: centsToInput(r.buy_in_cents + rebuy) })}><Plus size={16} /></IconButton>
+                      onClick={() => addRebuy(l.member_id)}><Plus size={16} /></IconButton>
                   </div>
                   <div className={clsx('w-28 shrink-0 md:order-3 md:block md:w-auto', entry === 'cashout' ? 'block' : 'hidden')}>
                     <MoneyInput compact currency={g.currency} aria-label={`${name} cash-out`} value={l.cashOut} placeholder="0"
@@ -314,7 +327,11 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
       {givingBack && (
         <GiveBackDialog name={memberShort(g, givingBack)} currency={g.currency} rebuy={rebuy}
           returned={lines.find((l) => l.member_id === givingBack)?.returned ?? 0}
-          onSet={(cents) => tapEdit(givingBack, { returned: cents })} onClose={() => setGivingBack(null)} />
+          buyIn={parseMoney(lines.find((l) => l.member_id === givingBack)?.buyIn) ?? 0}
+          onGiveBack={(cents) => giveBack(givingBack, cents)}
+          onTakeBack={(cents) => changeCents(givingBack, 'returned', -cents)}
+          onRemoveRebuy={() => changeCents(givingBack, 'buyIn', -rebuy)}
+          onClose={() => setGivingBack(null)} />
       )}
       <AddMemberDialog group={g} open={newPerson} onClose={() => setNewPerson(false)} onAdded={(id) => addLine(id)} />
       {host && (
@@ -385,9 +402,11 @@ function Payments({ g, s, host }: { g: Group; s: GameSession; host: boolean }) {
 
 /** Chips a player hands back to the bank mid-game (so someone else can buy in). Opens as a
  *  one-tap confirm for the rebuy amount -- no keyboard -- and only shows an amount box if you
- *  tap Change. Adds to their running "given back" total, which can be cleared to fix a mistake. */
-function GiveBackDialog({ name, currency, rebuy, returned, onSet, onClose }: {
-  name: string; currency: string; rebuy: number; returned: number; onSet(cents: number): void; onClose(): void;
+ *  tap Change. Also where mistakes get fixed without inventing a give-back: "Remove one rebuy"
+ *  undoes an accidental +, and "Take back" removes one give-back at a time. */
+function GiveBackDialog({ name, currency, rebuy, returned, buyIn, onGiveBack, onTakeBack, onRemoveRebuy, onClose }: {
+  name: string; currency: string; rebuy: number; returned: number; buyIn: number;
+  onGiveBack(cents: number): void; onTakeBack(cents: number): void; onRemoveRebuy(): void; onClose(): void;
 }) {
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(centsToInput(rebuy));
@@ -397,7 +416,7 @@ function GiveBackDialog({ name, currency, rebuy, returned, onSet, onClose }: {
     <Modal open onClose={onClose} title={`${name} gives back`}
       footer={<>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" disabled={!valid} onClick={() => { onSet(returned + cents!); onClose(); }}>
+        <Button variant="primary" disabled={!valid} onClick={() => { onGiveBack(cents!); onClose(); }}>
           <Minus size={16} aria-hidden="true" />Give back{valid ? ` ${formatMoney(cents!, currency)}` : ''}
         </Button>
       </>}>
@@ -409,12 +428,22 @@ function GiveBackDialog({ name, currency, rebuy, returned, onSet, onClose }: {
           <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>Change</Button>
         </div>
       )}
-      {returned > 0 && (
-        <p className="mt-2 text-[13px] text-ink-2">
-          Already gave back <b className="amount">{formatMoney(returned, currency)}</b> ·{' '}
-          <button type="button" className="font-semibold text-loss hover:underline" onClick={() => { onSet(0); onClose(); }}>Clear</button>
-        </p>
-      )}
+      <div className="mt-3 space-y-2 border-t border-line pt-3 text-[13px] text-ink-2">
+        {buyIn > rebuy && (
+          <p>Tapped + by mistake?{' '}
+            <button type="button" className="font-semibold text-felt hover:underline dark:text-gain" onClick={() => { onRemoveRebuy(); onClose(); }}>
+              Remove one {formatMoney(rebuy, currency)} rebuy
+            </button>
+          </p>
+        )}
+        {returned > 0 && (
+          <p>Gave back <b className="amount">{formatMoney(returned, currency)}</b> so far ·{' '}
+            <button type="button" className="font-semibold text-loss hover:underline" onClick={() => { onTakeBack(Math.min(rebuy, returned)); onClose(); }}>
+              Take back {formatMoney(Math.min(rebuy, returned), currency)}
+            </button>
+          </p>
+        )}
+      </div>
     </Modal>
   );
 }
