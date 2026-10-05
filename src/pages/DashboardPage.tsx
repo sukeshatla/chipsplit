@@ -66,7 +66,7 @@ export function DashboardPage() {
         <div className={clsx('flex items-stretch gap-3 rounded-xl border border-white/10 px-3 py-3', { gain: 'bg-[#11241a]', loss: 'bg-[#281517]', none: 'bg-[#1a2128]' }[toneOf(t.net)])}>
           <span className={clsx('w-1.5 shrink-0 rounded-full', TILE[toneOf(t.net)].bar)} aria-hidden="true" />
           <div className="min-w-0">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-white/85">{t.net > 0 ? "You're up" : t.net < 0 ? 'You owe' : 'All square'}</p>
+            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-white/85">{t.net > 0 ? "Overall, you're up" : t.net < 0 ? 'Overall, you owe' : "Overall, you're square"}</p>
             <p className="amount font-display text-4xl font-bold leading-tight tracking-tight md:text-5xl">{formatMoney(t.net, currency, { sign: true })}</p>
           </div>
         </div>
