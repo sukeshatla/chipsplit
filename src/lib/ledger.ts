@@ -245,11 +245,11 @@ export function friendsList(data: AppData): FriendRow[] {
     .sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
 }
 
-/** Whether anything was ever recorded in a group. "Add expense" on a friend's page sets up the
- *  one-on-one before the form opens, so cancelling it leaves an empty one behind. */
+/** Whether a group has anything in it right now -- an expense, game, or payment, settled or not.
+ *  Deleted ones don't count. "Add expense" on a friend's page sets up the one-on-one before the
+ *  form opens, so cancelling it (or deleting everything in it) leaves an empty one behind. */
 export function hasActivity(g: Group) {
-  return g.expenses.length > 0 || (g.deleted_expenses?.length ?? 0) > 0 || g.settlements.length > 0
-    || g.sessions.length > 0 || (g.deleted_sessions?.length ?? 0) > 0;
+  return g.expenses.length > 0 || g.settlements.length > 0 || g.sessions.length > 0;
 }
 
 /** "2 shared groups" / "one-on-one" / "nothing shared yet": what you have with a friend, in a few words. */
