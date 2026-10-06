@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
-import { activity, friendBalances, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, totals } from '../lib/ledger';
+import { activity, friendsList, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row, useShowMore } from '../components/ui';
 import { GroupIcon } from './GroupsPage';
@@ -39,7 +39,7 @@ export function DashboardPage() {
   // Where you stand with each friend across every group and one-on-one -- same numbers as the Friends page.
   const currency = me.default_currency || 'USD';
   // Biggest amount first, whether you're owed or you owe; settled up last -- same order everywhere.
-  const friends = friendBalances(data).sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
+  const friends = friendsList(data).filter((f) => f.groups.length > 0).sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
   const myBal = (g: (typeof data.groups)[number]) => { const mine = myMemberId(g, me.id); return mine ? groupBalances(g).get(mine) ?? 0 : 0; };
   const groupList = groups.map((g) => ({ g, bal: myBal(g) })).sort((a, b) => Math.abs(b.bal) - Math.abs(a.bal) || a.g.name.localeCompare(b.g.name));
   const groupsMore = useShowMore(groupList, 5);

@@ -228,6 +228,14 @@ export const demoApi: DataApi = {
     d.groups.forEach((g) => g.members.forEach((m) => { if (m.contact_id === contactId) m.contact_id = null; }));
   }),
 
+  removeFriend: (key, contactId) => mutate((d) => {
+    d.hidden_friends = [...new Set([...(d.hidden_friends ?? []), key])];
+    if (contactId) {
+      d.contacts = d.contacts.filter((c) => c.id !== contactId);
+      d.groups.forEach((g) => g.members.forEach((m) => { if (m.contact_id === contactId) m.contact_id = null; }));
+    }
+  }),
+
   saveExpense: (e, id) => mutate((d) => {
     const g = group(d, e.group_id);
     assertAdmin(d, g, id ? 'Only a group admin can edit expenses' : 'Only a group admin can add expenses');

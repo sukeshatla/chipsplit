@@ -149,7 +149,24 @@ export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'gain
   );
 }
 
+/** The part of the screen the on-screen keyboard leaves visible. iOS doesn't shrink the page for the
+ *  keyboard, so a bottom sheet sized to the page ends up behind it; sizing to this keeps it on top. */
+function useVisibleViewport(active: boolean) {
+  const [box, setBox] = useState<{ top: number; height: number } | null>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!active || !vv) return;
+    const update = () => setBox({ top: vv.offsetTop, height: vv.height });
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => { vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update); };
+  }, [active]);
+  return box;
+}
+
 export function Modal({ open, onClose, title, children, footer, wide }: { open: boolean; onClose(): void; title: string; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+  const box = useVisibleViewport(open);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -159,9 +176,10 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 backdrop-blur-sm md:items-center md:p-6" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-x-0 top-0 z-50 flex h-dvh items-end justify-center bg-ink/60 backdrop-blur-sm md:items-center md:p-6"
+      style={box ? { top: box.top, height: box.height } : undefined} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div role="dialog" aria-modal="true" aria-label={title}
-        className={clsx('sheet-in flex max-h-[92dvh] w-full flex-col rounded-t-2xl border border-line bg-surface shadow-2xl md:rounded-2xl', wide ? 'md:max-w-2xl' : 'md:max-w-lg')}>
+        className={clsx('sheet-in flex max-h-[92%] w-full flex-col rounded-t-2xl border border-line bg-surface shadow-2xl md:rounded-2xl', wide ? 'md:max-w-2xl' : 'md:max-w-lg')}>
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
           <h2 className="font-display text-base font-medium text-ink md:text-lg">{title}</h2>
           <IconButton label="Close" onClick={onClose}><X size={18} /></IconButton>

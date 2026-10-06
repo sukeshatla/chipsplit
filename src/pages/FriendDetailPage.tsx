@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, HandCoins, Receipt, Trash2, UserX } from 'lucide-react';
 import { useData, useAction } from '../app/data';
-import { friendsList, isGroupAdmin, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
+import { friendsList, isGroupAdmin, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, LIST_STEP, MonthHeader, Row, ShowMore } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -32,9 +32,28 @@ export function FriendDetailPage() {
   const [shown, setShown] = useState(LIST_STEP);
   const [deletingPayment, setDeletingPayment] = useState<{ st: Settlement; g: Group } | null>(null);
   const [editing, setEditing] = useState<{ group: Group; expense: Expense | null } | null>(null);
+  const [removing, setRemoving] = useState(false);
   if (!f) return <Navigate to="/friends" replace />;
 
   const directGroups = f.groups.filter((fg) => fg.group.is_direct);
+  // You and this friend can end up with more than one one-on-one ledger (each of you started one),
+  // so it's one Balance row per currency, added up. Settle goes to the ledger that owes most that way.
+  // Ledgers shared with a third friend keep a row of their own.
+  type DirectRow = { key: string; label: string | null; currency: string; cents: number; settleIn: FriendGroupBalance };
+  const pairs = directGroups.filter((fg) => fg.group.members.length === 2);
+  const currencies = [...new Set(pairs.map((fg) => fg.group.currency))];
+  const directRows: DirectRow[] = [
+    ...currencies.map((currency) => {
+      const inCurrency = pairs.filter((fg) => fg.group.currency === currency);
+      const cents = inCurrency.reduce((sum, fg) => sum + fg.cents, 0);
+      const settleIn = inCurrency.slice().sort((a, b) => Math.sign(cents) * (b.cents - a.cents))[0]!;
+      return { key: currency, label: currencies.length > 1 ? currency : null, currency, cents, settleIn };
+    }),
+    ...directGroups.filter((fg) => fg.group.members.length > 2).map((fg) => ({
+      key: fg.group.id, currency: fg.group.currency, cents: fg.cents, settleIn: fg,
+      label: `With ${fg.group.members.filter((m) => m.user_id !== data.me.id).map((m) => memberShort(fg.group, m.id)).join(', ')}`,
+    })),
+  ];
   const sharedGroups = f.groups.filter((fg) => !fg.group.is_direct);
   // Friend-only expenses, newest first, across every direct group this friend is in.
   const directExpenses = directGroups
@@ -56,9 +75,10 @@ export function FriendDetailPage() {
     const g = await direct.find([f]);
     if (g) setEditing({ group: g, expense: null });
   };
+  const settled = isSettledFriend(f);
   const removeFriend = async () => {
-    if (!f.contactId) return;
-    const ok = await run((api) => api.deleteContact(f.contactId!), `${f.name} removed from your friends`);
+    setRemoving(false);
+    const ok = await run((api) => api.removeFriend(f.key, f.contactId), `${f.name} removed from your friends`);
     if (ok) navigate('/friends');
   };
 
@@ -87,14 +107,12 @@ export function FriendDetailPage() {
           <CardHeader title="Just you two" />
           {/* Balance first (the list below can be long), laid out like the group rows. A friend can
               share more than one one-on-one ledger (e.g. one with a third friend), so one row each. */}
-          {directGroups.map((fg) => (
-            <Row key={fg.group.id} className="border-b border-line">
+          {directRows.map((r) => (
+            <Row key={r.key} className="border-b border-line">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gain/10 text-gain"><HandCoins size={16} aria-hidden="true" /></span>
-              <p className="min-w-0 flex-1 truncate text-sm font-semibold">
-                {fg.group.members.length > 2 ? `With ${fg.group.members.filter((m) => m.user_id !== data.me.id).map((m) => memberShort(fg.group, m.id)).join(', ')}` : 'Balance'}
-              </p>
-              <BalanceText cents={fg.cents} currency={fg.group.currency} />
-              {fg.cents !== 0 && <Button size="sm" onClick={() => setSettle({ group: fg.group, draft: settleDraft(fg) })}>Settle</Button>}
+              <p className="min-w-0 flex-1 truncate text-sm font-semibold">{r.label ?? 'Balance'}</p>
+              <BalanceText cents={r.cents} currency={r.currency} />
+              {r.cents !== 0 && <Button size="sm" onClick={() => setSettle({ group: r.settleIn.group, draft: settleDraft({ ...r.settleIn, cents: r.cents }) })}>Settle</Button>}
             </Row>
           ))}
           {timeline.length === 0 ? (
@@ -164,9 +182,14 @@ export function FriendDetailPage() {
         </Card>
       </div>
 
-      {f.contactId && f.groups.length === 0 && (
-        <Button variant="danger" className="mt-4" loading={busy} onClick={removeFriend}><UserX size={16} aria-hidden="true" />Remove friend</Button>
-      )}
+      {/* Anyone can be removed -- friend, invite, or guest -- but only once you're settled up. */}
+      <div className="mt-4">
+        <Button variant="danger" loading={busy} disabled={!settled} onClick={() => setRemoving(true)}><UserX size={16} aria-hidden="true" />Remove friend</Button>
+        {!settled && <p className="mt-2 text-[13px] text-ink-2">Settle up with {f.name} before removing them.</p>}
+      </div>
+      <ConfirmDialog open={removing} onClose={() => setRemoving(false)} title={`Remove ${f.name}?`} icon={UserX} busy={busy} confirmLabel="Remove"
+        body={<>They come off your Friends list and Dashboard. Shared groups and past expenses stay as they are. They come back if a balance with them opens up again, or if you add them as a friend again.</>}
+        onConfirm={removeFriend} />
       <ConfirmDialog open={!!deletingPayment} onClose={() => setDeletingPayment(null)} title="Delete this payment?" icon={Trash2} busy={busy}
         body={deletingPayment && <>This removes the record of <b>{memberShort(deletingPayment.g, deletingPayment.st.from_member)}</b> paying <b>{memberShort(deletingPayment.g, deletingPayment.st.to_member)}</b> <b>{formatMoney(deletingPayment.st.amount_cents, deletingPayment.g.currency)}</b>. The balance goes back to what it was before.</>}
         onConfirm={async () => { const id = deletingPayment!.st.id; setDeletingPayment(null); await run((api) => api.deleteSettlement(id), 'Payment deleted'); }} />

@@ -366,6 +366,20 @@ describe('friendsList', async () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.contactId).toBe('c1');
   });
+  it('hides a removed friend only while settled up and not added back', () => {
+    const data = seedDemo();
+    const meera = data.contacts.find((c) => c.name === 'Meera')!;
+    const owing = friendsList(data).find((f) => f.net !== 0)!;
+    data.hidden_friends = [friendKey(meera), owing.key];
+    data.contacts = data.contacts.filter((c) => c.id !== meera.id);
+    const keys = friendsList(data).map((f) => f.key);
+    expect(keys).not.toContain(friendKey(meera));
+    // A balance still open keeps them on the list.
+    expect(keys).toContain(owing.key);
+    // Adding them back as a friend brings them back.
+    data.contacts.push(meera);
+    expect(friendsList(data).map((f) => f.key)).toContain(friendKey(meera));
+  });
 });
 
 describe('shortName', () => {

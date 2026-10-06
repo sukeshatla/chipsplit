@@ -122,6 +122,7 @@ export const supabaseApi: DataApi = {
     const rows = check(await db().from('groups').select(GROUP_SELECT).order('created_at')) as any[];
     const contacts = check(await db().from('contacts').select('*').order('name')) as Contact[];
     const groups = rows.map(mapGroup);
+    const hidden = check(await db().from('hidden_friends').select('friend_key')) as { friend_key: string }[];
 
     // Avatars aren't denormalized onto members/contacts; fetch them for everyone we're
     // actually linked to (shared group or contact) so a changed photo shows up everywhere live.
@@ -135,7 +136,7 @@ export const supabaseApi: DataApi = {
       contacts.forEach((c) => { if (c.user_id) c.avatar_url = map.get(c.user_id) ?? null; });
     }
 
-    return { me: profile, groups, contacts };
+    return { me: profile, groups, contacts, hidden_friends: hidden.map((h) => h.friend_key) };
   },
 
   async updateProfile(patch) {
@@ -213,6 +214,11 @@ export const supabaseApi: DataApi = {
 
   async deleteContact(contactId) {
     check(await db().from('contacts').delete().eq('id', contactId));
+  },
+
+  async removeFriend(key, contactId) {
+    check(await db().from('hidden_friends').upsert({ friend_key: key }, { onConflict: 'owner_id,friend_key', ignoreDuplicates: true }));
+    if (contactId) check(await db().from('contacts').delete().eq('id', contactId));
   },
 
   async saveExpense(e, id) {

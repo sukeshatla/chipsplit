@@ -32,6 +32,9 @@ export interface DataApi {
   removeMember(memberId: string): Promise<void>;
   addContact(name: string, email: string | null): Promise<string>;
   deleteContact(contactId: string): Promise<void>;
+  /** Takes anyone off your Friends list (and your friends list entry, if any). The app only offers it
+   *  once you're settled up; they come back if a balance with them opens up again. */
+  removeFriend(key: string, contactId: string | null): Promise<void>;
   /** Admin-only, like every expense write. */
   saveExpense(e: NewExpense, id?: string): Promise<void>;
   /** Admin-only. Soft delete: the expense drops out of balances but can be restored. */

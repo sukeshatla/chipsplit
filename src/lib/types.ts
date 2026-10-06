@@ -112,6 +112,8 @@ export interface AppData {
   me: Profile;
   groups: Group[];
   contacts: Contact[];
+  /** Friend keys (src/lib/ledger.ts friendKey) you removed from your Friends list. */
+  hidden_friends?: string[];
 }
 
 /** One line of a group's lightweight activity log (src/lib/ledger.ts renders these). */

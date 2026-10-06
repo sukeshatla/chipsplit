@@ -240,7 +240,19 @@ export function friendsList(data: AppData): FriendRow[] {
     if (existing) { existing.contactId = c.id; existing.avatar_url ??= c.avatar_url ?? null; }
     else rows.set(key, { key, name: c.name, email: c.email, avatar_url: c.avatar_url ?? null, net: 0, currency: fallback, others: [], groups: [], contactId: c.id, status: statusFromKey(key) });
   }
-  return [...rows.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
+  return [...rows.values()].filter((f) => !isRemovedFriend(data, f))
+    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
+}
+
+/** Whether you're settled up with this friend in every currency. */
+export function isSettledFriend(f: Pick<Friend, 'net' | 'others'>) {
+  return f.net === 0 && f.others.every((m) => m.cents === 0);
+}
+
+/** Taken off your Friends list (AppData.hidden_friends) -- unless a balance has opened up again,
+ *  or you've since added them back as a friend. */
+export function isRemovedFriend(data: AppData, f: Friend & { contactId?: string | null }) {
+  return !!data.hidden_friends?.includes(f.key) && !f.contactId && isSettledFriend(f);
 }
 
 /** "owes you ₹58,184" / "you owe ₹500" (perspective: the friend), or "you are owed ₹58,184" /
