@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, HandCoins, Receipt, Trash2, UserX } from 'lucide-react';
 import { useData, useAction } from '../app/data';
-import { friendsList, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
+import { friendsList, hasActivity, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, LIST_STEP, MonthHeader, Row, ShowMore } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -35,7 +35,8 @@ export function FriendDetailPage() {
   const [removing, setRemoving] = useState(false);
   if (!f) return <Navigate to="/friends" replace />;
 
-  const directGroups = f.groups.filter((fg) => fg.group.is_direct);
+  // Empty one-on-ones (an "Add expense" that was cancelled) have nothing to show, so they're skipped.
+  const directGroups = f.groups.filter((fg) => fg.group.is_direct && hasActivity(fg.group));
   // You and this friend can end up with more than one one-on-one ledger (each of you started one),
   // so it's one Balance row per currency, added up. Settle goes to the ledger that owes most that way.
   // Ledgers shared with a third friend keep a row of their own.

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, HeartHandshake, UserPlus } from 'lucide-react';
 import { useData } from '../app/data';
-import { friendsList, moneyPhrase, totals, STATUS_LABEL } from '../lib/ledger';
+import { friendsList, moneyPhrase, sharedSummary, totals, STATUS_LABEL } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { Avatar, BalanceText, Button, Card, EmptyState, Input, PageHeader, useShowMore } from '../components/ui';
 import { AddFriendDialog } from '../components/dialogs/AddFriendDialog';
@@ -47,7 +47,7 @@ export function FriendsPage() {
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{f.name}</p>
               <p className="truncate text-[12px] text-ink-2">
-                {STATUS_LABEL[f.status]} · {f.others.length ? `also ${f.others.map((m) => moneyPhrase(m, 'friend')).join(', ')}` : f.groups.length === 0 ? 'nothing shared yet' : `${f.groups.length} shared`}
+                {STATUS_LABEL[f.status]} · {f.others.length ? `also ${f.others.map((m) => moneyPhrase(m, 'friend')).join(', ')}` : sharedSummary(f)}
               </p>
             </div>
             <BalanceText cents={f.net} currency={f.currency} />

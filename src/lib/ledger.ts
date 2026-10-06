@@ -245,6 +245,20 @@ export function friendsList(data: AppData): FriendRow[] {
     .sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
 }
 
+/** Whether anything was ever recorded in a group. "Add expense" on a friend's page sets up the
+ *  one-on-one before the form opens, so cancelling it leaves an empty one behind. */
+export function hasActivity(g: Group) {
+  return g.expenses.length > 0 || (g.deleted_expenses?.length ?? 0) > 0 || g.settlements.length > 0
+    || g.sessions.length > 0 || (g.deleted_sessions?.length ?? 0) > 0;
+}
+
+/** "2 shared groups" / "one-on-one" / "nothing shared yet": what you have with a friend, in a few words. */
+export function sharedSummary(f: Friend) {
+  const groups = f.groups.filter((fg) => !fg.group.is_direct).length;
+  if (groups) return `${groups} shared group${groups === 1 ? '' : 's'}`;
+  return f.groups.some((fg) => hasActivity(fg.group)) ? 'one-on-one' : 'nothing shared yet';
+}
+
 /** Whether you're settled up with this friend in every currency. */
 export function isSettledFriend(f: Pick<Friend, 'net' | 'others'>) {
   return f.net === 0 && f.others.every((m) => m.cents === 0);
