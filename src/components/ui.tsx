@@ -179,7 +179,7 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
     <div className="fixed inset-x-0 top-0 z-50 flex h-dvh items-end justify-center bg-ink/60 backdrop-blur-sm md:items-center md:p-6"
       style={box ? { top: box.top, height: box.height } : undefined} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div role="dialog" aria-modal="true" aria-label={title}
-        className={clsx('sheet-in flex max-h-[92%] w-full flex-col rounded-t-2xl border border-line bg-surface shadow-2xl md:rounded-2xl', wide ? 'md:max-w-2xl' : 'md:max-w-lg')}>
+        className={clsx('sheet-in flex max-h-[calc(100%-0.5rem)] w-full md:max-h-[92%] flex-col rounded-t-2xl border border-line bg-surface shadow-2xl md:rounded-2xl', wide ? 'md:max-w-2xl' : 'md:max-w-lg')}>
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
           <h2 className="font-display text-base font-medium text-ink md:text-lg">{title}</h2>
           <IconButton label="Close" onClick={onClose}><X size={18} /></IconButton>

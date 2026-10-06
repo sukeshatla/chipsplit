@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Button, Field, Input, Modal, Tabs } from '../ui';
+import { clsx } from 'clsx';
+import { Button, Field, Input, Modal } from '../ui';
 import { useAction } from '../../app/data';
 
 type Kind = 'email' | 'guest';
@@ -27,8 +28,15 @@ export function AddFriendDialog({ open, onClose }: { open: boolean; onClose(): v
     <Modal open={open} onClose={close} title="Add a friend"
       footer={<><Button type="button" variant="ghost" onClick={close}>Cancel</Button><Button variant="primary" type="submit" form="add-friend" loading={busy}>{kind === 'guest' ? 'Add guest' : 'Add friend'}</Button></>}>
       <div className="space-y-3">
-        <Tabs<Kind> value={kind} onChange={(k) => { setKind(k); setError(null); }}
-          tabs={[{ value: 'email', label: 'With email' }, { value: 'guest', label: 'Guest, no email' }]} />
+        {/* A small switch rather than full-size tabs, so the whole form fits above a phone keyboard. */}
+        <div role="radiogroup" aria-label="Kind of friend" className="flex gap-1 rounded-lg bg-surface-2 p-0.5">
+          {([['email', 'With email'], ['guest', 'Guest, no email']] as const).map(([k, label]) => (
+            <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => { setKind(k); setError(null); }}
+              className={clsx('h-8 flex-1 rounded-md text-[13px] font-semibold transition-colors', kind === k ? 'bg-surface text-ink shadow-sm' : 'text-ink-2')}>
+              {label}
+            </button>
+          ))}
+        </div>
         <form id="add-friend" className="space-y-3" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <Field label="Name" error={error?.field === 'name' ? error.text : null}>
             <Input autoFocus value={name} placeholder="Ravi" autoComplete="off" enterKeyHint={kind === 'guest' ? 'done' : 'next'}
@@ -36,8 +44,9 @@ export function AddFriendDialog({ open, onClose }: { open: boolean; onClose(): v
               onKeyDown={(e) => { if (e.key === 'Enter' && kind === 'email' && !email) { e.preventDefault(); emailRef.current?.focus(); } }} />
           </Field>
           {kind === 'email' && (
-            <Field label="Google email" error={error?.field === 'email' ? error.text : null} hint="They see your balances once they sign in with it.">
+            <Field label="Google email" error={error?.field === 'email' ? error.text : null} hint="They see balances once they sign in with it.">
               <Input ref={emailRef} type="email" inputMode="email" autoCapitalize="none" autoComplete="off" enterKeyHint="done" value={email} placeholder="ravi@gmail.com"
+              onFocus={(e) => { const el = e.currentTarget; setTimeout(() => el.scrollIntoView({ block: 'nearest' }), 300); }}
                 onChange={(e) => { setEmail(e.target.value); setError(null); }} />
             </Field>
           )}
