@@ -344,8 +344,8 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         confirmLabel="Delete game" busy={busy}
         blocked={final && !settled ? 'Settle up everyone at this table first — open Settle up below to record the remaining payments.' : undefined}
         body={<>This removes <b>{rows.length} player{rows.length === 1 ? '' : 's'}</b>{final ? <>, <b>{formatMoney(pot, g.currency)}</b> in recorded buy-ins</> : ''}
-          {gamePayments > 0 && <>, and the <b>{gamePayments} payment{gamePayments === 1 ? '' : 's'}</b> marked for this game</>} for good.
-          {gamePayments > 0 && ' Everyone\'s club balance stays exactly as it was before this game.'} This can't be undone.</>}
+          {gamePayments > 0 && <>, and the <b>{gamePayments} payment{gamePayments === 1 ? '' : 's'}</b> marked for this game</>} from the club.
+          {gamePayments > 0 && ' Everyone\'s club balance stays exactly as it was before this game.'} You can restore it from the group's History tab.</>}
         onConfirm={async () => {
           const ok = await run((api) => api.deleteSession(s.id), 'Game deleted');
           if (ok !== undefined) nav(`/groups/${g.id}?tab=games`);

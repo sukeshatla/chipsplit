@@ -1,6 +1,7 @@
 import type { AppData, ChangeLogEntry, Contact, Group, RummyGame, RummyPlayer } from '../lib/types';
 import type { DataApi } from './types';
 import { rummyStandings } from '../lib/rummy';
+import { isSessionSettled } from '../lib/ledger';
 import { seedChangeLog, seedDemo, uid } from './seed';
 
 const KEY = 'chipsplit_demo_v1';
@@ -20,7 +21,7 @@ function load(): DemoStore {
       const d = JSON.parse(raw) as DemoStore;
       d.changeLog ??= [];
       d.rummyGames ??= [];
-      d.groups.forEach((g) => { g.deleted_expenses ??= []; });
+      d.groups.forEach((g) => { g.deleted_expenses ??= []; g.deleted_sessions ??= []; });
       d.rummyGames.forEach((g) => {
         g.buy_in_cents ??= 0; g.session_id ??= null;
         g.players.forEach((p) => { p.rejoins ??= 0; p.score_offset ??= 0; });
@@ -86,6 +87,11 @@ function log(d: DemoStore, groupId: string, entityType: ChangeLogEntry['entity_t
 /** Mirrors the server-side admin check, so demo mode shows the same gating as the real backend. */
 function assertAdmin(d: DemoStore, g: Group, message: string) {
   if (!g.members.some((m) => m.user_id === d.me.id && m.is_admin)) throw new Error(message);
+}
+
+/** Mirrors is_group_member(): any member can add, edit, delete, or restore an expense (0025). */
+function assertMember(d: DemoStore, g: Group, message: string) {
+  if (!g.members.some((m) => m.user_id === d.me.id)) throw new Error(message);
 }
 
 /** Mirrors the server's is_game_host(): only whoever started a game (or, for old games with no
@@ -171,7 +177,7 @@ export const demoApi: DataApi = {
     const g = group(d, groupId);
     const c = upsertContact(d, name, email);
     const id = uid();
-    g.members.push({ id, group_id: groupId, user_id: c.user_id, contact_id: c.id, name: c.name, email: c.email, email_opt_out: false, is_admin: true });
+    g.members.push({ id, group_id: groupId, user_id: c.user_id, contact_id: c.id, name: c.name, email: c.email, email_opt_out: false, is_admin: false });
     log(d, groupId, 'member', id, `Added ${c.name} to the group`);
     return id;
   }),
@@ -181,7 +187,7 @@ export const demoApi: DataApi = {
     const c = d.contacts.find((x) => x.id === contactId);
     if (!c) throw new Error('That friend is not in your list');
     const id = uid();
-    g.members.push({ id, group_id: groupId, user_id: c.user_id, contact_id: c.id, name: c.name, email: c.email, email_opt_out: false, is_admin: true });
+    g.members.push({ id, group_id: groupId, user_id: c.user_id, contact_id: c.id, name: c.name, email: c.email, email_opt_out: false, is_admin: false });
     log(d, groupId, 'member', id, `Added ${c.name} to the group`);
     return id;
   }),
@@ -238,7 +244,7 @@ export const demoApi: DataApi = {
 
   saveExpense: (e, id) => mutate((d) => {
     const g = group(d, e.group_id);
-    assertAdmin(d, g, id ? 'Only a group admin can edit expenses' : 'Only a group admin can add expenses');
+    assertMember(d, g, 'You are not in this group');
     if (id) {
       const i = g.expenses.findIndex((x) => x.id === id);
       if (i < 0) throw new Error('That expense no longer exists');
@@ -253,7 +259,7 @@ export const demoApi: DataApi = {
 
   deleteExpense: (id) => mutate((d) => {
     const g = groupOf(d, (x) => x.expenses.some((e) => e.id === id));
-    assertAdmin(d, g, 'Only a group admin can delete expenses');
+    assertMember(d, g, 'You are not in this group');
     const e = g.expenses.find((x) => x.id === id)!;
     g.expenses = g.expenses.filter((x) => x.id !== id);
     (g.deleted_expenses ??= []).push({ ...e, deleted_at: now() });
@@ -262,7 +268,7 @@ export const demoApi: DataApi = {
 
   restoreExpense: (id) => mutate((d) => {
     const g = groupOf(d, (x) => (x.deleted_expenses ?? []).some((e) => e.id === id));
-    assertAdmin(d, g, 'Only a group admin can restore expenses');
+    assertMember(d, g, 'You are not in this group');
     const e = g.deleted_expenses!.find((x) => x.id === id)!;
     g.deleted_expenses = g.deleted_expenses!.filter((x) => x.id !== id);
     g.expenses.push({ ...e, deleted_at: null });
@@ -296,11 +302,27 @@ export const demoApi: DataApi = {
   deleteSession: (id) => mutate((d) => {
     const g = groupOf(d, (x) => x.sessions.some((s) => s.id === id));
     assertHost(d, g, id);
-    const location = g.sessions.find((s) => s.id === id)!.location;
+    const game = g.sessions.find((s) => s.id === id)!, location = game.location;
+    if (game.status === 'final' && !isSessionSettled(g, game)) throw new Error('Settle up everyone in this game before deleting it');
     g.sessions = g.sessions.filter((s) => s.id !== id);
-    // Same as the server (0022): a game's own payments go with it, so balances stay as before the game.
+    // Same as the server (0025): a game's own payments go with it, so balances stay as before the
+    // game, and both come back if it's restored.
+    (g.deleted_sessions ??= []).push({ ...game, deleted_at: now(), payments: g.settlements.filter((s) => s.session_id === id) });
     g.settlements = g.settlements.filter((s) => s.session_id !== id);
     log(d, g.id, 'session', id, `Deleted the game${location ? ` at ${location}` : ''}`);
+  }),
+
+  restoreSession: (id) => mutate((d) => {
+    const g = groupOf(d, (x) => (x.deleted_sessions ?? []).some((s) => s.id === id));
+    const s = g.deleted_sessions!.find((x) => x.id === id)!;
+    if (s.created_by ? s.created_by !== d.me.id : !g.members.some((m) => m.user_id === d.me.id && m.is_admin)) {
+      throw new Error('Only the person who started this game can restore it');
+    }
+    const { payments = [], ...game } = s;
+    g.deleted_sessions = g.deleted_sessions!.filter((x) => x.id !== id);
+    g.sessions.push({ ...game, deleted_at: null });
+    g.settlements.push(...payments);
+    log(d, g.id, 'session', id, `Restored the game${s.location ? ` at ${s.location}` : ''}`);
   }),
 
   addSettlement: (s) => mutate((d) => {

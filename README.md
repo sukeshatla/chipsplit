@@ -24,7 +24,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Tick off each payment as **Paid** (or undo it). The game shows "3 unpaid" until everyone's square.
 - A game belongs to whoever **started** it: only they can change buy-ins and cash-outs, finalize or reopen it, mark its payments, or delete it. Everyone else in the club follows along live, read-only. (Rummy works the same way.)
 - Reopen a game to fix a mistake. Date, location, and rebuy amount are set when the game starts.
-- Deleting a game needs that game's own payments recorded, and removes them along with it, so everyone's balance is exactly what it was before the game. Deleting the whole club only needs the club's **total** balance settled (games + any older expenses + every payment).
+- Deleting a game needs that game's own payments recorded, and takes them out along with it, so everyone's balance is exactly what it was before the game. The host can **restore** a deleted game, payments and all, from the club's History tab. Deleting the whole club only needs the club's **total** balance settled (games + any older expenses + every payment).
 - A club has a **Games** tab (the games list, with the **Leaderboard** under it: total won or lost at the table across finished games, games played, winning nights, best night; payments don't change it) and a **Balances** tab (the fewest payments to settle, where everyone stands with settled-up people last, payments recorded).
 - **Club Games** (main menu) lists only the buy-in games you played, across all your clubs, with your totals; games you sat out or weren't in are left out. Rummy stays on each club's Rummy page.
 - A club can run more than one game on the same day — each is its own record, nothing is tied to a calendar day.
@@ -40,7 +40,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Add expenses with one payer or **several payers**.
 - Split **equally**, by **shares** (e.g. one person owes 2 shares, everyone else 1), by **exact amounts**, or by **percentages** (defaults to an even split of 100%, not zero) — always to the exact cent. Every mode uses the same tap-to-include/exclude picker.
 - **One-on-one expenses**: from the Dashboard or a friend's page, add an expense with friends ("we ate out, one person paid") without making a group. These stay under **Friends**, never in your Groups list. Under **More options** pick **USD, INR, or GBP**; each currency keeps its own balance with that friend (never converted).
-- Tap an expense for a summary: who paid, who's in, and each share, with **Edit** and **Delete** for group admins. Expenses are grouped by month and show what you lent or borrowed.
+- Tap an expense for a summary: who paid, who's in, and each share, with **Edit** and **Delete** for anyone in the group. Expenses are grouped by month and show what you lent or borrowed.
 - A deleted expense can be **restored** from the group's History tab.
 - **Import from Excel or CSV** (`.xlsx`, `.xls`, `.csv`) with a preview that flags bad rows before anything is saved. A template is downloadable from the import dialog.
 
@@ -68,8 +68,9 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - A notifications bell in the header shows an unread count for activity across every group you're in — new expenses, deletions, payments, being added to a group. "Mark all as read" clears it.
 
 **Group admins**
-- Everyone in a group is an admin by default. Narrow it to one or two people from each person's card on the Members tab if you want.
-- Only admins can add, edit, delete, or restore expenses, change group settings, or delete the group. Enforced server-side (Postgres RLS + triggers), so it holds even if someone bypasses the UI.
+- Whoever creates a group is its admin; everyone added later is a member. An admin can make others admin from their card on the Members tab.
+- Every member can add, edit, delete, and restore expenses, and start games (each game is run by whoever started it).
+- Only admins can change group settings, make others admin, or delete the group (clubs and expense groups alike). Enforced server-side (Postgres RLS + triggers), so it holds even if someone bypasses the UI.
 
 **Dashboard**
 - A colored banner (green when you're up, red when you're down): your net with its sign in a big box, and **You get** / **You pay** beside it. Then your **Groups** and **Friends** (top 5 each, most owed to you first, **Show all** for the rest), then a short recent-activity feed.

@@ -42,7 +42,7 @@ export function seedDemo(): AppData {
     const id = uid();
     const members: Member[] = names.map((n) => ({
       id: uid(), group_id: id, user_id: n === 'Suki' ? me.id : n === 'Ravi' ? RAVI_USER_ID : null, contact_id: contactId(n), name: n,
-      email: `${n.toLowerCase()}@example.com`, email_opt_out: false, is_admin: true,
+      email: `${n.toLowerCase()}@example.com`, email_opt_out: false, is_admin: n === 'Suki', // only the creator starts as admin (0025)
     }));
     return { id, name, kind, currency: 'USD', created_by: me.id, created_at: `${daysAgo(age)}T12:00:00Z`, members, expenses: [], deleted_expenses: [], sessions: [], settlements: [] };
   };

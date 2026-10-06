@@ -1,21 +1,20 @@
 import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { useAction, useData } from '../../app/data';
-import { isGroupAdmin, memberAvatar, memberName, memberShort, myMemberId } from '../../lib/ledger';
+import { memberAvatar, memberName, memberShort, myMemberId } from '../../lib/ledger';
 import { formatDate, formatMoney } from '../../lib/money';
 import { Amount, Avatar, Button, Modal } from '../ui';
 import { ConfirmDialog } from '../ConfirmDialog';
 import type { Expense, Group, Split } from '../../lib/types';
 
 /** Read-only summary of one expense -- who paid, who's in, how much -- with Edit and Delete
- *  for group admins (the only people who can change expenses). */
+ *  for anyone in the group (0025). */
 export function ExpenseDetailDialog({ group: g, expense: e, onClose, onEdit }: { group: Group; expense: Expense | null; onClose(): void; onEdit(e: Expense): void }) {
   const { me } = useData();
   const { run, busy } = useAction();
   const [confirming, setConfirming] = useState(false);
   if (!e) return null;
 
-  const admin = isGroupAdmin(g, me.id);
   const mine = myMemberId(g, me.id);
   const paid = e.payers.find((p) => p.member_id === mine)?.amount_cents ?? 0;
   const share = e.shares.find((s) => s.member_id === mine)?.amount_cents ?? 0;
@@ -31,7 +30,7 @@ export function ExpenseDetailDialog({ group: g, expense: e, onClose, onEdit }: {
   return (
     <>
       <Modal open onClose={onClose} title={e.description}
-        footer={admin ? <>
+        footer={mine ? <>
           <Button variant="danger" onClick={() => setConfirming(true)}><Trash2 size={16} aria-hidden="true" />Delete</Button>
           <Button variant="primary" onClick={() => onEdit(e)}><Pencil size={16} aria-hidden="true" />Edit</Button>
         </> : <Button onClick={onClose}>Close</Button>}>
@@ -51,10 +50,9 @@ export function ExpenseDetailDialog({ group: g, expense: e, onClose, onEdit }: {
         <SplitList g={g} title="Paid by" rows={e.payers} />
         <SplitList g={g} title={`Split between ${e.shares.length}`} rows={e.shares} />
 
-        {!admin && <p className="mt-4 text-[12px] text-ink-2">Only a group admin can edit or delete expenses.</p>}
       </Modal>
       <ConfirmDialog open={confirming} onClose={() => setConfirming(false)} title="Delete this expense?" icon={Trash2} busy={busy}
-        body={<>This removes <b>&ldquo;{e.description}&rdquo;</b> ({formatMoney(e.amount_cents, g.currency)}) from everyone's balance. An admin can restore it from the group's History tab.</>}
+        body={<>This removes <b>&ldquo;{e.description}&rdquo;</b> ({formatMoney(e.amount_cents, g.currency)}) from everyone's balance. Anyone in the group can restore it from the History tab.</>}
         onConfirm={remove} />
     </>
   );

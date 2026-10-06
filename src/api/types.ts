@@ -44,7 +44,10 @@ export interface DataApi {
   createSession(s: NewSession): Promise<string>;
   updateSession(id: string, patch: Partial<Pick<GameSession, 'played_on' | 'location' | 'notes' | 'status' | 'default_buy_in_cents'>>): Promise<void>;
   saveSessionResults(id: string, results: SessionResult[]): Promise<void>;
+  /** Host only. Soft delete: the game and its payments drop out of balances but can be restored. */
   deleteSession(id: string): Promise<void>;
+  /** Host only. Brings a deleted game back exactly as it was, payments included. */
+  restoreSession(id: string): Promise<void>;
   addSettlement(s: NewSettlement): Promise<void>;
   deleteSettlement(id: string): Promise<void>;
   loadHistory(groupId: string): Promise<ChangeLogEntry[]>;

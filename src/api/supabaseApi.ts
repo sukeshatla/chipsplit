@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../lib/supabase';
-import type { AppData, ChangeLogEntry, Contact, Group, Profile, RummyGame } from '../lib/types';
+import type { AppData, ChangeLogEntry, Contact, GameSession, Group, Profile, RummyGame, Settlement } from '../lib/types';
 import type { AdminDailyActivity, AdminOverview, AdminSignup, DataApi } from './types';
 
 function db() {
@@ -34,7 +34,7 @@ const GROUP_SELECT = `
   group_members ( id, group_id, user_id, contact_id, name, email, email_opt_out, is_admin ),
   expenses ( id, group_id, description, category, amount_cents, spent_on, created_by, created_at, deleted_at,
     expense_payers ( member_id, amount_cents ), expense_shares ( member_id, amount_cents ) ),
-  game_sessions ( id, group_id, played_on, location, notes, status, default_buy_in_cents, created_by, created_at,
+  game_sessions ( id, group_id, played_on, location, notes, status, default_buy_in_cents, created_by, created_at, deleted_at,
     session_results ( member_id, buy_in_cents, cash_out_cents, returned_cents ) ),
   settlements ( id, group_id, from_member, to_member, amount_cents, method, note, session_id, settled_on, created_at )
 `;
@@ -86,19 +86,24 @@ function mapExpense(e: any) {
 
 function mapGroup(r: any): Group {
   const expenses = (r.expenses ?? []).map(mapExpense);
+  const sessions: GameSession[] = (r.game_sessions ?? []).map((s: any) => ({
+    id: s.id, group_id: s.group_id, played_on: s.played_on, location: s.location, notes: s.notes, status: s.status,
+    default_buy_in_cents: num(s.default_buy_in_cents), created_by: s.created_by, created_at: s.created_at, deleted_at: s.deleted_at,
+    results: (s.session_results ?? []).map((x: any) => ({
+      member_id: x.member_id, buy_in_cents: num(x.buy_in_cents), cash_out_cents: num(x.cash_out_cents), returned_cents: num(x.returned_cents),
+    })),
+  }));
+  const settlements: Settlement[] = (r.settlements ?? []).map((s: any) => ({ ...s, amount_cents: num(s.amount_cents) }));
+  // A deleted game's payments go with it (0025), out of balances until it's restored.
+  const deleted = new Set(sessions.filter((s) => s.deleted_at).map((s) => s.id));
   return {
     id: r.id, name: r.name, kind: r.kind, currency: r.currency, is_direct: !!r.is_direct, created_by: r.created_by, created_at: r.created_at,
     members: (r.group_members ?? []).map((m: any) => ({ ...m })),
     expenses: expenses.filter((e: any) => !e.deleted_at),
     deleted_expenses: expenses.filter((e: any) => e.deleted_at),
-    sessions: (r.game_sessions ?? []).map((s: any) => ({
-      id: s.id, group_id: s.group_id, played_on: s.played_on, location: s.location, notes: s.notes, status: s.status,
-      default_buy_in_cents: num(s.default_buy_in_cents), created_by: s.created_by, created_at: s.created_at,
-      results: (s.session_results ?? []).map((x: any) => ({
-        member_id: x.member_id, buy_in_cents: num(x.buy_in_cents), cash_out_cents: num(x.cash_out_cents), returned_cents: num(x.returned_cents),
-      })),
-    })),
-    settlements: (r.settlements ?? []).map((s: any) => ({ ...s, amount_cents: num(s.amount_cents) })),
+    sessions: sessions.filter((s) => !s.deleted_at),
+    deleted_sessions: sessions.filter((s) => s.deleted_at).map((s) => ({ ...s, payments: settlements.filter((p) => p.session_id === s.id) })),
+    settlements: settlements.filter((p) => !p.session_id || !deleted.has(p.session_id)),
   };
 }
 
@@ -297,9 +302,17 @@ export const supabaseApi: DataApi = {
 
   async deleteSession(id) {
     const before = check(await db().from('game_sessions').select('group_id, location').eq('id', id).maybeSingle()) as { group_id: string; location: string | null } | null;
-    const rows = check(await db().from('game_sessions').delete().eq('id', id).select('id')) as { id: string }[];
+    const rows = check(await db().from('game_sessions').update({ deleted_at: new Date().toISOString() }).eq('id', id).select('id')) as { id: string }[];
     if (!rows.length) throw new Error(HOST_ONLY);
     if (before) await log(before.group_id, 'session', id, `Deleted the game${before.location ? ` at ${before.location}` : ''}`);
+  },
+
+  async restoreSession(id) {
+    const before = check(await db().from('game_sessions').select('group_id, location').eq('id', id).maybeSingle()) as { group_id: string; location: string | null } | null;
+    if (!before) throw new Error('That game no longer exists');
+    const rows = check(await db().from('game_sessions').update({ deleted_at: null }).eq('id', id).select('id')) as { id: string }[];
+    if (!rows.length) throw new Error('Only the person who started this game can restore it');
+    await log(before.group_id, 'session', id, `Restored the game${before.location ? ` at ${before.location}` : ''}`);
   },
 
   async addSettlement(s) {

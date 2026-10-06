@@ -133,11 +133,12 @@ export function directFriendKey(g: Group, meId: string): string | null {
 }
 
 export function memberHasActivity(g: Group, memberId: string) {
-  // Deleted expenses count: they can still be restored, and the database won't remove a member they reference.
+  // Deleted expenses and games count: they can still be restored, and the database won't remove a member they reference.
   return (
     [...g.expenses, ...(g.deleted_expenses ?? [])].some((e) => e.payers.some((p) => p.member_id === memberId) || e.shares.some((s) => s.member_id === memberId)) ||
+    (g.deleted_sessions ?? []).some((s) => s.results.some((r) => r.member_id === memberId)) ||
     g.sessions.some((s) => s.results.some((r) => r.member_id === memberId)) ||
-    g.settlements.some((s) => s.from_member === memberId || s.to_member === memberId)
+    [...g.settlements, ...(g.deleted_sessions ?? []).flatMap((s) => s.payments ?? [])].some((s) => s.from_member === memberId || s.to_member === memberId)
   );
 }
 

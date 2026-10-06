@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { History, RotateCcw } from 'lucide-react';
 import { useAuth } from '../app/auth';
 import { useAction, useData } from '../app/data';
-import { isGroupAdmin } from '../lib/ledger';
+import { isGameHost, myMemberId } from '../lib/ledger';
 import { formatDate } from '../lib/money';
 import { Button, Card, CardHeader, EmptyState, Row, Spinner } from './ui';
 import type { ChangeLogEntry, Group } from '../lib/types';
@@ -20,22 +20,29 @@ export function HistoryList({ g, entityId }: { g: Group; entityId?: string }) {
   const { me } = useData();
   const { run, busy } = useAction();
   const { data, isLoading, refetch } = useQuery({ queryKey: ['history', g.id], queryFn: () => api.loadHistory(g.id) });
-  const admin = isGroupAdmin(g, me.id);
+  const member = !!myMemberId(g, me.id);
 
   if (isLoading) return <Spinner />;
   const filtered = (data ?? []).filter((e) => !entityId || e.entity_id === entityId);
-  // An expense that's still deleted can be restored from its newest "Deleted" entry (an expense
+  // An expense or game that's still deleted can be restored from its newest "Deleted" entry (one
   // deleted, restored, then deleted again only offers it once). Newest entries come first.
-  const deletedIds = new Set((g.deleted_expenses ?? []).map((e) => e.id));
+  // Any member can restore an expense; only a game's host can restore that game (0025).
+  const deletedIds = new Set([
+    ...(member ? (g.deleted_expenses ?? []).map((e) => e.id) : []),
+    ...(g.deleted_sessions ?? []).filter((s) => isGameHost(g, s, me.id)).map((s) => s.id),
+  ]);
   const restorable = new Set<string>();
   for (const e of filtered) {
-    if (e.entity_type === 'expense' && e.entity_id && deletedIds.has(e.entity_id) && e.summary.startsWith('Deleted')) {
+    if ((e.entity_type === 'expense' || e.entity_type === 'session') && e.entity_id && deletedIds.has(e.entity_id) && e.summary.startsWith('Deleted')) {
       restorable.add(e.id);
       deletedIds.delete(e.entity_id);
     }
   }
-  const restore = async (expenseId: string) => {
-    const ok = await run((api) => api.restoreExpense(expenseId), 'Expense restored');
+  const restore = async (entry: ChangeLogEntry) => {
+    const id = entry.entity_id!;
+    const ok = entry.entity_type === 'session'
+      ? await run((api) => api.restoreSession(id), 'Game restored')
+      : await run((api) => api.restoreExpense(id), 'Expense restored');
     if (ok !== undefined) refetch();
   };
   if (filtered.length === 0) {
@@ -53,8 +60,8 @@ export function HistoryList({ g, entityId }: { g: Group; entityId?: string }) {
                 {formatDate(e.created_at, { month: 'short', day: 'numeric' })} at {new Date(e.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
               </p>
             </div>
-            {admin && restorable.has(e.id) && (
-              <Button size="sm" disabled={busy} onClick={() => restore(e.entity_id!)}><RotateCcw size={14} aria-hidden="true" />Restore</Button>
+            {restorable.has(e.id) && (
+              <Button size="sm" disabled={busy} onClick={() => restore(e)}><RotateCcw size={14} aria-hidden="true" />Restore</Button>
             )}
           </Row>
         ))}

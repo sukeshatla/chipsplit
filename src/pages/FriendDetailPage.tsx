@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, HandCoins, Receipt, Trash2, UserX } from 'lucide-react';
 import { useData, useAction } from '../app/data';
-import { friendsList, isGroupAdmin, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
+import { friendsList, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, LIST_STEP, MonthHeader, Row, ShowMore } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -196,7 +196,7 @@ export function FriendDetailPage() {
       {settle && <SettleDialog group={settle.group} draft={settle.draft} onClose={() => setSettle(null)} />}
       {open && <ExpenseDetailDialog group={open.g} expense={open.e} onClose={() => setOpen(null)}
         onEdit={(e) => { setOpen(null); setEditing({ group: open.g, expense: e }); }} />}
-      {editing && isGroupAdmin(editing.group, data.me.id) && (
+      {editing && (
         <ExpenseDialog group={editing.group} expense={editing.expense} open onClose={() => setEditing(null)}
           onPickCurrency={editing.expense ? undefined : (c) => direct.find([f], c)} />
       )}

@@ -53,7 +53,6 @@ export function GroupPage() {
   const requested = params.get('tab') as Tab | null;
   const tab: Tab = tabs.some((t) => t.value === requested) ? requested! : tabs[0]!.value;
   const mine = myMemberId(g, me.id);
-  const admin = isGroupAdmin(g, me.id);
   const myBal = mine ? groupBalances(g).get(mine) ?? 0 : 0;
 
   return (
@@ -71,7 +70,7 @@ export function GroupPage() {
             onImage={() => shareSummaryImage(summaryData(g), (id) => memberName(g, id)).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
           {g.kind === 'club' ? (<>
             <ActionButton primary icon={<Spade size={16} aria-hidden="true" />} onClick={() => setNewGame(true)}>New game</ActionButton>
-          </>) : admin && (<>
+          </>) : mine && (<>
             <ActionButton icon={<Upload size={16} aria-hidden="true" />} onClick={() => setImportOpen(true)}>Import</ActionButton>
             <ActionButton primary icon={<Receipt size={16} aria-hidden="true" />} onClick={() => setExpense('new')}>Expense</ActionButton>
           </>)}
@@ -84,7 +83,7 @@ export function GroupPage() {
 
       {tab === 'games' && <GamesTab g={g} onNew={() => setNewGame(true)} />}
       {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} />}
-      {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} admin={admin} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
+      {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
       {tab === 'history' && <HistoryList g={g} />}
 
@@ -265,7 +264,7 @@ function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void
   );
 }
 
-function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMember?: string; admin: boolean; onEdit(e: Expense | 'new'): void; onImport(): void }) {
+function ExpensesTab({ g, meMember, onEdit, onImport }: { g: Group; meMember?: string; onEdit(e: Expense | 'new'): void; onImport(): void }) {
   // The open summary lives in the URL (?expense=<id>) so activity and notification links can open it directly.
   const [params, setParams] = useSearchParams();
   const detail = g.expenses.find((e) => e.id === params.get('expense')) ?? null;
@@ -273,9 +272,9 @@ function ExpensesTab({ g, meMember, admin, onEdit, onImport }: { g: Group; meMem
   const list = g.expenses.slice().sort((a, b) => b.spent_on.localeCompare(a.spent_on) || b.created_at.localeCompare(a.created_at));
   const [shown, setShown] = useState(LIST_STEP);
   if (list.length === 0) {
-    return <Card><EmptyState icon={<Receipt size={28} />} title={admin ? 'Log the first expense' : 'No expenses yet'}
-      body={admin ? 'Add costs as they happen, or bring in a spreadsheet you already keep.' : 'A group admin can add expenses here.'}
-      action={admin && <div className="flex gap-2"><Button onClick={onImport}>Import sheet</Button><Button variant="primary" onClick={() => onEdit('new')}>Add expense</Button></div>} /></Card>;
+    return <Card><EmptyState icon={<Receipt size={28} />} title="Log the first expense"
+      body="Add costs as they happen, or bring in a spreadsheet you already keep."
+      action={meMember && <div className="flex gap-2"><Button onClick={onImport}>Import sheet</Button><Button variant="primary" onClick={() => onEdit('new')}>Add expense</Button></div>} /></Card>;
   }
   const total = list.reduce((a, e) => a + e.amount_cents, 0);
 
@@ -351,7 +350,7 @@ function MembersTab({ g }: { g: Group }) {
           ))}
         </div>
         <p className="px-4 pb-4 pt-3 text-[12px] text-ink-2 md:px-5">
-          Tap someone to manage them. Only admins can add, edit, or delete expenses, change group settings, or delete the group. People with history in the group can't be removed, so balances stay correct.
+          Tap someone to manage them. Everyone can add expenses and start games; only admins can change group settings, make others admin, or delete the group. People with history in the group can't be removed, so balances stay correct.
         </p>
       </Card>
 

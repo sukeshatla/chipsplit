@@ -5,7 +5,7 @@ import { Search, Users } from 'lucide-react';
 import { Avatar, Badge, Button, EmptyState, Input, Modal } from '../ui';
 import { useAction, useData } from '../../app/data';
 import { useAuth } from '../../app/auth';
-import { friendKey, friendsList, isGroupAdmin, STATUS_LABEL, type FriendRow, type FriendStatus } from '../../lib/ledger';
+import { friendKey, friendsList, STATUS_LABEL, type FriendRow, type FriendStatus } from '../../lib/ledger';
 import { AddFriendDialog } from './AddFriendDialog';
 import { ExpenseDialog } from './ExpenseDialog';
 import type { AppData, Group } from '../../lib/types';
@@ -30,7 +30,7 @@ export function useDirectGroup() {
     const wanted = new Set([`u:${data.me.id}`, ...friends.map((f) => f.key)]);
     // Fresh data, since a currency switch may have just created one.
     const groups = qc.getQueryData<AppData>(['all', mode])?.groups ?? data.groups;
-    const existing = groups.find((g) => g.is_direct && g.currency === currency && isGroupAdmin(g, data.me.id)
+    const existing = groups.find((g) => g.is_direct && g.currency === currency
       && g.members.length === wanted.size && g.members.every((m) => wanted.has(friendKey(m))));
     if (existing) return existing;
     const groupId = await run(async (api) => {

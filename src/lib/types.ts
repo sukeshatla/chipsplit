@@ -75,6 +75,9 @@ export interface GameSession {
   created_by?: string | null;
   created_at: string;
   results: SessionResult[];
+  deleted_at?: string | null; // set only on entries in Group.deleted_sessions
+  /** Only on deleted games: the payments marked for it, kept out of balances until it's restored. */
+  payments?: Settlement[];
 }
 
 export interface Settlement {
@@ -105,6 +108,8 @@ export interface Group {
   /** Soft-deleted expenses: left out of every balance, kept so History can restore them. */
   deleted_expenses?: Expense[];
   sessions: GameSession[];
+  /** Soft-deleted games (with their payments): left out of every balance, kept so History can restore them. */
+  deleted_sessions?: GameSession[];
   settlements: Settlement[];
 }
 
