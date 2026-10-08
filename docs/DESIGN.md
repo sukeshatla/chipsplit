@@ -1,8 +1,9 @@
 # Chip n Split — Design Document
 
 This document covers the product design, data model, and architecture decisions behind Chip n
-Split. The [README](../README.md) covers setup and day-to-day usage; this is the "why it's built
-this way" companion for anyone extending the codebase.
+Split. It is the **blueprint**: [SPEC.md](../SPEC.md) turns it into numbered, testable rules (the
+contract every change is checked against), and the [README](../README.md) covers setup and
+day-to-day usage. Change order for any feature: this design → SPEC.md rule → failing test → code.
 
 ---
 
@@ -57,8 +58,10 @@ table to balance — total cash-out must equal total buy-in — which catches co
 before they become a wrong debt. A game belongs to its **host**, whoever started it: only they
 can change its numbers, finalize or reopen it, mark its payments, or delete it, while everyone
 else in the club follows along live (see [§4 Security model](#4-security-model)). Games with no
-recorded host fall back to the club's admins. Deleting a game also deletes the payments recorded
-against it, so balances return to exactly what they were before the game.
+recorded host fall back to the club's admins. Any member can start a game. Deleting a game takes
+the payments recorded against it out with it, so balances return to exactly what they were before
+the game. A deleted game is kept (`game_sessions.deleted_at`) with its results and payments, out of
+every balance, and its host can restore it from the club's History exactly as it was (0025).
 
 A club tracks games only — there's no way to add an expense to one. Expenses a club picked up
 before that rule still show on its Expenses tab and still count toward its balances.
@@ -79,8 +82,14 @@ small hidden "direct" group (`groups.is_direct`), reusing the one that already e
 set of people, so splits, payments, and history work like any other expense while staying out of
 the Groups list and showing under Friends instead.
 
-Adding, editing, deleting, and restoring expenses is limited to group admins. A deleted expense
-is kept (`deleted_at`) and can be restored from the group's History.
+Any member of the group can add, edit, delete, and restore an expense (0025). A deleted expense is
+kept (`deleted_at`) and can be restored from the group's History.
+
+One person can end up with more than one one-on-one with the same friend (each of you started
+one). The friend page adds them up into one **Balance** per currency, and **Settle** records the
+payment in the one-on-one that owes most in that direction. An empty one-on-one (an "Add expense"
+that was cancelled, or one whose expenses were all deleted) is not shown and doesn't count as
+something shared.
 
 ### Friends
 
@@ -103,6 +112,18 @@ Matching a returning member to their existing history is done by email, case-ins
 the moment they first sign in (see `handle_new_user()` in the schema) — so someone who was
 added as a guest to three different groups over a year, then finally signs up, sees all three
 retroactively connect to their account without anyone doing anything.
+
+**What you share.** Each friend row says *2 shared groups* (real groups only), *one-on-one* (a
+one-on-one with an expense, game, or payment in it, settled or not), or *nothing shared yet*.
+
+**Removing a friend.** Anyone on the list (friend, invited, or guest) can be removed, but only
+once you're settled up with them in every currency. Because people also appear just by sharing a
+group, removal is remembered by friend key in `hidden_friends` (0024) rather than by deleting
+anything. A removed friend comes back automatically if a balance with them opens again, or if you
+add them as a friend again, so money owed is never hidden.
+
+**Sort order.** The Friends list and the Dashboard list the biggest amount first, whether you're
+owed or you owe, with settled-up people last.
 
 ### Balances, settling up, and reminders
 
@@ -130,15 +151,15 @@ Every write to a group is logged in plain English (`change_log`) — who added, 
 deleted what, when. A notification bell surfaces this across every group a person belongs to,
 with an unread count, so staying current doesn't require checking each group individually.
 
-### Governance: group admins
+### Governance: members, hosts, and admins
 
-By default, everyone in a group is equally trusted — anyone can start a game or record a
-payment. A narrower set of actions (adding, editing, or deleting expenses, changing group
-settings, deleting the group) requires **admin** status, which every member holds by default
-and can be narrowed to one or two people per group if a club or household wants a single owner.
-A game itself is controlled by its host, not by the admins. This
-mirrors real social structure: most groups don't need a designated authority, but the option
-exists without requiring it upfront.
+Everyone in a group is trusted with the day-to-day: any **member** can add, edit, delete, and
+restore expenses, start a game, record a payment, and add people. A **game** is run by its
+**host**, whoever started it. Only **admins** can change group settings, make someone else admin,
+or delete the group (clubs and expense groups alike). Whoever creates a group is its first and
+only admin; everyone added later joins as a member, and an admin can promote others (0025). A
+group always keeps at least one admin. This mirrors real social structure: one owner who can
+reshape or close the group, everyone else free to use it.
 
 ---
 
@@ -159,7 +180,8 @@ erDiagram
         text name
         text kind "club | expenses"
         text currency
-        uuid created_by FK
+        bool is_direct "one-on-one, shown under Friends"
+        uuid created_by FK "the first admin"
     }
     GROUP_MEMBERS {
         uuid id PK
@@ -184,6 +206,7 @@ erDiagram
         text description
         bigint amount_cents
         date spent_on
+        timestamptz deleted_at "null = live; set = restorable"
     }
     EXPENSE_PAYERS { uuid expense_id FK
         uuid member_id FK
@@ -197,11 +220,14 @@ erDiagram
         date played_on
         text status "open | final"
         bigint default_buy_in_cents
+        uuid created_by FK "the host"
+        timestamptz deleted_at "null = live; set = restorable"
     }
     SESSION_RESULTS { uuid session_id FK
         uuid member_id FK
         bigint buy_in_cents
-        bigint cash_out_cents }
+        bigint cash_out_cents
+        bigint returned_cents "chips given back" }
     SETTLEMENTS {
         uuid id PK
         uuid group_id FK
@@ -209,6 +235,10 @@ erDiagram
         uuid to_member FK
         bigint amount_cents
         uuid session_id FK "null = not tied to a game"
+    }
+    HIDDEN_FRIENDS {
+        uuid owner_id FK "whose list"
+        text friend_key "u:… | e:… | m:…"
     }
     CHANGE_LOG {
         uuid id PK
@@ -224,6 +254,7 @@ erDiagram
     GROUPS ||--o{ SETTLEMENTS : has
     GROUPS ||--o{ CHANGE_LOG : has
     CONTACTS ||--o{ GROUP_MEMBERS : "linked as"
+    PROFILES ||--o{ HIDDEN_FRIENDS : removed
     EXPENSES ||--o{ EXPENSE_PAYERS : has
     EXPENSES ||--o{ EXPENSE_SHARES : has
     GROUP_MEMBERS ||--o{ EXPENSE_PAYERS : is
@@ -258,7 +289,12 @@ two views into one identity wherever they overlap, so the same person is never s
 
 **Settlement is an invariant, not a convention.** A group's balances always sum to zero; the
 database enforces (not just the UI) that a group or a finalized game cannot be deleted while
-unsettled, and that only a game's host can change its results. See
+unsettled, and that only a game's host can change its results.
+
+**Delete means hide, where it can be undone.** Expenses and games are soft-deleted (`deleted_at`):
+they drop out of every balance and settle-up list, stay in the database, and come back exactly as
+they were on restore. Removing a friend is the same idea (`hidden_friends`). Groups are the one
+real delete, and only once settled. See
 [§4](#4-security-model).
 
 ---
@@ -278,11 +314,12 @@ table it depends on:
 | `group_is_settled(gid)` | Does every member's balance in this group net to zero? |
 | `session_is_settled(sid)` | Does every player's balance in this game net to zero? |
 
-**Admin-gated actions** (adding, editing, deleting, or restoring an expense, changing group
-settings, deleting a group) check `is_group_admin`. Starting a game or recording a group payment
-does not — participation stays open to every member. Changing or deleting a game, and marking
+**Admin-gated actions** (changing group settings, promoting or demoting an admin, deleting a
+group) check `is_group_admin`. Expenses, starting a game, and recording a group payment check
+only `is_group_member` — participation stays open to every member (0025). Changing or deleting a game, and marking
 its payments, is limited to the game's host (`game_sessions.created_by`), falling back to admins
-for older games with no host. A trigger additionally blocks demoting the last admin in a group, so a group can
+for older games with no host; while a game is deleted, nothing about it can change until it's
+restored (`is_live_game_host`). A trigger additionally blocks demoting the last admin in a group, so a group can
 never lock itself out of its own governance.
 
 **Settlement invariants are enforced at the database, not the UI.** Deleting a group or a
