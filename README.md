@@ -3,10 +3,229 @@
 Split shared expenses like Splitwise and settle card-game nights with friends, in one ledger.
 Log each player's buy-in and cash-out, add the pizza, and Chip n Split works out the fewest payments that square everyone up.
 
-Runs as a static web app on **GitHub Pages** (free) with **Supabase** (free tier) for the database and Google sign-in.
+**Live at [chipnsplit.org](https://chipnsplit.org).** A static web app on **GitHub Pages** (free) with **Supabase** (free tier) for the database and Google sign-in.
 It installs on phones as an app (PWA), and has a **demo mode** that works with no setup at all.
 
-See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, architecture, and security model in depth.
+---
+
+## Documentation
+
+| Document | Purpose |
+|---|---|
+| [docs/DESIGN.md](docs/DESIGN.md) | Product design, data model, architecture, and security model in depth. Read before changing how money or permissions work. |
+| [docs/Chip-n-Split-Features.pdf](docs/Chip-n-Split-Features.pdf) | Feature overview with screenshots, who can do what, step-by-step phone install (Android and iPhone), and the Google sign-in security notes. Share this with new users. |
+| `supabase/migrations/*.sql` | The whole database, one numbered file per change. Each file's header says what it does. |
+| This file | Quick start, project layout, routes, data API, permissions, and the full feature list. |
+
+## Project Structure
+
+```
+chipsplit/
+├── index.html                ← App shell (viewport meta, PWA links)
+├── vite.config.ts            ← Vite + PWA (service worker, manifest); VITE_BASE sets the URL base
+├── .env.local                ← VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (not committed)
+├── .github/workflows/
+│   ├── deploy.yml            ← On every push to main: test, build, deploy to GitHub Pages
+│   └── keep-alive.yml        ← Pings Supabase every 3 days so the free project never pauses
+├── public/                   ← App icons
+├── docs/                     ← DESIGN.md, feature overview PDF (features, roles, phone install, security)
+├── supabase/migrations/      ← 0001 … 0025, run in order in the Supabase SQL editor
+└── src/
+    ├── main.tsx, App.tsx     ← Entry + HashRouter (routes below)
+    ├── index.css             ← Tailwind + theme tokens (light / dark)
+    ├── api/
+    │   ├── types.ts          ← DataApi: every read and write the UI can do
+    │   ├── supabaseApi.ts    ← Real backend (Supabase, guarded by RLS)
+    │   ├── demoApi.ts        ← Demo mode: the same API on localStorage, same rules
+    │   └── seed.ts           ← Demo sample data
+    ├── app/                  ← auth.tsx (Google sign-in / demo), data.tsx (load + actions), toast.tsx
+    ├── lib/
+    │   ├── ledger.ts         ← Balances, friends, permissions, activity (pure functions)
+    │   ├── settle.ts         ← Fewest-payments settle-up
+    │   ├── money.ts          ← Integer-cent math, exact splits, formatting
+    │   ├── rummy.ts          ← Rummy scoring and payouts
+    │   ├── summaryImage.ts   ← Share images (game table, balances, leaderboard)
+    │   ├── admin.ts          ← The one app-admin account
+    │   ├── *.test.ts         ← Unit tests (Vitest)
+    │   └── types.ts, image.ts, theme.ts, supabase.ts
+    ├── components/
+    │   ├── ui.tsx            ← Button, Input, Modal (keyboard-aware), Tabs, Card, Row, ...
+    │   ├── Layout.tsx, ActionBar.tsx, HistoryList.tsx, SettleRow.tsx, NotificationsBell.tsx, ...
+    │   └── dialogs/          ← AddFriend, AddMember, CreateGroup, Expense, ExpenseDetail, Import,
+    │                           MemberCard, NewGame, NewRummyGame, QuickExpense, Settle
+    └── pages/                ← Dashboard, Groups, Group, GameDay, Games, Rummy (list, group, game),
+                                Friends, FriendDetail, Profile, Admin, Login, Welcome
+```
+
+## Install on Your Phone (PWA)
+
+Chip n Split installs like an app (own icon, full screen, updates itself) straight from the browser, no app store. Always install from **chipnsplit.org**. Step-by-step pictures are on the *Install* pages of [the feature PDF](docs/Chip-n-Split-Features.pdf).
+
+**Android (Chrome)**
+1. Open **chipnsplit.org** in Chrome.
+2. Tap the **⋮** menu (top right) → **Add to home screen** (some Chrome versions say **Install app**).
+3. Choose **Install**, not *Create shortcut* (a shortcut just opens a Chrome tab), then tap **Install** again.
+4. To remove: long-press the icon → **Uninstall**.
+
+**iPhone (Chrome, iOS 16.4 or later)**
+1. Open **chipnsplit.org** in Chrome.
+2. Tap the **Share** icon (square with an arrow) at the right of the address bar → **Add to Home Screen**.
+3. Keep the name and tap **Add**.
+4. To remove: long-press the icon → **Remove App** → **Delete from Home Screen**.
+
+In **Safari** on iPhone it's the same: **Share** (bottom bar) → **Add to Home Screen** → **Add**.
+
+If an icon installed from the old `sukeshatla.github.io/chipsplit` address shows an old version, see **Deploying** below.
+
+## Quick Start
+
+```bash
+npm install
+npm run dev
+```
+
+Open the URL Vite prints (http://localhost:5173). With no Supabase keys it runs in **demo mode**: sample data, saved in your browser only.
+
+## First-Time Setup (real accounts)
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. In its **SQL editor**, run every file in `supabase/migrations/` **in order** (0001 → 0025).
+3. **Authentication → Providers**: turn on Google (client ID and secret from Google Cloud Console).
+4. **Authentication → URL Configuration**: Site URL `https://chipnsplit.org`; Redirect URLs `https://chipnsplit.org` and `http://localhost:5173`.
+5. Create `.env.local` from **Project settings → API**:
+   ```
+   VITE_SUPABASE_URL=https://<project>.supabase.co
+   VITE_SUPABASE_ANON_KEY=<anon key>
+   ```
+6. `npm run dev` and sign in with Google.
+
+## Deploying
+
+Every push to `main` runs **deploy.yml**: `npm test`, `npm run build` (with `VITE_BASE=/` and the two Supabase values from repo **Secrets**), then publishes `dist/` to GitHub Pages. Check a run with `gh run list -L 1`.
+
+- **Domain:** the site is served at **chipnsplit.org** (custom domain on GitHub Pages, GitHub-managed HTTPS).
+- **Old URL:** `https://sukeshatla.github.io/chipsplit/` now **301-redirects** to chipnsplit.org. Leave the redirect in place: old links and bookmarks keep working, and it isn't a security risk (every rule is enforced by the database, not the page).
+- **"The old URL still shows an old version":** a phone that opened the old URL *before* the move kept that copy (PWA service worker). Its update check gets redirected to another site, which browsers refuse, so it never updates. Fix on that device: uninstall the old home-screen app, then Chrome → Settings → Site settings → All sites → `sukeshatla.github.io` → **Delete data**, and open chipnsplit.org instead. Removing the old URL from Supabase's Redirect URLs sends any old-copy sign-in to chipnsplit.org.
+- **New version not showing on chipnsplit.org:** the app updates itself on the next load; refresh once.
+
+## Database Migrations
+
+The app never changes the schema itself. **Run a new migration in the Supabase SQL editor before pushing the app build that needs it.**
+
+| File | What it does |
+|---|---|
+| 0001_init | Groups, members, expenses, games, payments, row-level security |
+| 0002_friends | Personal friends list (contacts) |
+| 0003_history_and_email | Per-group History log; per-member email opt-out |
+| 0004_admins_and_notifications | Group admins; notifications feed |
+| 0005_fix_group_delete_cascade | Delete group removes everything in it |
+| 0006_require_settled_to_delete_group | A group can't be deleted until everyone is settled |
+| 0007_club_and_expenses_kind | Club vs Expenses groups |
+| 0008_admin_settled_delete_session | A finished game must be settled before it's deleted |
+| 0009_lock_final_session_results | Finished games' results are locked |
+| 0010_avatars | Profile photos |
+| 0011_admin_analytics | App-admin usage stats |
+| 0012 – 0014, 0016 | Rummy: scoring, editing rounds, 101/151/201 limits, buy-ins and rejoins |
+| 0015_expense_admins_and_restore | Deleted expenses can be restored |
+| 0017_direct_groups | One-on-one (friend-only) expenses |
+| 0018_group_delete_ignores_game_settlement | Deleting a club only needs its total balance settled |
+| 0019_chips_given_back | Chips given back mid-game |
+| 0020_names_follow_account | A signed-up person's own name shows everywhere |
+| 0021_game_host_only | Only a game's host changes or deletes it |
+| 0022_game_payments_go_with_game | A game's payments go with it when deleted |
+| 0023_names_admin_only | Only the app admin edits other people's names and emails |
+| 0024_remove_friends | Remove anyone from your Friends list once settled |
+| 0025_member_roles_and_restorable_games | Creator-only admins; any member manages expenses; deleted games can be restored |
+
+## Permissions
+
+All enforced in Postgres (row-level security and triggers), so they hold even if someone bypasses the app.
+
+| Action | Who |
+|---|---|
+| See a group and everything in it | Its members |
+| Add, edit, delete, restore expenses | Any member |
+| Start a game | Any member of the club |
+| Change a game, mark its payments, delete or restore it | The game's host (whoever started it) |
+| Record a payment from the Balances tab | Any member |
+| Add people to a group | Any member |
+| Change group settings, make someone admin | Group admins (the creator, plus anyone they promote) |
+| Delete a group (club or expenses) | Group admins, and only once everyone is settled up |
+| Remove someone from your Friends list | You, once you're settled up with them |
+| Edit another person's name or email | The app admin only |
+
+## Running Tests
+
+```bash
+npm test            # Vitest: 54 tests, about a second
+npm run typecheck   # TypeScript
+npm run build       # what the deploy runs
+```
+
+Tests cover the settlement math (fewest payments, exact-cent splits), balances across groups and currencies, the friends list (merging, hiding removed friends), permissions (admins, game hosts), share summaries, and rummy scoring. See `src/lib/ledger.test.ts` and `src/lib/rummy.test.ts`.
+
+## Pages & Routes
+
+Hash routes (`/#/...`), so GitHub Pages never needs server-side routing.
+
+| Route | Page | Description |
+|---|---|---|
+| `/` | Dashboard | Your net, groups and friends (biggest amount first), games in progress, recent activity |
+| `/login` | Login | Sign in with Google, or try the demo |
+| `/groups` | Groups | Your clubs and expense groups |
+| `/groups/:groupId` | Group | Tabs: Games or Expenses, Balances, Members, History |
+| `/groups/:groupId/games/:gameId` | GameDay | Buy-ins, give-backs, cash-outs, finalize, settle up |
+| `/groups/:groupId/rummy` | GroupRummy | A club's rummy games |
+| `/games` | Games (Club Games) | Buy-in games you played, across all clubs |
+| `/rummy`, `/rummy/:id` | RummyList, RummyGame | Stand-alone and club rummy |
+| `/friends` | Friends | Everyone you split with, biggest amount first |
+| `/friends/:key` | FriendDetail | One-on-one expenses, balance per group, settle, remove friend |
+| `/profile` | Profile | Name, currency, theme, card-game stats |
+| `/admin` | Admin | Usage stats (app admin only) |
+
+## Data API
+
+There's no server of our own: the browser calls Supabase directly. Every call the UI can make is one method on `DataApi` (`src/api/types.ts`), implemented twice: `supabaseApi.ts` (real) and `demoApi.ts` (localStorage, same rules).
+
+| Area | Methods |
+|---|---|
+| Load | `loadAll` (profile, groups with everything in them, friends, removed friends) |
+| Profile | `updateProfile`, `uploadAvatar`, `removeAvatar` |
+| Groups | `createGroup`, `updateGroup`, `deleteGroup`, `addMember`, `addMemberFromContact`, `removeMember`, `setGroupAdmin`, `setEmailOptOut`, `updatePerson` |
+| Friends | `addContact`, `deleteContact`, `removeFriend` |
+| Expenses | `saveExpense`, `deleteExpense`, `restoreExpense` |
+| Games | `createSession`, `updateSession`, `saveSessionResults`, `deleteSession`, `restoreSession` |
+| Payments | `addSettlement`, `deleteSettlement` |
+| History | `loadHistory`, `loadNotifications`, `markNotificationsSeen` |
+| Rummy | `loadRummyGames`, `loadRummyGame`, `createRummyGame`, `addRummyRound`, `updateRummyRound`, `rejoinRummyPlayer`, `closeRummyGame`, `deleteRummyGame`, `linkRummySession` |
+| App admin | `loadAdminOverview`, `loadAdminDailyActivity`, `loadAdminRecentSignups` |
+
+## Tech Stack
+
+| Layer | Tech |
+|---|---|
+| Frontend | React 18, TypeScript 5, Vite 5 |
+| Styling | Tailwind CSS 3 |
+| Data fetching | TanStack Query 5 |
+| Routing | React Router 6 (HashRouter) |
+| Backend | Supabase: Postgres with row-level security, Auth (Google), Storage (avatars) |
+| Offline / install | vite-plugin-pwa (Workbox service worker) |
+| Spreadsheet import | SheetJS (`xlsx`) |
+| Icons | Lucide React |
+| Tests | Vitest |
+| Hosting | GitHub Pages + GitHub Actions, custom domain chipnsplit.org |
+
+## Key Notes
+
+- **Money is integer cents** everywhere; splits use largest-remainder so they always add up exactly. Currencies are never converted.
+- **Migrations first, then push.** A build that reads a new column fails to load if its migration hasn't been run.
+- **Soft deletes:** deleted expenses and games stay in the database (`deleted_at`) and drop out of every balance until restored from History.
+- **One-on-ones are small hidden groups** (`groups.is_direct`), shown under Friends instead of Groups.
+- **Friend keys:** a person is `u:<user id>` (has an account), `e:<email>` (invited), or `m:<member id>` (guest). Removed friends are stored by key in `hidden_friends`.
+- **App admin** is one hard-coded account (`src/lib/admin.ts`), and the database checks it too.
+- **Free-tier upkeep:** `keep-alive.yml` stops Supabase from pausing the project after a quiet week.
+- **No email service:** summaries and reminders are `mailto:` links.
+- Ideas for later are in [docs/DESIGN.md § Ideas for later](docs/DESIGN.md#8-ideas-for-later).
 
 ---
 
@@ -46,11 +265,14 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 
 **Friends**
 - A personal friends list, independent of any one group: add someone by name, or by email so they're linked the moment they sign in with a matching Google account.
+- **Add a friend** is one short form: **With email** (name + Google email) or **Guest, no email** (just a name). Pop-up forms stay above the phone keyboard.
+- Each friend row says what you share: **2 shared groups**, **one-on-one**, or **nothing shared yet** (deleted expenses and empty one-on-ones don't count).
+- **Remove friend** works for anyone (friend, invited, or guest), but only once you're settled up in every currency. They come back on their own if a balance with them opens again, or if you add them back.
 - Every friend is tagged **Friend** (linked account), **Invited** (email on file, hasn't signed up), or **Guest** (name only).
 - **One name per person**: once someone has an account, their own account name is what everyone sees, in every group, friends list, and rummy game, and it follows them if they rename themselves. People without an account keep the name they were added with.
 - **Only the app admin changes other people's names and emails** (enforced in the database): **Edit name & email** on a guest's or invited person's card fixes them in every group and friends list at once, and links them if that email already has an account. Everyone else can only change their own name, on Profile.
 - Pick existing friends right when creating a group or a club, when adding them to an expense, or when adding a player to a game — no retyping. Adding someone new anywhere in the app also saves them to your friends list.
-- Friend page: your overall balance with them, an **Add expense** button, your one-on-one expenses ("Just you two"), and your balance in each group you share, each with a **Settle** button.
+- Friend page: your overall balance with them, an **Add expense** button, your one-on-one expenses ("Just you two", one **Balance** row per currency even if you each started a one-on-one), and your balance in each group you share, each with a **Settle** button.
 
 **Balances and settling up**
 - Each group shows where everyone stands and a **simplified debts** list, one line per payment; tap one to record it or send a reminder.
@@ -73,7 +295,7 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Only admins can change group settings, make others admin, or delete the group (clubs and expense groups alike). Enforced server-side (Postgres RLS + triggers), so it holds even if someone bypasses the UI.
 
 **Dashboard**
-- A colored banner (green when you're up, red when you're down): your net with its sign in a big box, and **You get** / **You pay** beside it. Then your **Groups** and **Friends** (top 5 each, most owed to you first, **Show all** for the rest), then a short recent-activity feed.
+- A colored banner (green when you're up, red when you're down): your net with its sign in a big box, and **You get** / **You pay** beside it. Then your **Groups** and **Friends** (top 5 each, biggest amount first whether you're owed or you owe, **Show all** for the rest), then a short recent-activity feed.
 - Two quick actions: **Add expense** (one-on-one, above) and **New group**. Starting a game is a club-level action, done from inside that club.
 - Banner for any game currently in progress. The activity feed only shows what involves you: the latest 5, then **Show all**.
 
@@ -83,12 +305,10 @@ See **[docs/DESIGN.md](docs/DESIGN.md)** for the product design, data model, arc
 - Profile: display name, currency for totals, light / dark / system theme, card-game stats. Your profile email always matches your Google account.
 - Groups are either a **Club** (recurring games only) or an **Expenses** group (trips, rent — no games).
 
-- Long lists everywhere start short with one **Show all** at the bottom (the only expand control in the app; no "See all" links), and balances are listed from most up to most down.
+- Long lists everywhere start short with one **Show all** at the bottom (the only expand control in the app; no "See all" links), and the Dashboard and Friends list the biggest amounts first, owed or owing (settled up last).
 
 **Built for low maintenance**
 - No server to run: the browser talks to Supabase directly, and **row-level security** in Postgres makes sure people only ever see groups they belong to.
 - Money is stored as integer cents everywhere, so there's no rounding drift.
 - The whole database is a handful of SQL files in `supabase/migrations`, so you can rebuild it anytime.
 - Unit tests cover the settlement math and permission logic. GitHub Actions tests, builds, and deploys on every push.
-
-Ideas for what's next (push notifications, receipt photos, realtime game entry, ...) are in **[docs/DESIGN.md § Ideas for later](docs/DESIGN.md#8-ideas-for-later)**.
