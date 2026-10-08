@@ -12,7 +12,9 @@ It installs on phones as an app (PWA), and has a **demo mode** that works with n
 
 | Document | Purpose |
 |---|---|
-| [docs/DESIGN.md](docs/DESIGN.md) | Product design, data model, architecture, and security model in depth. Read before changing how money or permissions work. |
+| [SPEC.md](SPEC.md) | **The contract.** Every feature and use case as a numbered rule (`AREA-n`), each verified by a tagged test, a named migration, or a written manual check. Read before writing any feature. |
+| [CLAUDE.md](CLAUDE.md) | How to work on this repo: the spec-driven, test-first loop, commands, conventions, gotchas. |
+| [docs/DESIGN.md](docs/DESIGN.md) | **The blueprint.** Product design, data model, architecture, and security model in depth; SPEC.md is written from it. |
 | [docs/Chip-n-Split-Features.pdf](docs/Chip-n-Split-Features.pdf) | Feature overview with screenshots, who can do what, step-by-step phone install (Android and iPhone), and the Google sign-in security notes. Share this with new users. |
 | `supabase/migrations/*.sql` | The whole database, one numbered file per change. Each file's header says what it does. |
 | This file | Quick start, project layout, routes, data API, permissions, and the full feature list. |
@@ -21,10 +23,13 @@ It installs on phones as an app (PWA), and has a **demo mode** that works with n
 
 ```
 chipsplit/
+├── SPEC.md                   ← Numbered, verifiable rules (read first)
+├── CLAUDE.md                 ← Workflow: design → spec → failing test → code → migration → docs
 ├── index.html                ← App shell (viewport meta, PWA links)
 ├── vite.config.ts            ← Vite + PWA (service worker, manifest); VITE_BASE sets the URL base
 ├── .env.local                ← VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (not committed)
 ├── .github/workflows/
+│   ├── ci.yml                ← Every pull request / branch push: npm run check
 │   ├── deploy.yml            ← On every push to main: test, build, deploy to GitHub Pages
 │   └── keep-alive.yml        ← Pings Supabase every 3 days so the free project never pauses
 ├── public/                   ← App icons
@@ -37,6 +42,7 @@ chipsplit/
     │   ├── types.ts          ← DataApi: every read and write the UI can do
     │   ├── supabaseApi.ts    ← Real backend (Supabase, guarded by RLS)
     │   ├── demoApi.ts        ← Demo mode: the same API on localStorage, same rules
+    │   ├── demoApi.test.ts   ← Permission and lifecycle rules (roles, expenses, games)
     │   └── seed.ts           ← Demo sample data
     ├── app/                  ← auth.tsx (Google sign-in / demo), data.tsx (load + actions), toast.tsx
     ├── lib/
@@ -46,8 +52,10 @@ chipsplit/
     │   ├── rummy.ts          ← Rummy scoring and payouts
     │   ├── summaryImage.ts   ← Share images (game table, balances, leaderboard)
     │   ├── admin.ts          ← The one app-admin account
-    │   ├── *.test.ts         ← Unit tests (Vitest)
+    │   ├── *.test.ts         ← Unit tests (Vitest), named with SPEC rule IDs
     │   └── types.ts, image.ts, theme.ts, supabase.ts
+    ├── test/fixtures.ts      ← Tiny builders for groups, expenses, games, payments in tests
+    ├── spec.test.ts          ← Fails if SPEC.md and the tests drift apart
     ├── components/
     │   ├── ui.tsx            ← Button, Input, Modal (keyboard-aware), Tabs, Card, Row, ...
     │   ├── Layout.tsx, ActionBar.tsx, HistoryList.tsx, SettleRow.tsx, NotificationsBell.tsx, ...
@@ -157,12 +165,25 @@ All enforced in Postgres (row-level security and triggers), so they hold even if
 ## Running Tests
 
 ```bash
-npm test            # Vitest: 54 tests, about a second
+npm test            # Vitest: 86 tests, under a second
+npm run test:watch  # while you work
 npm run typecheck   # TypeScript
-npm run build       # what the deploy runs
+npm run check       # typecheck + tests + build: what CI runs on every pull request
 ```
 
-Tests cover the settlement math (fewest payments, exact-cent splits), balances across groups and currencies, the friends list (merging, hiding removed friends), permissions (admins, game hosts), share summaries, and rummy scoring. See `src/lib/ledger.test.ts` and `src/lib/rummy.test.ts`.
+The suite is organised around [SPEC.md](SPEC.md): every test is named with the rule it checks, like `[ROLE-4] a group cannot be deleted until everyone is settled up`, and `src/spec.test.ts` fails the build if a rule marked `test` has no test or a test names a rule that doesn't exist.
+
+| File | Covers |
+|---|---|
+| `src/lib/money.test.ts` | Whole-cent splits, shares, parsing, signs (MONEY) |
+| `src/lib/ledger.test.ts` | Settle-up, balances, games, sharing, history, friends (SETTLE, BAL, GAME, SHARE, HIST, FRIEND) |
+| `src/lib/balances.test.ts` | Deleted items, sort order, leaderboard (BAL, GAME) |
+| `src/lib/friends.test.ts` | What you share, removing friends, one-on-one balance rows (FRIEND) |
+| `src/lib/rummy.test.ts` | Rummy scoring and payouts (RUMMY) |
+| `src/api/demoApi.test.ts` | Who can do what, delete and restore, settle before delete, end to end in demo mode (ROLE, EXP, GAME) |
+| `src/spec.test.ts` | SPEC.md ↔ tests traceability |
+
+Rules only the database can enforce (row-level security, triggers) are marked `db` in the spec with the migration that enforces them; demo mode mirrors them and is tested.
 
 ## Pages & Routes
 
@@ -217,6 +238,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 
 ## Key Notes
 
+- **Spec first.** New behavior starts as a rule in SPEC.md and a failing test named with its ID; see CLAUDE.md for the full loop.
 - **Money is integer cents** everywhere; splits use largest-remainder so they always add up exactly. Currencies are never converted.
 - **Migrations first, then push.** A build that reads a new column fails to load if its migration hasn't been run.
 - **Soft deletes:** deleted expenses and games stay in the database (`deleted_at`) and drop out of every balance until restored from History.
@@ -311,4 +333,4 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - No server to run: the browser talks to Supabase directly, and **row-level security** in Postgres makes sure people only ever see groups they belong to.
 - Money is stored as integer cents everywhere, so there's no rounding drift.
 - The whole database is a handful of SQL files in `supabase/migrations`, so you can rebuild it anytime.
-- Unit tests cover the settlement math and permission logic. GitHub Actions tests, builds, and deploys on every push.
+- Built spec-first and test-first: every rule in SPEC.md is checked by a named test, the database, or a written manual check. GitHub Actions runs the full check on every pull request, and tests, builds, and deploys every push to main.
