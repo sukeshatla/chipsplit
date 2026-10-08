@@ -1,7 +1,7 @@
 import type { AppData, ChangeLogEntry, Contact, Group, RummyGame, RummyPlayer } from '../lib/types';
 import type { DataApi } from './types';
 import { rummyStandings } from '../lib/rummy';
-import { isSessionSettled } from '../lib/ledger';
+import { isGroupSettled, isSessionSettled, memberHasActivity } from '../lib/ledger';
 import { seedChangeLog, seedDemo, uid } from './seed';
 
 const KEY = 'chipsplit_demo_v1';
@@ -50,7 +50,8 @@ function mutate<T>(fn: (d: DemoStore) => T): Promise<T> {
     const d = load();
     const r = fn(d);
     save(d);
-    return new Promise((res) => setTimeout(() => res(r), 120));
+    // Tests skip the delay; it only exists so people see loading states.
+    return new Promise((res) => setTimeout(() => res(r), import.meta.env.MODE === 'test' ? 0 : 120));
   } catch (e) {
     return Promise.reject(e);
   }
@@ -170,6 +171,8 @@ export const demoApi: DataApi = {
   deleteGroup: (id) => mutate((d) => {
     const g = group(d, id);
     assertAdmin(d, g, 'Only a group admin can delete the group');
+    // Same as the server (0006 / 0018): only once everyone's total balance is zero.
+    if (!isGroupSettled(g)) throw new Error('Settle up everyone in this group before deleting it');
     d.groups = d.groups.filter((x) => x.id !== id);
   }),
 
@@ -207,6 +210,8 @@ export const demoApi: DataApi = {
   removeMember: (memberId) => mutate((d) => {
     const g = groupOf(d, (x) => x.members.some((m) => m.id === memberId));
     const name = g.members.find((m) => m.id === memberId)!.name;
+    // Same as the server (0005): removing them would rewrite everyone's balances.
+    if (memberHasActivity(g, memberId)) throw new Error("This member has games, expenses, or payments and can't be removed");
     g.members = g.members.filter((m) => m.id !== memberId);
     log(d, g.id, 'member', memberId, `Removed ${name} from the group`);
   }),
