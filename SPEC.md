@@ -155,5 +155,5 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | AUTH-3 | Someone added by email links to every group with that email the first time they sign in. | db | `handle_new_user()` |
 | PLAT-1 | The app installs as a PWA (Android: Install; iPhone: Add to Home Screen) and updates itself on the next load. | manual | `vite.config.ts` — see README *Install on Your Phone* |
 | PLAT-2 | Pop-up forms stay above the phone keyboard with their buttons visible. | manual | `Modal` in `ui.tsx` — open Add a friend on a phone |
-| PLAT-3 | Every push to `main` is tested and built before it deploys; pull requests run the same checks. | manual | `.github/workflows/ci.yml`, `deploy.yml` |
+| PLAT-3 | Every push to `main` is tested and built before it deploys; pull requests run the same checks. | manual | `.github/workflows/ci.yml`, `deploy.yml` — open a pull request; the CI check runs and must pass |
 | PLAT-4 | Demo mode enforces the same permission rules as the database (the `db` rules above that name a demo function). | test | `api/demoApi.test.ts` |
