@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, HandCoins, Receipt, Trash2, UserX } from 'lucide-react';
 import { useData, useAction } from '../app/data';
-import { friendsList, hasActivity, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
+import { directBalanceRows, friendsList, hasActivity, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, LIST_STEP, MonthHeader, Row, ShowMore } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -37,24 +37,7 @@ export function FriendDetailPage() {
 
   // Empty one-on-ones (an "Add expense" that was cancelled) have nothing to show, so they're skipped.
   const directGroups = f.groups.filter((fg) => fg.group.is_direct && hasActivity(fg.group));
-  // You and this friend can end up with more than one one-on-one ledger (each of you started one),
-  // so it's one Balance row per currency, added up. Settle goes to the ledger that owes most that way.
-  // Ledgers shared with a third friend keep a row of their own.
-  type DirectRow = { key: string; label: string | null; currency: string; cents: number; settleIn: FriendGroupBalance };
-  const pairs = directGroups.filter((fg) => fg.group.members.length === 2);
-  const currencies = [...new Set(pairs.map((fg) => fg.group.currency))];
-  const directRows: DirectRow[] = [
-    ...currencies.map((currency) => {
-      const inCurrency = pairs.filter((fg) => fg.group.currency === currency);
-      const cents = inCurrency.reduce((sum, fg) => sum + fg.cents, 0);
-      const settleIn = inCurrency.slice().sort((a, b) => Math.sign(cents) * (b.cents - a.cents))[0]!;
-      return { key: currency, label: currencies.length > 1 ? currency : null, currency, cents, settleIn };
-    }),
-    ...directGroups.filter((fg) => fg.group.members.length > 2).map((fg) => ({
-      key: fg.group.id, currency: fg.group.currency, cents: fg.cents, settleIn: fg,
-      label: `With ${fg.group.members.filter((m) => m.user_id !== data.me.id).map((m) => memberShort(fg.group, m.id)).join(', ')}`,
-    })),
-  ];
+  const directRows = directBalanceRows(f, data.me.id);
   const sharedGroups = f.groups.filter((fg) => !fg.group.is_direct);
   // Friend-only expenses, newest first, across every direct group this friend is in.
   const directExpenses = directGroups

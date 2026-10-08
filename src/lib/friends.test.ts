@@ -44,3 +44,36 @@ describe('removing a friend', () => {
     expect(isSettledFriend({ net: 0, others: [{ currency: 'INR', cents: -100 }] })).toBe(false);
   });
 });
+
+describe('one-on-one balance rows on a friend page', () => {
+  const pair = (id: string, currency: string, rCents: number) => group({
+    id, is_direct: true, currency, members: [meMember(`me-${id}`), ravi(`r-${id}`)],
+    // Positive rCents: Ravi owes you; negative: you owe Ravi.
+    expenses: [rCents > 0
+      ? expense(`x-${id}`, `me-${id}`, rCents, { [`r-${id}`]: rCents })
+      : expense(`x-${id}`, `r-${id}`, -rCents, { [`me-${id}`]: -rCents })],
+  });
+
+  it('[FRIEND-8] adds up every one-on-one in a currency into one Balance row', async () => {
+    const { directBalanceRows } = await import('./ledger');
+    const rows = directBalanceRows(raviRow(data([pair('mine', 'USD', 5000), pair('theirs', 'USD', -1000)])), 'me-user');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ label: null, currency: 'USD', cents: 4000 });
+    // Settle goes to the one-on-one that owes most in that direction.
+    expect(rows[0]!.settleIn.group.id).toBe('mine');
+  });
+
+  it('[FRIEND-8] keeps one row per currency, labelled, and a row of its own for a one-on-one with a third person', async () => {
+    const { directBalanceRows } = await import('./ledger');
+    const three = group({ id: 'three', is_direct: true, members: [meMember('me3'), ravi('r3'), member('k3', { name: 'Kiran' })],
+      expenses: [expense('t', 'me3', 900, { r3: 300, k3: 300, me3: 300 })] });
+    const rows = directBalanceRows(raviRow(data([pair('usd', 'USD', 1000), pair('inr', 'INR', -2000), three])), 'me-user');
+    expect(rows.map((r) => [r.label, r.currency, r.cents])).toEqual([['USD', 'USD', 1000], ['INR', 'INR', -2000], ['With Ravi, Kiran', 'USD', 300]]);
+  });
+
+  it('[FRIEND-8] leaves out empty one-on-ones', async () => {
+    const { directBalanceRows } = await import('./ledger');
+    const empty = group({ id: 'empty', is_direct: true, members: [meMember('me-e'), ravi('r-e')] });
+    expect(directBalanceRows(raviRow(data([pair('a', 'USD', 1000), empty])), 'me-user')).toHaveLength(1);
+  });
+});

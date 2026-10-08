@@ -259,6 +259,32 @@ export function sharedSummary(f: Friend) {
   return f.groups.some((fg) => hasActivity(fg.group)) ? 'one-on-one' : 'nothing shared yet';
 }
 
+export interface DirectBalanceRow { key: string; label: string | null; currency: string; cents: number; settleIn: FriendGroupBalance }
+
+/**
+ * The "Just you two" Balance rows on a friend's page. You and a friend can end up with more than
+ * one one-on-one (each of you started one), so it's one row per currency, added up, labelled with
+ * the currency only when there's more than one. Settle goes to the one-on-one that owes most that
+ * way. One-on-ones with a third person keep a row of their own; empty ones are left out.
+ */
+export function directBalanceRows(f: Friend, meId: string): DirectBalanceRow[] {
+  const direct = f.groups.filter((fg) => fg.group.is_direct && hasActivity(fg.group));
+  const pairs = direct.filter((fg) => fg.group.members.length === 2);
+  const currencies = [...new Set(pairs.map((fg) => fg.group.currency))];
+  return [
+    ...currencies.map((currency) => {
+      const inCurrency = pairs.filter((fg) => fg.group.currency === currency);
+      const cents = inCurrency.reduce((sum, fg) => sum + fg.cents, 0);
+      const settleIn = inCurrency.slice().sort((a, b) => Math.sign(cents) * (b.cents - a.cents))[0]!;
+      return { key: currency, label: currencies.length > 1 ? currency : null, currency, cents, settleIn };
+    }),
+    ...direct.filter((fg) => fg.group.members.length > 2).map((fg) => ({
+      key: fg.group.id, currency: fg.group.currency, cents: fg.cents, settleIn: fg,
+      label: `With ${fg.group.members.filter((m) => m.user_id !== meId).map((m) => memberShort(fg.group, m.id)).join(', ')}`,
+    })),
+  ];
+}
+
 /** Whether you're settled up with this friend in every currency. */
 export function isSettledFriend(f: Pick<Friend, 'net' | 'others'>) {
   return f.net === 0 && f.others.every((m) => m.cents === 0);
