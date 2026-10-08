@@ -135,7 +135,7 @@ The app never changes the schema itself. **Run a new migration in the Supabase S
 | 0022_game_payments_go_with_game | A game's payments go with it when deleted |
 | 0023_names_admin_only | Only the app admin edits other people's names and emails |
 | 0024_remove_friends | Remove anyone from your Friends list once settled |
-| 0025_member_roles_and_restorable_games | Creator-only admins; any member manages expenses; deleted games can be restored |
+| 0025_member_roles_and_restorable_games | New members join as members, not admins (the creator starts as the only admin and can promote others); any member manages expenses; deleted games can be restored |
 
 ## Permissions
 
@@ -231,11 +231,11 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 
 ## Features
 
-**Clubs and card games** (rummy, blackjack, poker — anything with buy-ins and cash-outs)
+**Clubs and card games** (poker, blackjack — anything with buy-ins and cash-outs; rummy has its own scoring, below)
 - A **Club** is a standing group for people you play with regularly — create it once, then start as many games in it as you want, whenever you want.
 - Starting a new game suggests the club's members as the roster (last game's players if there was one); pick who's actually at the table tonight. The **buy-in per player is required** every time (last game's amount is one tap away), and every player starts with one buy-in.
 - Log buy-ins as people sit down. The **+** button adds a rebuy in one tap; **−** records chips a player gives back to the bank mid-game (so someone else can buy in), any amount, any number of times. Given-back chips count like cash already taken out.
-- Mistakes are one tap to fix: every rebuy and give-back shows an **Undo** (just the latest one). Tapping **−** opens the player's panel: their **Buy-ins** (e.g. 3 × $3 = $9) with **Remove 1**, what they **Gave back** with **Undo 1**, and the main **Give back** button, so nobody's numbers get padded with fake give-backs.
+- Mistakes are one tap to fix: every rebuy and give-back shows an **Undo** (just the latest one). Tapping **−** opens the player's panel: their **Buy-ins** (e.g. 3 × $50 = $150) with **Remove 1**, what they **Gave back** with **Undo 1**, and the main **Give back** button, so nobody's numbers get padded with fake give-backs.
 - Enter cash-outs when the table breaks. A live **table check** shows whether total cash-outs match total buy-ins.
 - Everything on an open game **saves automatically**: taps (rebuy, give back, adding or removing a player) right away, typed amounts a moment after you stop typing.
 - Built for entering a full table on a phone: one line per player, a **Buy-ins / Cash-outs** switch so only one box shows at a time, and the keyboard's **Next** key jumps straight to the next player.
@@ -295,7 +295,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - Only admins can change group settings, make others admin, or delete the group (clubs and expense groups alike). Enforced server-side (Postgres RLS + triggers), so it holds even if someone bypasses the UI.
 
 **Dashboard**
-- A colored banner (green when you're up, red when you're down): your net with its sign in a big box, and **You get** / **You pay** beside it. Then your **Groups** and **Friends** (top 5 each, biggest amount first whether you're owed or you owe, **Show all** for the rest), then a short recent-activity feed.
+- A dark banner with your net, sign included, in a big box: its accent bar and tint are green when you're up, red when you owe, grey when square. **You get** / **You pay** sit below it. Then your **Groups** and **Friends** (top 5 each, biggest amount first whether you're owed or you owe, **Show all** for the rest), then a short recent-activity feed.
 - Two quick actions: **Add expense** (one-on-one, above) and **New group**. Starting a game is a club-level action, done from inside that club.
 - Banner for any game currently in progress. The activity feed only shows what involves you: the latest 5, then **Show all**.
 
