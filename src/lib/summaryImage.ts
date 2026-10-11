@@ -15,10 +15,11 @@ export type Part = 'both' | 'stands' | 'settle' | 'table';
  *  each stays phone-shaped instead of one very tall strip. */
 const SPLIT_AFTER = 20;
 
-/** Which pictures to share (SPEC SHARE-8): a finished game's table and its settle up apart; a game
- *  in progress, just its table; group balances in one picture, or two past SPLIT_AFTER rows. */
-export function imageParts(d: Summary): Part[] {
-  if (d.live) return d.live.final ? ['table', 'settle'] : ['table'];
+/** Which pictures one Share sends (SPEC SHARE-8): one picture of its own section. A game: its
+ *  results `table`, or its `settle` up when shared from the Settle up card. Group balances: one
+ *  picture, or two past SPLIT_AFTER rows. */
+export function imageParts(d: Summary, section?: 'settle'): Part[] {
+  if (d.live) return [section === 'settle' && d.live.final ? 'settle' : 'table'];
   const open = d.rows.filter((r) => r.cents !== 0).length;
   return open + d.transfers.length > SPLIT_AFTER ? ['stands', 'settle'] : ['both'];
 }
@@ -29,17 +30,17 @@ export interface Banner { label: string; title: string; details: string[] }
 export function imageBanner(d: Summary, part: Part): Banner {
   const place = d.place ? `📍 ${d.place}` : null;
   if (d.live) {
-    if (part === 'settle') return { label: 'Settle up', title: d.title, details: ['Final game', d.when, place].filter(Boolean) as string[] };
+    if (part === 'settle') return { label: 'Game · Settle up', title: d.title, details: [d.when, place].filter(Boolean) as string[] };
     const buyIn = d.live.buyInAmount ? `${formatMoney(d.live.buyInAmount, d.currency)} buy-in` : null;
-    return { label: d.live.final ? 'Final game' : 'In progress', title: d.title, details: [d.when, place, buyIn].filter(Boolean) as string[] };
+    return { label: d.live.final ? 'Game · Final results' : 'Game · In progress', title: d.title, details: [d.when, place, buyIn].filter(Boolean) as string[] };
   }
   const split = part === 'stands' ? '1 of 2' : part === 'settle' ? '2 of 2' : null;
   return { label: 'Group balances', title: d.title, details: [d.when, split].filter(Boolean) as string[] };
 }
 
 /** The picture(s) to share, one per part. */
-export async function summaryPngs(d: Summary, names: (id: string) => string): Promise<Blob[]> {
-  return Promise.all(imageParts(d).map((part) => summaryPng(d, names, part)));
+export async function summaryPngs(d: Summary, names: (id: string) => string, section?: 'settle'): Promise<Blob[]> {
+  return Promise.all(imageParts(d, section).map((part) => summaryPng(d, names, part)));
 }
 
 /** A colored PNG of a summary -- name per row, green for up, red for down, then who pays whom. */
@@ -72,9 +73,9 @@ export async function summaryPng(d: Summary, names: (id: string) => string, part
 
 /** Label pill colors: a game in progress stands out in brass; everything else is light on the felt. */
 const PILL: Record<string, { bg: string; ink: string }> = {
-  'In progress': { bg: 'rgb(232 178 48)', ink: INK },
-  'Final game': { bg: FELT_INK, ink: FELT },
-  'Settle up': { bg: FELT_INK, ink: FELT },
+  'Game · In progress': { bg: 'rgb(232 178 48)', ink: INK },
+  'Game · Final results': { bg: FELT_INK, ink: FELT },
+  'Game · Settle up': { bg: FELT_INK, ink: FELT },
   'Group balances': { bg: FELT_INK, ink: FELT },
 };
 
@@ -267,11 +268,12 @@ function fit(x: CanvasRenderingContext2D, s: string, max: number) {
 }
 
 /** Phone: the share sheet (Mail, WhatsApp, ...) with the image attached. Desktop: downloads it. */
-export async function shareSummaryImage(d: Summary, names: (id: string) => string) {
-  const blobs = await summaryPngs(d, names);
+export async function shareSummaryImage(d: Summary, names: (id: string) => string, section?: 'settle') {
+  const blobs = await summaryPngs(d, names, section);
   const base = `${d.title}${d.place ? ` ${d.place}` : ''} ${d.when}`.replace(/[^\w ,-]+/g, '').trim().replace(/\s+/g, '-');
-  const parts = imageParts(d);
-  const files = blobs.map((b, i) => new File([b], `${base}${parts.length > 1 ? `-${parts[i] === 'settle' ? 'settle-up' : i + 1}` : ''}.png`, { type: 'image/png' }));
+  const parts = imageParts(d, section);
+  const suffix = (p: Part, i: number) => (p === 'settle' ? '-settle-up' : parts.length > 1 ? `-${i + 1}` : '');
+  const files = blobs.map((b, i) => new File([b], `${base}${suffix(parts[i]!, i)}.png`, { type: 'image/png' }));
   if (navigator.canShare?.({ files })) {
     // Just the pictures (SPEC SHARE-9): the banner already names the group, so no title text.
     try { await navigator.share({ files }); } catch (e) {

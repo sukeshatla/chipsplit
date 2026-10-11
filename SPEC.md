@@ -136,10 +136,11 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | SHARE-3 | The game table lists winners first, then players still in, then even, then losers; a finished game drops sat-out rows and lists payments with paid marks. | test | `gameTableData` |
 | SHARE-4 | A reminder is addressed to the one person who owes, naming who and how much; no email on file means no reminder. | test | `reminderMailto` |
 | SHARE-5 | Share images render as phone-shaped PNGs; a group's balances past 20 rows split into two pictures. | manual | `summaryImage.ts` — share a 25-person group; two images |
-| SHARE-7 | Every picture opens with a banner: the Chip n Split logo and name, a label saying what it is (**Group balances**, **In progress**, **Final game**, or **Settle up**), the group name, and when: *As of* today for balances; the game's date, place, and buy-in for a game. | test | `imageBanner` |
-| SHARE-8 | A finished game shares as two pictures, its results table and then its settle up; a game in progress shares only its table; group balances share where everyone stands and settle up together. | test | `imageParts` |
+| SHARE-7 | Every picture opens with a banner: the Chip n Split logo and name, a label saying what it is (**Game · In progress**, **Game · Final results**, **Game · Settle up**, or **Group balances**), the group name, and when: *As of* today for balances; the game's date and place for a game, plus the buy-in on its results. | test | `imageBanner` |
+| SHARE-8 | Each Share sends one picture of its own section: a game's results (Players card or the page's Share menu) or its settle up (Settle up card); group balances show where everyone stands and settle up together, split in two only past 20 rows. | test | `imageParts` |
 | SHARE-9 | Sharing sends only the picture(s): no title or "summary" text is added. | manual | `shareSummaryImage` — share to WhatsApp; only images arrive |
 | SHARE-10 | The leaderboard has no Share button. | manual | `GroupPage` — open a club's Games tab; the Leaderboard card has no Share |
+| SHARE-11 | The Share menu lists **Share image** first, then **Email summary**, and always opens fully on screen. | manual | `ShareMenu` — on a phone, open Share on a game and a group; both options visible without zooming |
 | SHARE-6 | Names shorten to first name + last initial, unless two people would look the same. | test | `shortName` |
 
 ## HIST — history and notifications

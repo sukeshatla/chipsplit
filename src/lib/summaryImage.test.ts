@@ -16,23 +16,23 @@ describe('share image banner', () => {
     expect(b.details[0]).toMatch(/^As of [A-Z][a-z]{2} \d{1,2}, \d{4}$/);
   });
 
-  it('[SHARE-7] a finished game: "Final game" with its date, place, and buy-in', () => {
+  it('[SHARE-7] a finished game: "Game · Final results" with its date, place, and buy-in', () => {
     const b = imageBanner(gameTableData(club, finished, finished.results), 'table');
-    expect(b.label).toBe('Final game');
+    expect(b.label).toBe('Game · Final results');
     expect(b.title).toBe('Poker Pals');
     expect(b.details).toEqual(['Sat, Oct 3, 2026', "📍 Teja's place", '$20 buy-in']);
   });
 
   it('[SHARE-7] a game in progress says so, with the same details', () => {
     const b = imageBanner(gameTableData(club, live, live.results), 'table');
-    expect(b.label).toBe('In progress');
+    expect(b.label).toBe('Game · In progress');
     expect(b.details).toEqual(['Sat, Oct 3, 2026', "📍 Teja's place", '$20 buy-in']);
   });
 
-  it("[SHARE-7] a finished game's settle up is labelled Settle up and names the game", () => {
+  it("[SHARE-7] a finished game's settle up is labelled Game · Settle up, with the game's date and place", () => {
     const b = imageBanner(gameTableData(club, finished, finished.results), 'settle');
-    expect(b.label).toBe('Settle up');
-    expect(b.details).toEqual(['Final game', 'Sat, Oct 3, 2026', "📍 Teja's place"]);
+    expect(b.label).toBe('Game · Settle up');
+    expect(b.details).toEqual(['Sat, Oct 3, 2026', "📍 Teja's place"]);
   });
 
   it('[SHARE-7] a big group split in two says which picture is which', () => {
@@ -42,8 +42,10 @@ describe('share image banner', () => {
 });
 
 describe('which pictures to share', () => {
-  it('[SHARE-8] a finished game: the table, then settle up, as separate pictures', () => {
-    expect(imageParts(gameTableData(club, finished, finished.results))).toEqual(['table', 'settle']);
+  it('[SHARE-8] a finished game shares one picture per section: its results, or its settle up', () => {
+    const d = gameTableData(club, finished, finished.results);
+    expect(imageParts(d)).toEqual(['table']);
+    expect(imageParts(d, 'settle')).toEqual(['settle']);
   });
 
   it('[SHARE-8] a game in progress: only its table', () => {

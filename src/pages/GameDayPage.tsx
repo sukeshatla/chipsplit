@@ -77,6 +77,9 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const parsed = useMemo(() => toResults(lines), [lines]);
   // The host works from their own (autosaving) lines; viewers read straight from the latest data.
   const rows = editable ? parsed : s.results.map((r) => ({ ...r, returned_cents: r.returned_cents ?? 0 }));
+  // One picture of the results as shown (a host's unsaved typing included while it's in progress).
+  const shareResults = () => shareSummaryImage(gameTableData(g, s, final ? s.results : rows), (id) => memberName(g, id))
+    .catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'));
   const totalIn = rows.reduce((a, r) => a + r.buy_in_cents, 0);
   // Chips given back left the table just like a cash-out, so they count on the "out" side.
   const totalOut = rows.reduce((a, r) => a + r.cash_out_cents + r.returned_cents, 0);
@@ -194,14 +197,13 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
           {final ? (
             <ActionBar>
               <ShareMenu onEmail={() => { window.location.href = summaryMailto(g, s.id); }}
-                onImage={() => shareSummaryImage(gameTableData(g, s, s.results), (id) => memberName(g, id)).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
+                onImage={shareResults} />
               {host && <ActionButton icon={<LockOpen size={16} aria-hidden="true" />} onClick={reopen}>Reopen</ActionButton>}
             </ActionBar>
           ) : (<>
             {/* Mid-game: just the picture of who's in for how much (no email -- nobody owes anything yet). */}
             <ActionBar>
-              <ActionButton icon={<Share2 size={16} aria-hidden="true" />}
-                onClick={() => shareSummaryImage(gameTableData(g, s, rows), (id) => memberName(g, id)).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
+              <ActionButton icon={<Share2 size={16} aria-hidden="true" />} onClick={shareResults}>
                 Share
               </ActionButton>
             </ActionBar>
@@ -235,7 +237,8 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
 
       <div className="space-y-5">
         <Card>
-          <CardHeader title={`Players (${rows.length})`} />
+          <CardHeader title={`Players (${rows.length})`}
+            action={rows.length > 0 && <Button size="sm" onClick={shareResults}><Share2 size={14} aria-hidden="true" />Share</Button>} />
           {editable && <>
             <div className="mt-3 hidden grid-cols-[minmax(0,1fr)_210px_140px_90px_36px] gap-3 px-5 text-[12px] font-semibold text-ink-2 md:grid">
               <span>Player</span><span>Buy-in <span className="font-normal">(− give back, + rebuy)</span></span><span>Cash-out</span><span className="text-right">Net</span><span />
@@ -365,9 +368,16 @@ function Payments({ g, s, host }: { g: Group; s: GameSession; host: boolean }) {
   const pays = sessionPayments(g, s);
   const done = pays.filter((p) => p.settlementId).length;
   const [cardMember, setCardMember] = useState<Member | null>(null);
+  const toast = useToast();
+  // One picture of just this card (SPEC SHARE-8).
+  const share = () => shareSummaryImage(gameTableData(g, s, s.results), (id) => memberName(g, id), 'settle')
+    .catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'));
   return (
     <Card>
-      <CardHeader title="Settle up" action={<span className="text-[13px] text-ink-2">{done} of {pays.length} paid</span>} />
+      <CardHeader title="Settle up" action={<span className="flex items-center gap-3">
+        <span className="text-[13px] text-ink-2">{done} of {pays.length} paid</span>
+        {pays.length > 0 && <Button size="sm" onClick={share}><Share2 size={14} aria-hidden="true" />Share</Button>}
+      </span>} />
       <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">{pays.length} payment{pays.length === 1 ? '' : 's'} square this table.</p>
       <div className="mt-2">
         {pays.length === 0 && <p className="px-5 pb-5 text-sm text-ink-2">Everyone broke even.</p>}
