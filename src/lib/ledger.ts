@@ -436,9 +436,7 @@ export interface Summary {
   /** `paid`: already recorded as a payment for this game (games only). */
   transfers: (Transfer & { paid?: boolean })[];
   recipients: string[];
-  /** Set for a game still in progress: nobody owes anything yet, so it shows what's on the table. */
-  /** Set for a leaderboard picture instead of balances. */
-  board?: LeaderRow[];
+  /** Set for a game (in progress or final): the table, the buy-in, and what's on it. */
   live?: { final: boolean; buyInAmount: number; totalIn: number; buyIns: number | null; totalBack: number; totalCashOut: number; pot: number };
 }
 
@@ -457,7 +455,7 @@ export function summaryData(g: Group, sessionId?: string): Summary {
   return {
     title: g.name,
     when: session ? formatDate(session.played_on, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
-      : `Group balances as of ${formatDate(todayLocal(), { month: 'short', day: 'numeric', year: 'numeric' })}`,
+      : `As of ${formatDate(todayLocal(), { month: 'short', day: 'numeric', year: 'numeric' })}`,
     place: session?.location || null,
     currency: g.currency,
     rows,
@@ -469,16 +467,6 @@ export function summaryData(g: Group, sessionId?: string): Summary {
 function todayLocal() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; // local, not UTC
-}
-
-/** The club leaderboard as a picture: all-time table results, not current balances. */
-export function leaderboardData(g: Group): Summary {
-  return {
-    title: g.name,
-    when: `All-time leaderboard · ${formatDate(todayLocal(), { month: 'short', day: 'numeric', year: 'numeric' })}`,
-    place: null, currency: g.currency, rows: [], transfers: [], recipients: [],
-    board: pokerLeaderboard(g),
-  };
 }
 
 /** One game as a table: each player's buy-ins, money in, chips given back, cash-out, and net.

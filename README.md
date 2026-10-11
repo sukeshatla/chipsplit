@@ -50,7 +50,7 @@ chipsplit/
     │   ├── settle.ts         ← Fewest-payments settle-up
     │   ├── money.ts          ← Integer-cent math, exact splits, formatting
     │   ├── rummy.ts          ← Rummy scoring and payouts
-    │   ├── summaryImage.ts   ← Share images (game table, balances, leaderboard)
+    │   ├── summaryImage.ts   ← Share images: banner, game table, game settle up, group balances
     │   ├── admin.ts          ← The one app-admin account
     │   ├── *.test.ts         ← Unit tests (Vitest), named with SPEC rule IDs
     │   └── types.ts, image.ts, theme.ts, supabase.ts
@@ -299,9 +299,10 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 **Balances and settling up**
 - Each group shows where everyone stands and a **simplified debts** list, one line per payment; tap one to record it or send a reminder.
 - Group and finished-game pages have one action bar: **Share** first, then **New game** in a club, or **Import / Expense** in an Expenses group. A club's **Rummy** sits beside it as its own button, since rummy is a different kind of game.
-- **Share image** for a game is a table of each player's **Buy-ins, Bought in, Gave back, Cash-out, and Net** (green up, red down, winners first) with a totals row. In progress, a player's net shows once they cash out and the bottom shows the pot on the table; once finished, it lists who pays whom (striped rows) with recorded payments marked **Paid ✓**. Big tables get tighter rows, and past 20 rows a finished game goes out as two pictures: the table, then settle up.
+- Every share picture opens with a **banner**: the Chip n Split logo and name, a label saying what it is (**In progress** in gold, **Final game**, **Settle up**, or **Group balances**), the group name, and when: the game's date, place, and buy-in, or *As of* today for balances. Sharing sends only the pictures, no extra text.
+- **Share image** for a game is a table of each player's **Buy-ins, Bought in, Gave back, Cash-out, and Net** (green up, red down, winners first) with a totals row. In progress, a player's net shows once they cash out and the bottom shows the pot on the table. A finished game goes out as **two pictures**: its results table, then its own **Settle up** (who pays whom, recorded payments marked **Paid ✓**).
 - **Share** (first button on a group or finished game): **Email summary** opens a pre-filled email (via `mailto:`, no email service required) with the date, place, everyone's balance and the settle-up list, game payments already made marked paid; **Share image** makes the same summary as a colored picture (share sheet on phones, download on desktop). A game's summary covers only its players; a group's covers every member. Anyone can be left off the email, per group, from their card on the Members tab.
-- **Share** on a club's **Leaderboard** and on **Settle up** sends a picture: the all-time leaderboard (games, nights won, best night, total; marked as table results, not balances), or a compact "Group balances as of" today (who gets back or owes, settled-up names on one line, then who pays whom). Bigger groups get tighter rows, and past 20 rows it goes out as two pictures (1 of 2: where everyone stands, 2 of 2: settle up) so each stays phone-shaped.
+- **Share** on a group's **Settle up** sends its **Group balances** picture as of today: where everyone stands (settled-up names on one line), then who pays whom. Bigger groups get tighter rows, and past 20 rows it goes out as two pictures (1 of 2: where everyone stands, 2 of 2: settle up) so each stays phone-shaped. The leaderboard isn't shared.
 - **Where everyone stands** hides people who are settled up, with **Show N settled up** to see them.
 - **Remind**: a `mailto:` nudge addressed to just the one person who owes a specific payment, from that payment in the settle-up list.
 - Payment history with method (Cash, Zelle, Venmo, UPI, PayPal) and notes.

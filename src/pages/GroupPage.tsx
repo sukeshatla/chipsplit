@@ -5,7 +5,7 @@ import { useAction, useData } from '../app/data';
 import { useToast } from '../app/toast';
 import { useAuth } from '../app/auth';
 import { isAppAdmin } from '../lib/admin';
-import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryData, summaryMailto, leaderboardData, type Summary } from '../lib/ledger';
+import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryData, summaryMailto, type Summary } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
 import { ActionBar, ActionButton, ShareMenu } from '../components/ActionBar';
 import { formatDate, formatMoney } from '../lib/money';
@@ -141,8 +141,7 @@ function Leaderboard({ g }: { g: Group }) {
   const [cardMember, setCardMember] = useState<Member | null>(null);
   return (
     <Card>
-      <CardHeader title={<span className="inline-flex items-center gap-2"><Trophy size={16} className="text-brass" aria-hidden="true" />Leaderboard</span>}
-        action={board.length > 0 && <ShareImageButton make={() => leaderboardData(g)} names={(id) => memberName(g, id)} />} />
+      <CardHeader title={<span className="inline-flex items-center gap-2"><Trophy size={16} className="text-brass" aria-hidden="true" />Leaderboard</span>} />
       {/* pokerLeaderboard() sums cash-out + chips given back − buy-in over finalized games only; payments never enter it. */}
       <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">All-time table results, not who owes what now.</p>
       <div className="mt-2">

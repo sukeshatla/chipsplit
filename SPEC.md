@@ -135,7 +135,11 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | SHARE-2 | A game's summary covers only its players (with date and place); a group's covers every member. Game payments already recorded show as paid. | test | `summaryData` |
 | SHARE-3 | The game table lists winners first, then players still in, then even, then losers; a finished game drops sat-out rows and lists payments with paid marks. | test | `gameTableData` |
 | SHARE-4 | A reminder is addressed to the one person who owes, naming who and how much; no email on file means no reminder. | test | `reminderMailto` |
-| SHARE-5 | Share images render as a phone-shaped PNG; past 20 rows they split into two pictures. | manual | `summaryImage.ts` — share a 25-person group; two images |
+| SHARE-5 | Share images render as phone-shaped PNGs; a group's balances past 20 rows split into two pictures. | manual | `summaryImage.ts` — share a 25-person group; two images |
+| SHARE-7 | Every picture opens with a banner: the Chip n Split logo and name, a label saying what it is (**Group balances**, **In progress**, **Final game**, or **Settle up**), the group name, and when: *As of* today for balances; the game's date, place, and buy-in for a game. | test | `imageBanner` |
+| SHARE-8 | A finished game shares as two pictures, its results table and then its settle up; a game in progress shares only its table; group balances share where everyone stands and settle up together. | test | `imageParts` |
+| SHARE-9 | Sharing sends only the picture(s): no title or "summary" text is added. | manual | `shareSummaryImage` — share to WhatsApp; only images arrive |
+| SHARE-10 | The leaderboard has no Share button. | manual | `GroupPage` — open a club's Games tab; the Leaderboard card has no Share |
 | SHARE-6 | Names shorten to first name + last initial, unless two people would look the same. | test | `shortName` |
 
 ## HIST — history and notifications
