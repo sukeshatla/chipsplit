@@ -25,6 +25,7 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
   const [name, setName] = useState('');
   const [pointLimit, setPointLimit] = useState<101 | 151 | 201>(101);
   const [buyIn, setBuyIn] = useState('');
+  const [buyInError, setBuyInError] = useState<string | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,13 +38,14 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
     if (picked.length >= RUMMY_MAX_PLAYERS) { setError(`A rummy table takes up to ${RUMMY_MAX_PLAYERS} players. Untick someone first.`); return; }
     setPicked((xs) => [...xs, id]); setError(null);
   };
-  const close = () => { setName(''); setPointLimit(101); setBuyIn(''); setPicked([]); setError(null); onClose(); };
+  const close = () => { setName(''); setPointLimit(101); setBuyIn(''); setBuyInError(null); setPicked([]); setError(null); onClose(); };
 
   const submit = async () => {
     const players: NewRummyPlayer[] = group.members.filter((m) => picked.includes(m.id)).map((m) => ({ name: m.name, userId: m.user_id }));
     if (players.length < 2) { setError('Pick at least two players'); return; }
-    const buyInCents = buyIn.trim() ? parseMoney(buyIn) : 0;
-    if (buyInCents === null || buyInCents < 0) { setError('Enter a valid buy-in, or leave it empty'); return; }
+    // Required, like a poker game (SPEC RUMMY-19).
+    const buyInCents = parseMoney(buyIn);
+    if (buyInCents === null || buyInCents <= 0) { setBuyInError('Enter the buy-in per player'); return; }
     const id = await run((api) => api.createRummyGame({ groupId: group.id, name, pointLimit, buyInCents, players }), 'Rummy game started');
     if (id) { close(); nav(`/rummy/${id}`); }
   };
@@ -73,15 +75,15 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Buy-in (optional)">
-            <MoneyInput currency={group.currency} value={buyIn} placeholder="0" enterKeyHint="done" onChange={(e) => setBuyIn(e.target.value)} />
+          <Field label="Buy-in per player *" error={buyInError}>
+            <MoneyInput currency={group.currency} value={buyIn} placeholder="Amount" enterKeyHint="done" onChange={(e) => { setBuyIn(e.target.value); setBuyInError(null); }} />
           </Field>
           <Field label="Name (optional)">
             <Input value={name} placeholder="Game 1" enterKeyHint="done" autoComplete="off" onChange={(e) => setName(e.target.value)} />
           </Field>
         </div>
         <p className="-mt-2 text-[12px] text-ink-2">
-          Reach the limit and you're out; last one standing wins. With a buy-in, the winner takes the pot, and anyone knocked out can rejoin for another buy-in.
+          Reach the limit and you're out; last one standing takes the pot. Anyone knocked out can rejoin for another buy-in.
         </p>
         <div>
           <span className="mb-1.5 block text-[13px] font-semibold">Players ({playing} of up to {RUMMY_MAX_PLAYERS})</span>

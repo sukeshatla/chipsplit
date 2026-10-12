@@ -121,6 +121,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | RUMMY-16 | A rummy game has 2 to 7 players. | test | `NewRummyGameDialog`, demo `createRummyGame`, 0028 `create_rummy_game` |
 | RUMMY-17 | Like a poker game: a finished staked rummy game can't be deleted until its own payments settle it, and deleting it takes its payout and payments out of the group's balances, so they're exactly as before the game (zero if it was the only one). A game in progress, or one without a buy-in, can be deleted any time. The Settle up card sits at the bottom of the game. | test | demo `deleteRummyGame`, 0029 triggers, `RummyGamePage` |
 | RUMMY-18 | A rummy payout follows the result: if a round edit puts a finished game back in play or changes who won, its payout leaves the balances (refused while payments are marked against it: undo them first), and the new result goes in when the game finishes again. | test | demo `updateRummyRound`, 0030 triggers |
+| RUMMY-19 | Every new rummy game needs a buy-in above zero, like a poker game (games made before keep what they had). | test | `NewRummyGameDialog`, demo `createRummyGame`, 0031 `create_rummy_game` |
 
 ## EXP — expenses
 

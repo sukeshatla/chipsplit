@@ -196,10 +196,10 @@ describe('[PLAT-4] group types', () => {
   it('[RUMMY-7] rummy games start only in a Rummy group, never stand-alone', async () => {
     const players = [{ name: 'Me', userId: null }, { name: 'Ravi', userId: null }];
     const poker = await newGroup('club');
-    await expect(api.createRummyGame({ groupId: poker.id, name: '', pointLimit: 101, buyInCents: 0, players })).rejects.toThrow(/Rummy group/);
-    await expect(api.createRummyGame({ groupId: null, name: '', pointLimit: 101, buyInCents: 0, players })).rejects.toThrow(/Rummy group/);
+    await expect(api.createRummyGame({ groupId: poker.id, name: '', pointLimit: 101, buyInCents: 1000, players })).rejects.toThrow(/Rummy group/);
+    await expect(api.createRummyGame({ groupId: null, name: '', pointLimit: 101, buyInCents: 1000, players })).rejects.toThrow(/Rummy group/);
     const rummy = await newGroup('rummy');
-    const gameId = await api.createRummyGame({ groupId: rummy.id, name: '', pointLimit: 101, buyInCents: 0, players });
+    const gameId = await api.createRummyGame({ groupId: rummy.id, name: '', pointLimit: 101, buyInCents: 1000, players });
     expect((await api.loadRummyGames(rummy.id)).map((g) => g.id)).toEqual([gameId]);
   });
 });
@@ -208,7 +208,7 @@ describe('[PLAT-4] rummy history', () => {
   it('[RUMMY-13] starting a rummy game, adding and fixing a round, and closing it show in History', async () => {
     const { id } = await newGroup('rummy');
     const players = [{ name: 'Me', userId: null }, { name: 'Ravi', userId: null }];
-    const gameId = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 0, players });
+    const gameId = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 1000, players });
     const g = (await api.loadRummyGame(gameId))!;
     await api.addRummyRound(gameId, g.players.map((p, i) => ({ playerId: p.id, points: i * 20 })));
     const round = (await api.loadRummyGame(gameId))!.rounds[0]!;
@@ -258,11 +258,11 @@ describe('[PLAT-4] one game at a time', () => {
   it('[RUMMY-15] a Rummy group refuses a second rummy game while one is in progress', async () => {
     const { id } = await newGroup('rummy');
     const players = [{ name: 'Me', userId: null }, { name: 'Ravi', userId: null }];
-    const first = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 0, players });
-    await expect(api.createRummyGame({ groupId: id, name: 'Game 2', pointLimit: 101, buyInCents: 0, players })).rejects.toThrow(/"Game 1" is still in progress/);
+    const first = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 1000, players });
+    await expect(api.createRummyGame({ groupId: id, name: 'Game 2', pointLimit: 101, buyInCents: 1000, players })).rejects.toThrow(/"Game 1" is still in progress/);
     const ps = (await api.loadRummyGame(first))!.players;
     await api.addRummyRound(first, ps.map((p, i) => ({ playerId: p.id, points: i ? 120 : 0 })));
-    const second = await api.createRummyGame({ groupId: id, name: 'Game 2', pointLimit: 101, buyInCents: 0, players });
+    const second = await api.createRummyGame({ groupId: id, name: 'Game 2', pointLimit: 101, buyInCents: 1000, players });
     // Lowering the finishing score would put Game 1 back in play next to Game 2.
     const round = (await api.loadRummyGame(first))!.rounds[0]!;
     await expect(api.updateRummyRound(round.id, ps.map((p, i) => ({ playerId: p.id, points: i ? 20 : 0 })))).rejects.toThrow(/"Game 2" is still in progress/);
@@ -272,7 +272,7 @@ describe('[PLAT-4] one game at a time', () => {
   it('[RUMMY-6] only the scorer changes or deletes a rummy game', async () => {
     const { id } = await newGroup('rummy');
     const players = [{ name: 'Me', userId: null }, { name: 'Ravi', userId: null }];
-    const gameId = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 0, players });
+    const gameId = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 1000, players });
     const ps = (await api.loadRummyGame(gameId))!.players;
     await api.addRummyRound(gameId, ps.map((p, i) => ({ playerId: p.id, points: i * 10 })));
     const round = (await api.loadRummyGame(gameId))!.rounds[0]!;
@@ -289,15 +289,15 @@ describe('[PLAT-4] rummy table size and rejoining', () => {
   it('[RUMMY-16] a rummy game takes 2 to 7 players', async () => {
     const { id } = await newGroup('rummy');
     const seat = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `P${i}`, userId: null }));
-    await expect(api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 0, players: seat(8) })).rejects.toThrow(/7 players/);
-    await expect(api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 0, players: seat(1) })).rejects.toThrow(/two players/);
-    await api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 0, players: seat(7) });
+    await expect(api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 1000, players: seat(8) })).rejects.toThrow(/7 players/);
+    await expect(api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 1000, players: seat(1) })).rejects.toThrow(/two players/);
+    await api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 1000, players: seat(7) });
   });
 
   it('[RUMMY-2] the scorer brings a player back at the start they confirm, within the limit', async () => {
     const { id } = await newGroup('rummy');
     const players = ['A', 'B', 'C'].map((name) => ({ name, userId: null }));
-    const gameId = await api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 0, players });
+    const gameId = await api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 1000, players });
     const [a, b, c] = (await api.loadRummyGame(gameId))!.players;
     await api.addRummyRound(gameId, [{ playerId: a!.id, points: 110 }, { playerId: b!.id, points: 50 }, { playerId: c!.id, points: 0 }]);
     await expect(api.rejoinRummyPlayer(a!.id, 101)).rejects.toThrow(/below 101/);
@@ -367,5 +367,14 @@ describe('[PLAT-4] rummy payout follows the result', () => {
     const { gameId, ps, sid, round } = await postedGame();
     await api.updateRummyRound(round.id, ps.map((p, i) => ({ playerId: p.id, points: i === 0 ? 0 : 130 })));
     expect((await api.loadRummyGame(gameId))!.session_id).toBe(sid);
+  });
+});
+
+describe('[PLAT-4] rummy buy-in', () => {
+  it('[RUMMY-19] a new rummy game needs a buy-in above zero', async () => {
+    const { id } = await newGroup('rummy');
+    const players = [{ name: 'Me', userId: null }, { name: 'Ravi', userId: null }];
+    await expect(api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 0, players })).rejects.toThrow(/buy-in/);
+    await api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 500, players });
   });
 });

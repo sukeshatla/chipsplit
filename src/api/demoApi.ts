@@ -394,7 +394,8 @@ export const demoApi: DataApi = {
     assertNoActiveRummy(d, groupId);
     if (players.length < 2) throw new Error('Add at least two players');
     if (players.length > RUMMY_MAX_PLAYERS) throw new Error(`A rummy table takes up to ${RUMMY_MAX_PLAYERS} players`);
-    if (buyInCents < 0) throw new Error("The buy-in can't be negative");
+    // Same as the server (0031): every new game has a stake, like poker.
+    if (!(buyInCents > 0)) throw new Error('Enter the buy-in for each player');
     const id = uid();
     const rummyPlayers: RummyPlayer[] = players.map((p) => ({ id: uid(), rummy_game_id: id, user_id: p.userId, name: p.name, rejoins: 0, score_offset: 0 }));
     d.rummyGames.push({
