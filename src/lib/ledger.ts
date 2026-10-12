@@ -606,3 +606,22 @@ export function rummyTableData(game: RummyGame, g: Group): Summary {
     rummy: { final: game.status === 'finished', limit: game.point_limit, buyIn: game.buy_in_cents, pot, rows },
   };
 }
+
+export type LiveGame = { kind: 'poker'; g: Group; s: GameSession } | { kind: 'rummy'; g: Group; game: RummyGame };
+
+/** Games in progress you're playing in, poker then rummy (SPEC DASH-1). `rummyGames` are the
+ *  games loaded for your Rummy groups; you're in one by linked account, or by your name there. */
+export function myLiveGames(data: AppData, rummyGames: RummyGame[]): LiveGame[] {
+  const poker: LiveGame[] = data.groups.filter((g) => g.kind === 'club').flatMap((g) => {
+    const mine = myMemberId(g, data.me.id);
+    return g.sessions.filter((s) => s.status === 'open' && s.results.some((r) => r.member_id === mine)).map((s) => ({ kind: 'poker' as const, g, s }));
+  });
+  const rummy: LiveGame[] = rummyGames.filter((x) => x.status === 'active').flatMap((game) => {
+    const g = data.groups.find((x) => x.id === game.group_id);
+    const me = g?.members.find((m) => m.user_id === data.me.id);
+    if (!g || !me) return [];
+    const plays = game.players.some((p) => p.user_id === data.me.id || (!p.user_id && p.name === me.name));
+    return plays ? [{ kind: 'rummy' as const, g, game }] : [];
+  });
+  return [...poker, ...rummy];
+}

@@ -428,8 +428,8 @@ export const demoApi: DataApi = {
     const round = g.rounds.find((r) => r.id === roundId)!;
     const points = new Map(scores.map((s) => [s.playerId, s.points]));
     round.scores = round.scores.map((s) => ({ player_id: s.player_id, points: points.get(s.player_id) ?? s.points }));
-    logRummy(d, g, (n) => `Changed round ${round.round_no} in ${n}`);
     const remaining = rummyStandings(g).filter((s) => !s.eliminated);
+    const before = { status: g.status, winner: g.winner_player_id };
     if (remaining.length <= 1) {
       g.status = 'finished';
       g.finished_at = g.finished_at ?? now();
@@ -441,6 +441,15 @@ export const demoApi: DataApi = {
       g.finished_at = null;
       g.winner_player_id = null;
     }
+    // Same as the server (0030): a changed result takes the old payout out of the balances.
+    if (g.session_id && (g.status !== before.status || g.winner_player_id !== before.winner)) {
+      const owner = d.groups.find((x) => x.id === g.group_id);
+      if (owner?.settlements.some((s) => s.session_id === g.session_id)) throw new Error('Undo the payments marked for this game first, then change the round');
+      if (owner) owner.sessions = owner.sessions.filter((s) => s.id !== g.session_id);
+      g.session_id = null;
+      logRummy(d, g, (n) => `Took ${n} payout out of balances`);
+    }
+    logRummy(d, g, (n) => `Changed round ${round.round_no} in ${n}`);
   }),
 
   rejoinRummyPlayer: (playerId, startAt) => mutate((d) => {

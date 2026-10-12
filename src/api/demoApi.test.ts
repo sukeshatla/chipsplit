@@ -334,3 +334,38 @@ describe('[PLAT-4] deleting a rummy game', () => {
     expect(await api.loadRummyGames(id)).toEqual([]);
   });
 });
+
+describe('[PLAT-4] rummy payout follows the result', () => {
+  async function postedGame() {
+    const { id, raviId, me } = await newGroup('rummy');
+    const players = (await byId(id)).members.map((m) => ({ name: m.name, userId: m.user_id }));
+    const gameId = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 1000, players });
+    const ps = (await api.loadRummyGame(gameId))!.players;
+    await api.addRummyRound(gameId, ps.map((p, i) => ({ playerId: p.id, points: i === 0 ? 0 : 110 })));
+    const sid = await api.postRummyPayout(gameId, [{ member_id: me, buy_in_cents: 1000, cash_out_cents: 2000 }, { member_id: raviId, buy_in_cents: 1000, cash_out_cents: 0 }]);
+    const round = (await api.loadRummyGame(gameId))!.rounds[0]!;
+    return { id, raviId, me, gameId, ps, sid, round };
+  }
+
+  it('[RUMMY-18] editing a finished game back into play takes its payout out of the balances', async () => {
+    const { id, gameId, ps, round } = await postedGame();
+    await api.updateRummyRound(round.id, ps.map((p, i) => ({ playerId: p.id, points: i === 0 ? 0 : 50 })));
+    const game = (await api.loadRummyGame(gameId))!;
+    expect([game.status, game.session_id]).toEqual(['active', null]);
+    const g = await byId(id);
+    expect(g.sessions).toEqual([]);
+    expect([...groupBalances(g).values()].every((c) => c === 0)).toBe(true);
+  });
+
+  it('[RUMMY-18] is refused while payments are marked against the payout', async () => {
+    const { id, raviId, me, ps, sid, round } = await postedGame();
+    await api.addSettlement({ group_id: id, from_member: raviId, to_member: me, amount_cents: 1000, method: 'Cash', note: null, session_id: sid, settled_on: '2026-01-02' });
+    await expect(api.updateRummyRound(round.id, ps.map((p, i) => ({ playerId: p.id, points: i === 0 ? 0 : 50 })))).rejects.toThrow(/Undo the payments/);
+  });
+
+  it('[RUMMY-18] an edit that keeps the same result leaves the payout alone', async () => {
+    const { gameId, ps, sid, round } = await postedGame();
+    await api.updateRummyRound(round.id, ps.map((p, i) => ({ playerId: p.id, points: i === 0 ? 0 : 130 })));
+    expect((await api.loadRummyGame(gameId))!.session_id).toBe(sid);
+  });
+});

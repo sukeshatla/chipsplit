@@ -284,7 +284,7 @@ export function RummyGamePage() {
             const changes = editingRound.scores.map((s) => ({ s, now: Math.max(0, Number(inputs[s.player_id]) || 0) })).filter(({ s, now }) => now !== s.points);
             return changes.length === 0 ? 'No scores changed.' : <>{changes.map(({ s, now }) => (
               <span key={s.player_id} className="block"><b>{short(game.players.find((p) => p.id === s.player_id)?.name ?? '')}</b>: {s.points} → <b>{now}</b></span>
-            ))}<span className="mt-2 block">Totals and who's out are worked out again from this.</span></>;
+            ))}<span className="mt-2 block">Totals and who's out are worked out again from this.{game.session_id ? ' If that changes who won or puts the game back in play, its payout comes out of the balances until it finishes again.' : ''}</span></>;
           })()}
         </>}
         onConfirm={commitRound} />

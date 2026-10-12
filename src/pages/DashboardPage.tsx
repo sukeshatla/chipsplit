@@ -1,9 +1,12 @@
 import { useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
+import { useAuth } from '../app/auth';
+import { rummyStandings } from '../lib/rummy';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
-import { activity, friendsList, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, totals } from '../lib/ledger';
+import { activity, friendsList, groupBalances, isGameHost, listedGroups, moneyPhrase, myLiveGames, myMemberId, shortName, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { AddExpenseButton, Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row, useShowMore } from '../components/ui';
 import { GroupIcon } from '../components/GroupKind';
@@ -47,7 +50,11 @@ export function DashboardPage() {
   const t = totals(data);
   const feed = activity(data, 200, undefined, true);
   const feedMore = useShowMore(feed, 5);
-  const openGames = data.groups.flatMap((g) => g.sessions.filter((s) => s.status === 'open').map((s) => ({ g, s })));
+  // Your games in progress, poker and rummy (SPEC DASH-1). Rummy games load per Rummy group,
+  // under the same keys the group pages use, so they stay in step.
+  const { api } = useAuth();
+  const rummyLists = useQueries({ queries: data.groups.filter((g) => g.kind === 'rummy').map((g) => ({ queryKey: ['rummy-list', g.id], queryFn: () => api.loadRummyGames(g.id) })) });
+  const liveGames = myLiveGames(data, rummyLists.flatMap((q) => q.data ?? []));
   const [newGroup, setNewGroup] = useState(false);
   const [quickExpense, setQuickExpense] = useState(false);
   const hour = new Date().getHours();
@@ -79,19 +86,28 @@ export function DashboardPage() {
         ))}
       </section>
 
-      {openGames.length > 0 && (
+      {liveGames.length > 0 && (
         <div className="mb-5 space-y-2">
-          {openGames.map(({ g, s }) => (
-            <Link key={s.id} to={`/groups/${g.id}/games/${s.id}`}
-              className="flex items-center gap-3 rounded-2xl border border-brass/40 bg-brass/10 px-4 py-3 hover:bg-brass/15">
-              <Radio size={18} className="text-brass" aria-hidden="true" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">Game in progress{s.location ? ` at ${s.location}` : ''}</p>
-                <p className="text-[13px] text-ink-2">{g.name}, {s.results.length} players. {isGameHost(g, s, me.id) ? 'Enter cash-outs when the table breaks.' : 'Tap to follow the scores.'}</p>
-              </div>
-              <ChevronRight size={18} className="text-ink-2" aria-hidden="true" />
-            </Link>
-          ))}
+          {liveGames.map((live) => {
+            const poker = live.kind === 'poker';
+            const leader = poker ? null : rummyStandings(live.game).find((x) => !x.eliminated);
+            return (
+              <Link key={poker ? live.s.id : live.game.id} to={poker ? `/groups/${live.g.id}/games/${live.s.id}` : `/rummy/${live.game.id}`}
+                className="flex items-center gap-3 rounded-2xl border border-brass/40 bg-brass/10 px-4 py-3 hover:bg-brass/15">
+                <Radio size={18} className="text-brass" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  {poker ? <>
+                    <p className="text-sm font-semibold">Game in progress{live.s.location ? ` at ${live.s.location}` : ''}</p>
+                    <p className="text-[13px] text-ink-2">{live.g.name}, {live.s.results.length} players. {isGameHost(live.g, live.s, me.id) ? 'Enter cash-outs when the table breaks.' : 'Tap to follow the scores.'}</p>
+                  </> : <>
+                    <p className="text-sm font-semibold">Rummy in progress{live.game.name ? `: ${live.game.name}` : ''}</p>
+                    <p className="text-[13px] text-ink-2">{live.g.name}, {live.game.players.length} players, round {live.game.rounds.length + 1}{leader ? `. ${shortName(leader.player.name, live.game.players.map((p) => p.name))} leads` : ''}.</p>
+                  </>}
+                </div>
+                <ChevronRight size={18} className="text-ink-2" aria-hidden="true" />
+              </Link>
+            );
+          })}
         </div>
       )}
 

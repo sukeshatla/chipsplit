@@ -66,6 +66,12 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | BAL-6 | "You get" / "You pay" are in your own currency; other currencies are listed separately, never converted. | test | `totals` |
 | BAL-7 | The Friends list and the Dashboard list people and groups biggest amount first, owed or owing, with settled last and ties by name. | test | `friendsList`, `DashboardPage` |
 
+## DASH — dashboard
+
+| ID | Rule | Verified by | Where |
+|---|---|---|---|
+| DASH-1 | The dashboard shows every game in progress you're playing in, poker and rummy, each linking to the game; games you're not in aren't shown. | test | `myLiveGames`, `DashboardPage` |
+
 ## GROUP — group types and pages
 
 | ID | Rule | Verified by | Where |
@@ -114,6 +120,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | RUMMY-15 | A Rummy group has at most one rummy game in progress: starting another, or a round edit that would put a finished game back in play, is refused until the current one is closed or deleted. | test | demo `createRummyGame` / `updateRummyRound`, 0027 trigger, `NewRummyGameDialog` |
 | RUMMY-16 | A rummy game has 2 to 7 players. | test | `NewRummyGameDialog`, demo `createRummyGame`, 0028 `create_rummy_game` |
 | RUMMY-17 | Like a poker game: a finished staked rummy game can't be deleted until its own payments settle it, and deleting it takes its payout and payments out of the group's balances, so they're exactly as before the game (zero if it was the only one). A game in progress, or one without a buy-in, can be deleted any time. The Settle up card sits at the bottom of the game. | test | demo `deleteRummyGame`, 0029 triggers, `RummyGamePage` |
+| RUMMY-18 | A rummy payout follows the result: if a round edit puts a finished game back in play or changes who won, its payout leaves the balances (refused while payments are marked against it: undo them first), and the new result goes in when the game finishes again. | test | demo `updateRummyRound`, 0030 triggers |
 
 ## EXP — expenses
 

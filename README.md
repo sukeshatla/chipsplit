@@ -34,7 +34,7 @@ chipsplit/
 │   └── keep-alive.yml        ← Pings Supabase every 3 days so the free project never pauses
 ├── public/                   ← App icons
 ├── docs/                     ← DESIGN.md, feature overview PDF (features, roles, phone install, security)
-├── supabase/migrations/      ← 0001 … 0029, run in order in the Supabase SQL editor
+├── supabase/migrations/      ← 0001 … 0030, run in order in the Supabase SQL editor
 └── src/
     ├── main.tsx, App.tsx     ← Entry + HashRouter (routes below)
     ├── index.css             ← Tailwind + theme tokens (light / dark)
@@ -97,7 +97,7 @@ Open the URL Vite prints (http://localhost:5173). With no Supabase keys it runs 
 ## First-Time Setup (real accounts)
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. In its **SQL editor**, run every file in `supabase/migrations/` **in order** (0001 → 0029).
+2. In its **SQL editor**, run every file in `supabase/migrations/` **in order** (0001 → 0030).
 3. **Authentication → Providers**: turn on Google (client ID and secret from Google Cloud Console).
 4. **Authentication → URL Configuration**: Site URL `https://chipnsplit.org`; Redirect URLs `https://chipnsplit.org` and `http://localhost:5173`.
 5. Create `.env.local` from **Project settings → API**:
@@ -143,6 +143,7 @@ The app never changes the schema itself. **Run a new migration in the Supabase S
 | 0022_game_payments_go_with_game | A game's payments go with it when deleted |
 | 0023_names_admin_only | Only the app admin edits other people's names and emails |
 | 0024_remove_friends | Remove anyone from your Friends list once settled |
+| 0030_rummy_payout_follows_result | A round edit that changes a finished rummy game's result takes its payout out of balances |
 | 0029_rummy_delete_needs_settle | Rummy games need their payout settled before deleting; deleting takes the payout out of balances |
 | 0028_rummy_seven_players_and_rejoin_start | Up to 7 players a rummy game; rejoin at a start the scorer confirms |
 | 0027_one_game_in_progress | At most one poker game and one rummy game in progress per group |
@@ -290,6 +291,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - Only the person who started the game (the scorer) adds or fixes rounds, brings players back, closes, or deletes it; everyone else in the group can only watch. Same as a poker game's host.
 - Up to **7 players** a game (everyone's picked to start when the group has 7 or fewer).
 - Optional **buy-in**: the winner takes the pot. A knocked-out player can **rejoin** for another buy-in while two or more are still in. They restart at the **highest score still in + 1** by default; the rejoin pop-up shows that number and the scorer can change it (0 up to one below the limit) before confirming. Closing early splits the pot between everyone still in.
+- A payout follows the result: if a round edit puts a finished game back in play or changes who won, its payout comes out of the balances (refused while payments are marked against it), and the new result goes in when the game finishes again.
 - Deleting a rummy game works like poker: a finished staked game can't be deleted until its payments are all marked paid, and deleting it takes its payout and payments out of the balances (back to where everyone was before it). A game in progress or without a buy-in can be deleted any time.
 - When a staked game ends, its payout goes into the group's **balances by itself** (on the scorer's screen) and the game shows the same **Settle up** card as poker: **Mark paid**, Undo, reminders, Share.
 
@@ -336,7 +338,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 **Dashboard**
 - A dark banner with your net, sign included, in a big box: its accent bar and tint are green when you're up, red when you owe, grey when square. **You get** / **You pay** sit below it. Then your **Groups** and **Friends** (top 5 each, biggest amount first whether you're owed or you owe, **Show all** for the rest), then a short recent-activity feed.
 - **+ Add expense** at the top (one-on-one, above), and **+ New group** on the Groups card. Starting a game is done from inside a Poker or Rummy group.
-- Banner for any game currently in progress. The activity feed only shows what involves you: the latest 5, then **Show all**.
+- A banner for each game in progress that **you're playing in**, poker or rummy ("Rummy in progress: Game 1 … round 4, Ravi leads"), linking straight to it. The activity feed only shows what involves you: the latest 5, then **Show all**.
 
 **Accounts and profile**
 - **Sign in with Google** (no password to set, leak, or forget) via Supabase Auth; it auto-creates the account on first sign-in. Someone without Gmail can make a Google account with their existing email (Yahoo, Outlook, ...), and is linked to every group they were added to with that address.

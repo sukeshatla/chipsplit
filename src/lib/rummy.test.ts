@@ -100,3 +100,18 @@ describe('rummy in a Rummy group', async () => {
     expect(fin.rummy!.rows.find((r) => r.name === 'B')!.out).toBe(true);
   });
 });
+
+describe('games in progress on the dashboard', async () => {
+  const { myLiveGames } = await import('./ledger');
+  const { group: makeGroup, member, meMember, data, game: session } = await import('../test/fixtures');
+  it('[DASH-1] shows poker and rummy games in progress that you play in, and only those', () => {
+    const poker = makeGroup({ id: 'p', kind: 'club', members: [meMember('me'), member('b')],
+      sessions: [session('mine', { me: [1000, 0], b: [1000, 0] }, { status: 'open' }), session('theirs', { b: [1000, 0] }, { status: 'open' }), session('done', { me: [1000, 0] })] });
+    const rg = makeGroup({ id: 'r', kind: 'rummy', name: 'Sunday rummy', members: [meMember('me2', { name: 'Me' }), member('mB', { name: 'B' })] });
+    const withMe = game({ id: 'rm', group_id: 'r', players: [{ id: 'x', rummy_game_id: 'rm', user_id: 'me-user', name: 'Me', rejoins: 0, score_offset: 0 }, { id: 'y', rummy_game_id: 'rm', user_id: null, name: 'B', rejoins: 0, score_offset: 0 }] });
+    const withoutMe = game({ id: 'rx', group_id: 'r' });
+    const finished = { ...withMe, id: 'rf', status: 'finished' as const };
+    const live = myLiveGames(data([poker, rg]), [withMe, withoutMe, finished]);
+    expect(live.map((x) => (x.kind === 'poker' ? x.s.id : x.game.id))).toEqual(['mine', 'rm']);
+  });
+});
