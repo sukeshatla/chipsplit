@@ -7,7 +7,7 @@ import { useAuth } from '../app/auth';
 import { isAppAdmin } from '../lib/admin';
 import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryData, summaryMailto, type Summary } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
-import { ActionBar, ActionButton, ShareMenu } from '../components/ActionBar';
+import { ActionBar, ActionButton } from '../components/ActionBar';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, AvatarButton, BackLink, byMonth, DateTile, LIST_STEP, MonthHeader, ShowMore, useShowMore, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -32,7 +32,6 @@ export function GroupPage() {
   const g = groups.find((x) => x.id === groupId);
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
-  const toast = useToast();
   const [newGame, setNewGame] = useState(false);
   const [expense, setExpense] = useState<Expense | null | 'new'>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -66,8 +65,8 @@ export function GroupPage() {
           <span>{myBal === 0 ? 'You are settled up' : <>You {myBal > 0 ? 'are owed' : 'owe'} <Amount cents={myBal} currency={g.currency} className="text-sm" /></>}</span>
         </span>}
         actions={<><ActionBar>
-          <ShareMenu onEmail={() => { window.location.href = summaryMailto(g); }}
-            onImage={() => shareSummaryImage(summaryData(g), (id) => memberName(g, id)).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))} />
+          {/* Email here; pictures from each card's own Share (SPEC SHARE-11). */}
+          <ActionButton icon={<Mail size={16} aria-hidden="true" />} onClick={() => { window.location.href = summaryMailto(g); }}>Email summary</ActionButton>
           {g.kind === 'club' ? (<>
             <ActionButton primary icon={<Spade size={16} aria-hidden="true" />} onClick={() => setNewGame(true)}>New game</ActionButton>
           </>) : mine && (<>
@@ -166,10 +165,10 @@ function Leaderboard({ g }: { g: Group }) {
 }
 
 /** A small "Share" that sends a picture of what's on this card. */
-function ShareImageButton({ make, names }: { make(): Summary; names(id: string): string }) {
+function ShareImageButton({ make, names, section }: { make(): Summary; names(id: string): string; section?: 'settle' }) {
   const toast = useToast();
   return (
-    <Button size="sm" onClick={() => shareSummaryImage(make(), names).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
+    <Button size="sm" onClick={() => shareSummaryImage(make(), names, section).catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'))}>
       <Share2 size={14} aria-hidden="true" />Share
     </Button>
   );
@@ -198,7 +197,7 @@ function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       <div className="space-y-5">
         <Card>
-          <CardHeader title="Settle up" action={<ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} />} />
+          <CardHeader title="Settle up" action={<ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} section="settle" />} />
           <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">Fewest payments to clear it all.</p>
           <div className="mt-2">
             {transfers.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Everyone is settled up.</p> :
@@ -215,7 +214,7 @@ function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void
           </div>
         </Card>
         <Card>
-          <CardHeader title="Where everyone stands" />
+          <CardHeader title="Where everyone stands" action={<ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} />} />
           <div className="mt-2">
             {(showSettled ? members : members.filter((m) => (bal.get(m.id) ?? 0) !== 0)).map((m) => (
               <Row key={m.id}>

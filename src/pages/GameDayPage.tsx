@@ -8,7 +8,7 @@ import { useAuth } from '../app/auth';
 import { useToast } from '../app/toast';
 import { isGameHost, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, gameTableData, summaryMailto } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
-import { ActionBar, ActionButton, ShareMenu } from '../components/ActionBar';
+import { ActionBar, ActionButton } from '../components/ActionBar';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
 import { Amount, AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, IconButton, Modal, MoneyInput, PageHeader, Row, Select, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
@@ -196,17 +196,12 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         actions={<>
           {final ? (
             <ActionBar>
-              <ShareMenu onEmail={() => { window.location.href = summaryMailto(g, s.id); }}
-                onImage={shareResults} />
+              {/* Email here; pictures from the Players and Settle up cards (SPEC SHARE-11). */}
+              <ActionButton icon={<Mail size={16} aria-hidden="true" />} onClick={() => { window.location.href = summaryMailto(g, s.id); }}>Email summary</ActionButton>
               {host && <ActionButton icon={<LockOpen size={16} aria-hidden="true" />} onClick={reopen}>Reopen</ActionButton>}
             </ActionBar>
           ) : (<>
-            {/* Mid-game: just the picture of who's in for how much (no email -- nobody owes anything yet). */}
-            <ActionBar>
-              <ActionButton icon={<Share2 size={16} aria-hidden="true" />} onClick={shareResults}>
-                Share
-              </ActionButton>
-            </ActionBar>
+            {/* Mid-game there's nothing to email (nobody owes anything yet); the Players card shares the table. */}
             {host && <SaveStatus state={saveState} onRetry={() => void persist()} />}
             {host && <Button variant="primary" onClick={finalize} loading={busy}><Check size={16} aria-hidden="true" />Finalize</Button>}
           </>)}

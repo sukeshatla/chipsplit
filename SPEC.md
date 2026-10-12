@@ -135,12 +135,12 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | SHARE-2 | A game's summary covers only its players (with date and place); a group's covers every member. Game payments already recorded show as paid. | test | `summaryData` |
 | SHARE-3 | The game table lists winners first, then players still in, then even, then losers; a finished game drops sat-out rows and lists payments with paid marks. | test | `gameTableData` |
 | SHARE-4 | A reminder is addressed to the one person who owes, naming who and how much; no email on file means no reminder. | test | `reminderMailto` |
-| SHARE-5 | Share images render as phone-shaped PNGs; a group's balances past 20 rows split into two pictures. | manual | `summaryImage.ts` — share a 25-person group; two images |
-| SHARE-7 | Every picture opens with a banner: the Chip n Split logo and name, a label saying what it is (**Game · In progress**, **Game · Final results**, **Game · Settle up**, or **Group balances**), the group name, and when: *As of* today for balances; the game's date and place for a game, plus the buy-in on its results. | test | `imageBanner` |
-| SHARE-8 | Each Share sends one picture of its own section: a game's results (Players card or the page's Share menu) or its settle up (Settle up card); group balances show where everyone stands and settle up together, split in two only past 20 rows. | test | `imageParts` |
+| SHARE-5 | Share images render as phone-shaped PNGs; longer lists get tighter rows instead of a second picture. | manual | `summaryImage.ts` — share a 25-person group's balances; one picture |
+| SHARE-7 | Every picture opens with a banner: the Chip n Split logo and name, a label saying what it is (**Game · In progress**, **Game · Final results**, **Game · Settle up**, **Group · Balances**, or **Group · Settle up**), the group name, and when: *As of* today for a group; the game's date and place for a game, plus the buy-in on its results. | test | `imageBanner` |
+| SHARE-8 | Each card's Share sends one picture of just that card: a game's **Players** (results) or **Settle up**; a group's **Where everyone stands** or **Settle up**. | test | `imageParts` |
 | SHARE-9 | Sharing sends only the picture(s): no title or "summary" text is added. | manual | `shareSummaryImage` — share to WhatsApp; only images arrive |
 | SHARE-10 | The leaderboard has no Share button. | manual | `GroupPage` — open a club's Games tab; the Leaderboard card has no Share |
-| SHARE-11 | The Share menu lists **Share image** first, then **Email summary**, and always opens fully on screen. | manual | `ShareMenu` — on a phone, open Share on a game and a group; both options visible without zooming |
+| SHARE-11 | Pages share in one way per place: the top of a game or group page has a plain **Email summary** button (no menu; none while a game is in progress), and every card's **Share** sends only its picture. | manual | `GameDayPage`, `GroupPage` — no dropdown anywhere; each Share sends one image |
 | SHARE-6 | Names shorten to first name + last initial, unless two people would look the same. | test | `shortName` |
 
 ## HIST — history and notifications

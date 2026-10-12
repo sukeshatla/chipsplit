@@ -10,8 +10,8 @@ const live = { ...finished, status: 'open' as const };
 
 describe('share image banner', () => {
   it('[SHARE-7] group balances: labelled, with the group name and "As of" today', () => {
-    const b = imageBanner(summaryData(club), 'both');
-    expect(b.label).toBe('Group balances');
+    const b = imageBanner(summaryData(club), 'stands');
+    expect(b.label).toBe('Group · Balances');
     expect(b.title).toBe('Poker Pals');
     expect(b.details[0]).toMatch(/^As of [A-Z][a-z]{2} \d{1,2}, \d{4}$/);
   });
@@ -35,9 +35,11 @@ describe('share image banner', () => {
     expect(b.details).toEqual(['Sat, Oct 3, 2026', "📍 Teja's place"]);
   });
 
-  it('[SHARE-7] a big group split in two says which picture is which', () => {
-    expect(imageBanner(summaryData(club), 'stands').details.at(-1)).toBe('1 of 2');
-    expect(imageBanner(summaryData(club), 'settle').details.at(-1)).toBe('2 of 2');
+  it("[SHARE-7] a group's settle up is labelled Group · Settle up, as of today", () => {
+    const b = imageBanner(summaryData(club), 'settle');
+    expect(b.label).toBe('Group · Settle up');
+    expect(b.details).toHaveLength(1);
+    expect(b.details[0]).toMatch(/^As of /);
   });
 });
 
@@ -52,12 +54,13 @@ describe('which pictures to share', () => {
     expect(imageParts(gameTableData(club, live, live.results))).toEqual(['table']);
   });
 
-  it('[SHARE-8] group balances: one picture with both, or two past 20 rows', () => {
-    expect(imageParts(summaryData(club))).toEqual(['both']);
+  it('[SHARE-8] group balances: where everyone stands and settle up are separate pictures, whatever the size', () => {
+    expect(imageParts(summaryData(club))).toEqual(['stands']);
+    expect(imageParts(summaryData(club), 'settle')).toEqual(['settle']);
     const many = Array.from({ length: 22 }, (_, i) => member(`m${i}`, { name: `P${i}` }));
     const big = group({ members: many, expenses: many.slice(1).map((m, i) => ({
       id: `e${i}`, group_id: 'g', description: 'x', category: 'general', amount_cents: 100, spent_on: '2026-01-01', created_by: null, created_at: '',
       payers: [{ member_id: 'm0', amount_cents: 100 }], shares: [{ member_id: m.id, amount_cents: 100 }] })) });
-    expect(imageParts(summaryData(big))).toEqual(['stands', 'settle']);
+    expect(imageParts(summaryData(big))).toEqual(['stands']);
   });
 });

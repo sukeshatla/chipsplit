@@ -8,20 +8,14 @@ const BRASS = 'rgb(150 112 20)', ZEBRA = 'rgb(242 246 244)';
 const FONT = 'Manrope, system-ui, -apple-system, "Segoe UI", sans-serif';
 const DISPLAY = '"Bricolage Grotesque", system-ui, sans-serif';
 
-/** One picture. A game: its results `table`, or its `settle` up. Group balances: `both` where
- *  everyone stands and settle up, or for a big group `stands` and `settle` apart. */
-export type Part = 'both' | 'stands' | 'settle' | 'table';
-/** Past this many rows (people up or down, plus payments), balances split into two pictures so
- *  each stays phone-shaped instead of one very tall strip. */
-const SPLIT_AFTER = 20;
+/** One picture, of one card. A game: its results `table`, or its `settle` up. A group: where
+ *  everyone `stands`, or its `settle` up. */
+export type Part = 'stands' | 'settle' | 'table';
 
-/** Which pictures one Share sends (SPEC SHARE-8): one picture of its own section. A game: its
- *  results `table`, or its `settle` up when shared from the Settle up card. Group balances: one
- *  picture, or two past SPLIT_AFTER rows. */
+/** Which picture a card's Share sends (SPEC SHARE-8): always one, of just that card. */
 export function imageParts(d: Summary, section?: 'settle'): Part[] {
   if (d.live) return [section === 'settle' && d.live.final ? 'settle' : 'table'];
-  const open = d.rows.filter((r) => r.cents !== 0).length;
-  return open + d.transfers.length > SPLIT_AFTER ? ['stands', 'settle'] : ['both'];
+  return [section === 'settle' ? 'settle' : 'stands'];
 }
 
 export interface Banner { label: string; title: string; details: string[] }
@@ -34,8 +28,7 @@ export function imageBanner(d: Summary, part: Part): Banner {
     const buyIn = d.live.buyInAmount ? `${formatMoney(d.live.buyInAmount, d.currency)} buy-in` : null;
     return { label: d.live.final ? 'Game · Final results' : 'Game · In progress', title: d.title, details: [d.when, place, buyIn].filter(Boolean) as string[] };
   }
-  const split = part === 'stands' ? '1 of 2' : part === 'settle' ? '2 of 2' : null;
-  return { label: 'Group balances', title: d.title, details: [d.when, split].filter(Boolean) as string[] };
+  return { label: part === 'settle' ? 'Group · Settle up' : 'Group · Balances', title: d.title, details: [d.when] };
 }
 
 /** The picture(s) to share, one per part. */
@@ -48,14 +41,15 @@ export async function summaryPng(d: Summary, names: (id: string) => string, part
   // A game's table needs the width; balances and settle up read better narrow.
   const W = d.live && part === 'table' ? 720 : 560, PAD = 40, HEAD = 172;
   const open = d.rows.filter((r) => r.cents !== 0), settled = d.rows.filter((r) => r.cents === 0);
-  // Bigger groups get tighter rows (same text size) so the picture doesn't run long.
-  const big = (d.live ? d.rows.length : open.length) + d.transfers.length > 8;
-  const LROW = d.live && big ? 42 : 50, BROW = big ? 36 : 44;
-  const standsH = 36 + Math.max(1, open.length) * BROW + (settled.length ? 34 : 0);
-  const settleH = 36 + Math.max(1, d.transfers.length) * BROW;
-  const H = d.live
-    ? HEAD + 24 + (part === 'settle' ? settleH : 36 + d.rows.length * LROW + LROW + (d.live.final ? 0 : 70)) + 28
-    : HEAD + 20 + (part === 'settle' ? 0 : standsH) + (part === 'both' ? 28 : 0) + (part === 'stands' ? 0 : settleH) + 32;
+  // Longer lists get tighter rows (same text size) so the picture doesn't run long (SHARE-5).
+  const count = part === 'settle' ? d.transfers.length : d.live ? d.rows.length : open.length;
+  const big = count > 8;
+  const LROW = big ? 42 : 50, BROW = big ? 36 : 44;
+  // The banner says which card this is, so the body is just the rows.
+  const standsH = Math.max(1, open.length) * BROW + (settled.length ? 34 : 0);
+  const settleH = Math.max(1, d.transfers.length) * BROW;
+  const H = HEAD + 24 + (part === 'settle' ? settleH
+    : d.live ? 36 + d.rows.length * LROW + LROW + (d.live.final ? 0 : 70) : standsH) + 28;
   const scale = 2;
   const c = document.createElement('canvas');
   c.width = W * scale; c.height = H * scale;
@@ -72,12 +66,7 @@ export async function summaryPng(d: Summary, names: (id: string) => string, part
 }
 
 /** Label pill colors: a game in progress stands out in brass; everything else is light on the felt. */
-const PILL: Record<string, { bg: string; ink: string }> = {
-  'Game · In progress': { bg: 'rgb(232 178 48)', ink: INK },
-  'Game · Final results': { bg: FELT_INK, ink: FELT },
-  'Game · Settle up': { bg: FELT_INK, ink: FELT },
-  'Group balances': { bg: FELT_INK, ink: FELT },
-};
+const pillColors = (label: string) => (label === 'Game · In progress' ? { bg: 'rgb(232 178 48)', ink: INK } : { bg: FELT_INK, ink: FELT });
 
 /** The banner: the Chip n Split logo and name with the label pill across the top, then the group
  *  name large, then when (and where, and the buy-in for a game). */
@@ -87,7 +76,7 @@ function drawBanner(x: CanvasRenderingContext2D, b: Banner, W: number, PAD: numb
   x.fillStyle = FELT_INK; x.textAlign = 'left'; x.font = `600 18px ${DISPLAY}`;
   x.fillText('Chip n Split', PAD + 42, 44);
 
-  const pill = PILL[b.label] ?? PILL['Group balances']!;
+  const pill = pillColors(b.label);
   x.font = `800 14px ${FONT}`;
   const text = b.label.toUpperCase(), tw = x.measureText(text).width + 2 * 1.2 * text.length, pw = tw + 28;
   x.fillStyle = pill.bg; roundRect(x, W - PAD - pw, 20, pw, 34, 17); x.fill();
@@ -194,17 +183,15 @@ function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Sum
   return toPng(c);
 }
 
-/** Group balances, narrow and striped: who's up or down (settled-up people on one line), then
- *  the fewest payments to clear it all, with any recorded game payments marked paid. */
+/** Group balances, narrow and striped: who's up or down (settled-up people on one line), or the
+ *  fewest payments to clear it all. */
 function drawBalances(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summary, open: Summary['rows'], settled: Summary['rows'],
   names: (id: string) => string, top: number, W: number, PAD: number, ROWH: number, part: Part) {
   const money = (v: number) => formatMoney(v, d.currency);
   const band = (i: number, y: number) => { if (i % 2 === 0) { x.fillStyle = ZEBRA; x.fillRect(PAD - 12, y, W - 2 * PAD + 24, ROWH); } };
-  const title = (text: string, y: number) => { x.fillStyle = INK; x.font = `600 19px ${DISPLAY}`; x.textAlign = 'left'; x.fillText(text, PAD, y + 24); };
   let y = top;
 
-  if (part !== 'settle') {
-  title('Where everyone stands', y); y += 36;
+  if (part === 'stands') {
   if (open.length === 0) { x.fillStyle = GAIN; x.font = `600 17px ${FONT}`; x.fillText('Everyone is settled up', PAD, y + 28); y += ROWH; }
   open.forEach((r, i) => {
     band(i, y);
@@ -225,9 +212,7 @@ function drawBalances(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summ
 
   }
 
-  if (part === 'both') y += 28;
-  if (part !== 'stands') {
-  title('Settle up', y); y += 36;
+  if (part === 'settle') {
   if (d.transfers.length === 0) { x.textAlign = 'left'; x.fillStyle = GAIN; x.font = `600 17px ${FONT}`; x.fillText('Nothing to pay', PAD, y + 28); }
   const anyPaid = d.transfers.some((t) => t.paid);
   d.transfers.forEach((t, i) => {
