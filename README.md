@@ -279,7 +279,8 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 
 **Rummy**
 - Rummy lives in its own **Rummy** group, with everything a Poker group has: its **Games** tab lists the rummy games (**In progress** / **Final**) with a **Leaderboard** under them (games, wins, money won or lost, best night), plus Balances, Members, and History. **New rummy game** starts one with the group's members (everyone picked to start). There's no stand-alone rummy.
-- Each rummy game has **Share** on its standings (a **Rummy · In progress** / **Rummy · Final** picture). Rounds are fixed deliberately: tap a round's ✎, the round is highlighted, and saving shows what changes and asks to confirm.
+- Each rummy game has **Share** on its standings (a **Rummy · In progress** / **Rummy · Final** picture). **Add round N** sits at the top of the game and opens a pop-up with one score box per player still in (their total so far beside it); **Save round** stays above the phone keyboard. A round's ✎ (in its column header) opens **Edit round N** in the same pop-up, and saving shows what changes and asks to confirm.
+- **Round by round** comes right under that button: players down the side, rounds across (R1, R2, … Total), opened at the newest rounds, with names and totals pinned while the rounds scroll sideways. Then the payout / Settle up, then Standings.
 - Every rummy step shows in the group's History: started, each round added or changed, rejoins, closed, deleted, payout added.
 - Score pool rummy hand by hand: players are out at **101, 151, or 201** points (toggle buttons); last one standing wins.
 - Only the person who started the game enters or fixes rounds; everyone else in it can follow along. Rounds show as one table with running totals.

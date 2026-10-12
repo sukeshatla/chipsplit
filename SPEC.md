@@ -106,8 +106,9 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | RUMMY-9 | A rummy game reads **In progress** or **Final**, like a poker game, and has a **Share** picture of its standings. | test | `rummyTableData`, `imageBanner` |
 | RUMMY-10 | When a staked game ends, the scorer's screen adds its payout to the group's balances by itself (no button), as a finished game the Poker page doesn't count. | test | `rummyBalanceRows`, `RummyGamePage` |
 | RUMMY-11 | A finished staked rummy game shows the same **Settle up** card as a poker game: **Mark paid** per payment (scorer), Undo, reminders, Share. | manual | `RummyGamePage` — finish a staked game; mark a payment paid |
-| RUMMY-12 | Rounds are fixed deliberately: each round has its own **Edit** button (tapping a row does nothing), the round being edited is highlighted, and saving asks to confirm the change. | manual | `RummyGamePage` — tap a row (nothing), tap Edit, change a score, confirm |
+| RUMMY-12 | Scores are entered in a pop-up, never inline: **Add round N** at the top of the game opens **Round N** with one box per player still in; each round's ✎ (in its column header) opens **Edit round N**, and saving an edit shows what changes and asks to confirm. The pop-up's buttons stay above the phone keyboard. | manual | `RummyGamePage` — on a phone, add a round and edit one; Save is visible with the keyboard open |
 | RUMMY-13 | Starting a rummy game, each round added or changed, rejoins, closing, and deleting show in the Rummy group's History. | test | demo and Supabase rummy writes, `log()` |
+| RUMMY-14 | **Round by round** reads players down the side and rounds across (R1, R2, … Total); the player column stays put while the rounds scroll sideways. | manual | `RummyGamePage` — play 10 rounds on a phone; names stay visible while scrolling |
 
 ## EXP — expenses
 

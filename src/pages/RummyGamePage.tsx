@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { clsx } from 'clsx';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Coins, Lock, Pencil, RotateCcw, Share2, Spade, Trash2, Trophy } from 'lucide-react';
+import { ArrowRight, Coins, Lock, Pencil, Plus, RotateCcw, Share2, Spade, Trash2, Trophy } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { rummyCanRejoin, rummyPaid, rummyPot, rummyResult, rummyStandings, type RummyResult } from '../lib/rummy';
@@ -11,7 +11,7 @@ import { shareSummaryImage } from '../lib/summaryImage';
 import { useToast } from '../app/toast';
 import { Payments } from './GameDayPage';
 import { formatDate, formatMoney } from '../lib/money';
-import { AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, Input, PageHeader, Row, Spinner } from '../components/ui';
+import { Avatar, AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, Input, Modal, PageHeader, Row, Spinner } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
 import type { Group, RummyGame, RummyPlayer } from '../lib/types';
@@ -24,7 +24,8 @@ export function RummyGamePage() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const [inputs, setInputs] = useState<Record<string, string>>({});
-  const [editingRoundId, setEditingRoundId] = useState<string | null>(null);
+  // The score pop-up: closed, a new round, or a saved round's id being edited (SPEC RUMMY-12).
+  const [panel, setPanel] = useState<null | 'new' | string>(null);
   const [roundError, setRoundError] = useState<string | null>(null);
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -66,7 +67,7 @@ export function RummyGamePage() {
   const topActive = active.length ? Math.max(...active.map((x) => x.total)) : 0;
   const result = rummyResult(game);
 
-  const editingRound = editingRoundId ? game.rounds.find((r) => r.id === editingRoundId) ?? null : null;
+  const editingRound = panel && panel !== 'new' ? game.rounds.find((r) => r.id === panel) ?? null : null;
   const panelPlayers = editingRound
     ? editingRound.scores.map((s) => game.players.find((p) => p.id === s.player_id)).filter((p): p is (typeof game.players)[number] => !!p)
     : active.map((s) => s.player);
@@ -76,15 +77,15 @@ export function RummyGamePage() {
     qc.invalidateQueries({ queryKey: ['rummy-list'] });
   };
 
+  const startAdd = () => { setInputs({}); setRoundError(null); setPanel('new'); };
   const startEdit = (round: NonNullable<typeof editingRound>) => {
     const vals: Record<string, string> = {};
     round.scores.forEach((s) => { vals[s.player_id] = String(s.points); });
     setInputs(vals);
-    setEditingRoundId(round.id);
     setRoundError(null);
+    setPanel(round.id);
   };
-
-  const cancelEdit = () => { setEditingRoundId(null); setInputs({}); setRoundError(null); };
+  const closePanel = () => { setPanel(null); setInputs({}); setRoundError(null); };
 
   const scoresFromInputs = () => panelPlayers.map((p) => ({ playerId: p.id, points: Math.max(0, Number(inputs[p.id]) || 0) }));
   // A new round saves straight away; changing a saved one asks first (SPEC RUMMY-12).
@@ -103,12 +104,12 @@ export function RummyGamePage() {
     const ok = editingRound
       ? await run((api) => api.updateRummyRound(editingRound.id, scores), 'Round updated')
       : await run((api) => api.addRummyRound(game.id, scores), 'Round added');
-    if (ok) { setInputs({}); setEditingRoundId(null); setRoundError(null); refresh(); }
+    if (ok) { closePanel(); refresh(); }
   };
 
   return (
     <>
-      <PageHeader
+      <PageHeader stacked
         back={<BackLink to={group ? `/groups/${group.id}` : '/groups'} label={group ? group.name : 'Groups'} />}
         title={game.name || 'Rummy'}
         subtitle={<span className="flex flex-wrap items-center gap-2">
@@ -117,9 +118,10 @@ export function RummyGamePage() {
           <span>{game.players.length} players</span>
           {staked && <span>{money(game.buy_in_cents)} buy-in · pot {money(rummyPot(game))}</span>}
         </span>}
-        actions={game.status === 'active' && isScorer ? (
+        actions={game.status === 'active' && isScorer ? (<>
+          <Button variant="primary" onClick={startAdd}><Plus size={16} aria-hidden="true" />Add round {game.rounds.length + 1}</Button>
           <Button variant="danger" onClick={() => setConfirmingClose(true)}>Close game</Button>
-        ) : isScorer ? (
+        </>) : isScorer ? (
           <Button variant="danger" onClick={() => setConfirmingDelete(true)}><Trash2 size={16} aria-hidden="true" />Delete</Button>
         ) : undefined}
       />
@@ -139,7 +141,60 @@ export function RummyGamePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.2fr]">
+      {/* Rounds first, right under Add round; then the money; then who is where (SPEC RUMMY-14). */}
+      <div className="space-y-5">
+        <Card>
+          <CardHeader title="Round by round" />
+          {game.rounds.length === 0 ? (
+            <p className="px-5 pb-5 pt-2 text-sm text-ink-2">No rounds recorded yet.</p>
+          ) : (
+            <div className="pb-3">
+              {/* Players down the side, rounds across (SPEC RUMMY-14). The rounds scroll sideways
+                  inside the card; the player column stays put. */}
+              <div className="overflow-x-auto" ref={(el) => { if (el) el.scrollLeft = el.scrollWidth; }}>
+                <table className="amount border-collapse text-sm">
+                  <thead>
+                    <tr className="text-[11px] font-semibold text-ink-2">
+                      <th className="sticky left-0 z-10 bg-surface py-1.5 pl-4 pr-2 text-left align-bottom font-semibold md:pl-5">Player</th>
+                      {game.rounds.map((r) => (
+                        <th key={r.id} className="min-w-[2.75rem] px-1.5 py-1 text-right align-bottom font-semibold">
+                          <span className="flex flex-col items-end gap-1">
+                            {isScorer && (
+                              <button type="button" aria-label={`Edit round ${r.round_no}`} onClick={() => startEdit(r)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-line text-ink-2 hover:bg-surface-2 hover:text-ink">
+                                <Pencil size={12} aria-hidden="true" />
+                              </button>
+                            )}
+                            R{r.round_no}
+                          </span>
+                        </th>
+                      ))}
+                      <th className="sticky right-0 border-l border-line bg-surface py-1.5 pl-3 pr-4 text-right align-bottom font-semibold md:pr-5">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {standings.map((st) => (
+                      <tr key={st.player.id} className="border-t border-line">
+                        <td title={st.player.name} className={clsx('sticky left-0 z-10 max-w-[7rem] truncate bg-surface py-2 pl-4 pr-2 font-semibold md:pl-5', st.eliminated && 'text-ink-2')}>
+                          {colName(st.player.name)}
+                        </td>
+                        {game.rounds.map((r) => {
+                          const sc = r.scores.find((x) => x.player_id === st.player.id);
+                          return <td key={r.id} className={clsx('px-1.5 py-2 text-right', !sc && 'text-ink-2/50', sc?.points === 0 && 'text-gain')}>{sc ? sc.points : '–'}</td>;
+                        })}
+                        <td className={clsx('sticky right-0 border-l border-line bg-surface py-2 pl-3 pr-4 text-right font-semibold md:pr-5', st.eliminated && 'text-loss')}>{st.total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-2 px-4 text-[11px] text-ink-2 md:px-5">
+                {isScorer ? 'Use a round\'s ✎ to fix it; you\'ll confirm before it changes. ' : ''}Started {formatDate(game.created_at)}{game.finished_at ? `, finished ${formatDate(game.finished_at)}` : ''}
+              </p>
+            </div>
+          )}
+        </Card>
+        {result && <Payout game={game} group={group ?? null} result={result} isScorer={isScorer} money={money} short={short} onPosted={refresh} />}
         <Card>
           <CardHeader title="Standings" action={group && (
             <Button size="sm" onClick={() => shareSummaryImage(rummyTableData(game, group), (pid) => memberName(group, pid))
@@ -161,90 +216,6 @@ export function RummyGamePage() {
             ))}
           </div>
         </Card>
-
-        <div className="space-y-5">
-          {isScorer && (game.status === 'active' || editingRound) && (
-            <Card className={clsx('p-3 md:p-5', editingRound && 'border-2 border-brass bg-brass/5')}>
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="font-display text-base font-medium">{editingRound ? `Editing round ${editingRound.round_no}` : `Add round ${game.rounds.length + 1}`}</h2>
-                {editingRound && <button type="button" className="text-[13px] font-semibold text-ink-2 hover:text-ink" onClick={cancelEdit}>Cancel</button>}
-              </div>
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-                {panelPlayers.map((p) => (
-                  <label key={p.id} className="flex min-w-0 items-center gap-2 rounded-lg border border-line py-1 pl-2.5 pr-1">
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">{short(p.name)}</span>
-                    <div className="w-14 shrink-0">
-                      <Input inputMode="numeric" aria-label={`${p.name} points`} className="h-9 px-2 text-right" placeholder="0"
-                        data-entry="rummy" enterKeyHint="next" onKeyDown={enterToNext}
-                        value={inputs[p.id] ?? ''} onChange={(e) => { setInputs((v) => ({ ...v, [p.id]: e.target.value.replace(/\D/g, '') })); setRoundError(null); }} />
-                    </div>
-                  </label>
-                ))}
-              </div>
-              {roundError && <p className="mt-2 text-[13px] text-loss">{roundError}</p>}
-              <p className="mt-2 text-[12px] text-ink-2">Leave the hand's winner at 0. Anyone who reaches {game.point_limit} is marked out.</p>
-              <div className="mt-3 flex justify-end">
-                <Button variant="primary" loading={busy} onClick={saveRound}>{editingRound ? 'Save changes' : 'Save round'}</Button>
-              </div>
-            </Card>
-          )}
-
-          {result && <Payout game={game} group={group ?? null} result={result} isScorer={isScorer} money={money} short={short} onPosted={refresh} />}
-
-          <Card>
-            <CardHeader title="Round by round" />
-            {game.rounds.length === 0 ? (
-              <p className="px-5 pb-5 pt-2 text-sm text-ink-2">No rounds recorded yet.</p>
-            ) : (
-              <div className="pb-3">
-                {/* Scrolls inside the card if there are more players than fit, never the page. */}
-                <div className="overflow-x-auto px-2 md:px-3">
-                  <table className="amount w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="text-[11px] font-semibold text-ink-2">
-                        <th className="w-8 px-1.5 py-1.5 text-left font-semibold">#</th>
-                        {game.players.map((p) => (
-                          <th key={p.id} title={p.name} className="max-w-[4.5rem] truncate px-1.5 py-1.5 text-right font-semibold">{colName(p.name)}</th>
-                        ))}
-                        {isScorer && <th className="w-10" aria-label="Edit" />}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {game.rounds.map((r) => (
-                        <tr key={r.id} className={clsx('border-t border-line', editingRoundId === r.id && 'bg-brass/15')}>
-                          <td className="px-1.5 py-1.5 text-[12px] text-ink-2">{r.round_no}</td>
-                          {game.players.map((p) => {
-                            const sc = r.scores.find((x) => x.player_id === p.id);
-                            return <td key={p.id} className={clsx('px-1.5 py-1.5 text-right', !sc && 'text-ink-2/50')}>{sc ? sc.points : '–'}</td>;
-                          })}
-                          {isScorer && (
-                            <td className="px-1 py-1 text-right">
-                              <button type="button" aria-label={`Edit round ${r.round_no}`} onClick={() => startEdit(r)} disabled={editingRoundId === r.id}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-40">
-                                <Pencil size={14} aria-hidden="true" />
-                              </button>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                      <tr className="border-t-2 border-line font-semibold">
-                        <td className="px-1.5 py-1.5 text-[12px] text-ink-2">Total</td>
-                        {game.players.map((p) => {
-                          const st = standings.find((x) => x.player.id === p.id);
-                          return <td key={p.id} className={clsx('px-1.5 py-1.5 text-right', st?.eliminated && 'text-loss')}>{st?.total ?? 0}</td>;
-                        })}
-                        {isScorer && <td />}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <p className="mt-2 px-4 text-[11px] text-ink-2 md:px-5">
-                  {isScorer ? 'Use ✎ to fix a round; you\'ll confirm before it changes. ' : ''}Started {formatDate(game.created_at)}{game.finished_at ? `, finished ${formatDate(game.finished_at)}` : ''}
-                </p>
-              </div>
-            )}
-          </Card>
-        </div>
       </div>
 
       <MemberCardDialog member={cardPlayer} onClose={() => setCardPlayer(null)}
@@ -253,6 +224,31 @@ export function RummyGamePage() {
         confirmLabel="Rejoin"
         body={rejoining && <>They restart at <b>{topActive}</b> points, the highest score still in.{staked && <> That's another <b>{money(game.buy_in_cents)}</b> buy-in, so they'll have put in <b>{money(rummyPaid(game, rejoining) + game.buy_in_cents)}</b>.</>}</>}
         onConfirm={async () => { const pid = rejoining!.id; setRejoining(null); const ok = await run((api) => api.rejoinRummyPlayer(pid), 'Back in the game'); if (ok) refresh(); }} />
+      <Modal open={panel !== null} onClose={closePanel} title={editingRound ? `Edit round ${editingRound.round_no}` : `Round ${game.rounds.length + 1}`}
+        footer={<><Button variant="ghost" onClick={closePanel}>Cancel</Button>
+          <Button variant="primary" type="submit" form="rummy-round" loading={busy}>{editingRound ? 'Save changes' : 'Save round'}</Button></>}>
+        <form id="rummy-round" className="space-y-2" onSubmit={(e) => { e.preventDefault(); void saveRound(); }}>
+          <p className="text-[12px] text-ink-2">Leave the hand's winner at 0. Anyone who reaches {game.point_limit} is out.</p>
+          {panelPlayers.map((p, i) => {
+            const last = i === panelPlayers.length - 1;
+            const now = standings.find((x) => x.player.id === p.id)?.total ?? 0;
+            return (
+              <label key={p.id} className="flex items-center gap-3 rounded-xl border border-line px-3 py-2">
+                <Avatar name={p.name} src={p.avatar_url} size={30} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{short(p.name)}</span>
+                  <span className="block text-[11px] text-ink-2">{now} points{editingRound ? ' in total' : ' so far'}</span>
+                </span>
+                <div className="w-20 shrink-0"><Input inputMode="numeric" aria-label={`${p.name} points`} className="h-11 px-2 text-right text-base" placeholder="0"
+                  autoFocus={i === 0} data-entry="rummy" enterKeyHint={last ? 'done' : 'next'} onKeyDown={last ? undefined : enterToNext}
+                  onFocus={(e) => { const el = e.currentTarget; setTimeout(() => el.scrollIntoView({ block: 'nearest' }), 300); }}
+                  value={inputs[p.id] ?? ''} onChange={(e) => { setInputs((v) => ({ ...v, [p.id]: e.target.value.replace(/\D/g, '') })); setRoundError(null); }} /></div>
+              </label>
+            );
+          })}
+          {roundError && <p className="text-[13px] text-loss">{roundError}</p>}
+        </form>
+      </Modal>
       <ConfirmDialog open={confirmingEdit} onClose={() => setConfirmingEdit(false)} title={`Change round ${editingRound?.round_no ?? ''}?`} tone="primary" icon={Pencil} busy={busy}
         confirmLabel="Save changes"
         body={editingRound && <>
