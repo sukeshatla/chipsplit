@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { ArrowLeft, ChevronDown, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Plus, X, Loader2 } from 'lucide-react';
 import { currencySymbol, formatDate, formatMoney } from '../lib/money';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -41,6 +41,11 @@ export function CardHeader({ title, action, className }: { title: ReactNode; act
       {action}
     </div>
   );
+}
+
+/** The one way to add an expense, everywhere in the app (SPEC GROUP-5): green, with a plus. */
+export function AddExpenseButton({ label = 'Add expense', ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { label?: string; size?: 'sm' | 'md'; loading?: boolean }) {
+  return <Button variant="primary" {...p}><Plus size={16} aria-hidden="true" />{label}</Button>;
 }
 
 /** A card whose body opens and closes from its header. `summary` stays visible while it's closed,
@@ -255,9 +260,11 @@ export function BackLink({ to, label, className }: { to: string; label: ReactNod
   );
 }
 
-export function PageHeader({ title, subtitle, actions, back }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; back?: ReactNode }) {
+/** `stacked` puts the actions on their own row under the title, so they sit in the same place
+ *  whatever the title and subtitle's length (group pages, SPEC GROUP-3). */
+export function PageHeader({ title, subtitle, actions, back, stacked }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; back?: ReactNode; stacked?: boolean }) {
   return (
-    <header className="mb-4 flex flex-wrap items-end justify-between gap-3 md:mb-5">
+    <header className={clsx('mb-4 flex gap-3 md:mb-5', stacked ? 'flex-col items-start' : 'flex-wrap items-end justify-between')}>
       <div className="min-w-0">
         {back}
         <h1 className="truncate font-display text-[22px] font-medium leading-tight tracking-tight text-ink md:text-[30px]">{title}</h1>

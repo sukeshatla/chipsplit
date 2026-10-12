@@ -256,7 +256,8 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 **Group types**
 - Every group is one of three types, picked when it's made and fixed after: **Poker** (buy-in card games), **Rummy** (rummy scored hand by hand), or **Expense** (trips, rent, dinners). The Groups page filters by type.
 - **New group** is two short steps that fit above the phone keyboard: pick the type (three big buttons), a name, and the currency (toggle chips), then **Next**; pick friends, then **Create group**.
-- The top of each group has one main action: **New game** (Poker), **New rummy game** (Rummy), or **Import** and **+ Add expense** (Expense).
+- Every group page has the same top: the name, a bold type badge with its icon (**Poker**, **Rummy**, **Expense**), your balance in bold, then the main action on its own row: **New game**, **New rummy game**, or **Import** and **+ Add expense** as two separate buttons. Cards below don't repeat it; only an empty list offers a start button.
+- Adding an expense is the same green **+ Add expense** button everywhere: home, a friend's page, and Expense groups.
 
 **Poker** (poker, blackjack — anything with buy-ins and cash-outs)
 - A **Poker** group is a standing group for people you play with regularly — create it once, then start as many games in it as you want, whenever you want.
@@ -325,7 +326,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 
 **Dashboard**
 - A dark banner with your net, sign included, in a big box: its accent bar and tint are green when you're up, red when you owe, grey when square. **You get** / **You pay** sit below it. Then your **Groups** and **Friends** (top 5 each, biggest amount first whether you're owed or you owe, **Show all** for the rest), then a short recent-activity feed.
-- Two quick actions: **Add expense** (one-on-one, above) and **New group**. Starting a game is done from inside a Poker or Rummy group.
+- **+ Add expense** at the top (one-on-one, above), and **+ New group** on the Groups card. Starting a game is done from inside a Poker or Rummy group.
 - Banner for any game currently in progress. The activity feed only shows what involves you: the latest 5, then **Show all**.
 
 **Accounts and profile**

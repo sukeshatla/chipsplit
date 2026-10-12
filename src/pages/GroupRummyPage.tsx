@@ -1,6 +1,6 @@
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, Club, Plus } from 'lucide-react';
+import { ChevronRight, Club } from 'lucide-react';
 import { useAuth } from '../app/auth';
 import { shortName } from '../lib/ledger';
 import { rummyPot, rummyStandings } from '../lib/rummy';
@@ -34,7 +34,7 @@ export function RummyGames({ g, onNew }: { g: Group; onNew(): void }) {
 
   return (
     <Card>
-      <CardHeader title="Rummy games" action={<Button size="sm" onClick={() => onNew()}><Plus size={14} aria-hidden="true" />New</Button>} />
+      <CardHeader title="Rummy games" />
       {games.length === 0 ? (
         <EmptyState icon={<Club size={28} />} title="No rummy games yet" body="Start one and track points hand by hand, with anyone crossing the point limit marked out."
           action={<Button variant="primary" onClick={() => onNew()}>Start a rummy game</Button>} />

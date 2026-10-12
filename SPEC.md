@@ -72,8 +72,9 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 |---|---|---|---|
 | GROUP-1 | A group is **Poker**, **Expense**, or **Rummy**, chosen when it's created; the type can't be changed afterwards. | test | demo `updateGroup`, 0026 trigger |
 | GROUP-2 | New group is two steps: (1) type as three big buttons, name, and currency as toggle chips, then **Next**; (2) pick friends, then **Create group**. Each step fits above the phone keyboard. | manual | `CreateGroupDialog` — on a phone, both steps' buttons stay visible with the keyboard open |
-| GROUP-3 | The top of a group page has one main action: **New game** (Poker), **New rummy game** (Rummy), or **Import** and **+ Add expense** (Expense). No Email summary. | manual | `GroupPage` — open one group of each type |
+| GROUP-3 | The top of every group page looks the same: the name, a type badge with its icon (**Poker**, **Rummy**, **Expense**), your balance in bold, then on its own row the main action: **New game** (Poker), **New rummy game** (Rummy), or **Import** and **+ Add expense** as two separate buttons (Expense). Cards below don't repeat it; only an empty list offers a start button. No Email summary. | manual | `GroupPage` — open one group of each type; same layout, no second New button |
 | GROUP-4 | On the Balances tab, **Settle up** and **Where everyone stands** collapse and expand; Settle up starts collapsed, Where everyone stands starts open. | manual | `GroupPage` `BalancesTab` — open Balances; tap each header |
+| GROUP-5 | Adding an expense is the same green **+ Add expense** button everywhere (home, friend page, Expense group). The home page's Groups card has its own **+ New group**. | manual | `AddExpenseButton` — check home, a friend, an Expense group |
 
 ## GAME — poker games
 

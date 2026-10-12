@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ChevronRight, HandCoins, Receipt, Trash2, UserX } from 'lucide-react';
+import { ChevronRight, HandCoins, Trash2, UserX } from 'lucide-react';
 import { useData, useAction } from '../app/data';
 import { directBalanceRows, friendsList, hasActivity, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
-import { Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, LIST_STEP, MonthHeader, Row, ShowMore } from '../components/ui';
+import { AddExpenseButton, Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, LIST_STEP, MonthHeader, Row, ShowMore } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { GroupIcon } from '../components/GroupKind';
 import { SettleDialog, type SettleDraft } from '../components/dialogs/SettleDialog';
@@ -83,7 +83,7 @@ export function FriendDetailPage() {
           <p className={`amount font-display text-2xl font-medium ${f.net > 0 ? 'text-gain' : f.net < 0 ? 'text-loss' : ''}`}>{formatMoney(Math.abs(f.net), f.currency)}</p>
           {f.others.map((m) => <p key={m.currency} className="amount truncate text-[12px] text-ink-2">and {moneyPhrase(m, 'friend')}</p>)}
         </div>
-        <Button variant="primary" loading={direct.busy} onClick={addExpense}><Receipt size={16} aria-hidden="true" />Add expense</Button>
+        <AddExpenseButton loading={direct.busy} onClick={addExpense} />
       </section>
 
       <div className="space-y-5">

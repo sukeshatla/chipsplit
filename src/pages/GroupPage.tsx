@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Mail, Pencil, ShieldCheck, ShieldOff, Share2 } from 'lucide-react';
+import { Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Mail, Pencil, ShieldCheck, ShieldOff, Share2 } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useToast } from '../app/toast';
 import { useAuth } from '../app/auth';
 import { isAppAdmin } from '../lib/admin';
 import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryData, type Summary } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
-import { ActionBar, ActionButton } from '../components/ActionBar';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Avatar, AvatarButton, BackLink, byMonth, CollapsibleCard, DateTile, LIST_STEP, MonthHeader, ShowMore, useShowMore, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Tabs } from '../components/ui';
+import { AddExpenseButton, Amount, Avatar, AvatarButton, BackLink, byMonth, CollapsibleCard, DateTile, LIST_STEP, MonthHeader, ShowMore, useShowMore, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { KIND_LABEL } from '../components/GroupKind';
+import { KindBadge, KIND_LABEL } from '../components/GroupKind';
 import { ExpenseDialog } from '../components/dialogs/ExpenseDialog';
 import { ImportDialog } from '../components/dialogs/ImportDialog';
 import { SettleDialog, type SettleDraft } from '../components/dialogs/SettleDialog';
@@ -61,25 +60,24 @@ function GroupView({ groupId }: { groupId?: string }) {
 
   return (
     <>
-      <PageHeader
+      <PageHeader stacked
         back={<BackLink to="/groups" label="Groups" />}
         title={g.name}
         subtitle={<span className="flex flex-wrap items-center gap-2">
-          <Badge tone={g.kind === 'club' ? 'felt' : g.kind === 'rummy' ? 'brass' : 'neutral'}>{KIND_LABEL[g.kind]}</Badge>
+          <KindBadge kind={g.kind} />
           <span>{g.members.length} people</span>
-          <span>{myBal === 0 ? 'You are settled up' : <>You {myBal > 0 ? 'are owed' : 'owe'} <Amount cents={myBal} currency={g.currency} className="text-sm" /></>}</span>
+          <span className="font-semibold text-ink">{myBal === 0 ? 'You are settled up'
+            : <>You {myBal > 0 ? 'are owed' : 'owe'} <Amount cents={myBal} currency={g.currency} className="text-sm font-bold" /></>}</span>
         </span>}
-        actions={mine && <ActionBar>
-          {/* One main action per group type (SPEC GROUP-3); pictures come from each card's Share. */}
-          {g.kind === 'club' ? (
-            <ActionButton primary icon={<Spade size={16} aria-hidden="true" />} onClick={() => setNewGame(true)}>New game</ActionButton>
-          ) : g.kind === 'rummy' ? (
-            <ActionButton primary icon={<Club size={16} aria-hidden="true" />} onClick={() => setNewGame(true)}>New rummy game</ActionButton>
-          ) : (<>
-            <ActionButton icon={<Upload size={16} aria-hidden="true" />} onClick={() => setImportOpen(true)}>Import</ActionButton>
-            <ActionButton primary icon={<Plus size={16} aria-hidden="true" />} onClick={() => setExpense('new')}>Add expense</ActionButton>
-          </>)}
-        </ActionBar>}
+        // One main action per group type, always on its own row (SPEC GROUP-3).
+        actions={mine && (g.kind === 'club' ? (
+          <Button variant="primary" onClick={() => setNewGame(true)}><Spade size={16} aria-hidden="true" />New game</Button>
+        ) : g.kind === 'rummy' ? (
+          <Button variant="primary" onClick={() => setNewGame(true)}><Club size={16} aria-hidden="true" />New rummy game</Button>
+        ) : (<>
+          <Button onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden="true" />Import</Button>
+          <AddExpenseButton onClick={() => setExpense('new')} />
+        </>))}
       />
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
@@ -108,7 +106,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
   }
   return (<div className="space-y-5">
     <Card>
-      <CardHeader title="Games" action={<Button size="sm" onClick={onNew}><Plus size={14} aria-hidden="true" />New</Button>} />
+      <CardHeader title="Games" />
       <div className="mt-2">
         {list.visible.map((s) => {
           const pays = s.status === 'final' ? sessionPayments(g, s) : [];
@@ -279,7 +277,7 @@ function ExpensesTab({ g, meMember, onEdit, onImport }: { g: Group; meMember?: s
   if (list.length === 0) {
     return <Card><EmptyState icon={<Receipt size={28} />} title="Log the first expense"
       body="Add costs as they happen, or bring in a spreadsheet you already keep."
-      action={meMember && <div className="flex gap-2"><Button onClick={onImport}>Import sheet</Button><Button variant="primary" onClick={() => onEdit('new')}>Add expense</Button></div>} /></Card>;
+      action={meMember && <div className="flex gap-2"><Button onClick={onImport}><Upload size={16} aria-hidden="true" />Import sheet</Button><AddExpenseButton onClick={() => onEdit('new')} /></div>} /></Card>;
   }
   const total = list.reduce((a, e) => a + e.amount_cents, 0);
 

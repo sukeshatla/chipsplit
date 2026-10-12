@@ -5,7 +5,7 @@ import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, A
 import { useData } from '../app/data';
 import { activity, friendsList, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row, useShowMore } from '../components/ui';
+import { AddExpenseButton, Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row, useShowMore } from '../components/ui';
 import { GroupIcon } from '../components/GroupKind';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import { QuickExpenseDialog } from '../components/dialogs/QuickExpenseDialog';
@@ -56,10 +56,7 @@ export function DashboardPage() {
   return (
     <>
       <PageHeader title={`${greet}, ${me.display_name.split(' ')[0]}`}
-        actions={<>
-          <Button onClick={() => setQuickExpense(true)}><Receipt size={16} aria-hidden="true" />Add expense</Button>
-          <Button variant="primary" onClick={() => setNewGroup(true)}><Plus size={16} aria-hidden="true" />New group</Button>
-        </>} />
+        actions={<AddExpenseButton onClick={() => setQuickExpense(true)} />} />
 
       <section className="mb-5 space-y-2 rounded-2xl border border-white/10 bg-[#0e1417] p-2.5 text-white shadow-lg">
         {/* Net with a colored accent bar: green when you're up, red when you owe, grey when square. */}
@@ -99,7 +96,7 @@ export function DashboardPage() {
       )}
 
       <Card>
-        <CardHeader title="Groups" />
+        <CardHeader title="Groups" action={<Button size="sm" onClick={() => setNewGroup(true)}><Plus size={14} aria-hidden="true" />New group</Button>} />
         <div className="mt-2">
           {groups.length === 0 ? (
             <EmptyState icon={<Spade size={28} />} title="Start your first group" body="A poker or rummy group for your card nights, or an expense group for shared costs."
@@ -126,7 +123,7 @@ export function DashboardPage() {
         <div className="mt-1">
           {friends.length === 0 ? (
             <EmptyState icon={<Receipt size={28} />} title="No friends yet" body="Split something with a friend, or add them to a group."
-              action={<Button onClick={() => setQuickExpense(true)}><Receipt size={16} aria-hidden="true" />Add expense</Button>} />
+              action={<AddExpenseButton onClick={() => setQuickExpense(true)} />} />
           ) : friendsMore.visible.map((f) => (
             <Link key={f.key} to={`/friends/${encodeURIComponent(f.key)}`} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-surface-2/60 md:px-5">
               <Avatar name={f.name} src={f.avatar_url} size={32} />
