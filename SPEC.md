@@ -90,6 +90,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | GAME-8 | A finished game counts as settled only by payments marked for that game. | test | `isSessionSettled` |
 | GAME-9 | The leaderboard totals finished games only: net, games played, winning nights, best night; payments don't change it. | test | `pokerLeaderboard` |
 | GAME-10 | The **Poker** page lists only buy-in games you played in Poker groups, and its stats count only those; rummy payouts posted to a Rummy group's balances aren't poker games. | test | `myPokerGames`, `pokerStats` |
+| GAME-11 | A Poker group has at most one game in progress: starting, reopening, or restoring a game while another is in progress is refused with a message naming it. | test | demo `createSession` / `updateSession` / `restoreSession`, 0027 trigger, `NewGameDialog` |
 
 ## RUMMY
 
@@ -100,7 +101,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | RUMMY-3 | With a buy-in, the winner takes the whole pot. | test | `rummyResult` |
 | RUMMY-4 | Closed early, the pot is split between everyone still in. | test | `rummyResult` |
 | RUMMY-5 | Without a buy-in, or before the end, there's no money side. | test | `rummyResult` |
-| RUMMY-6 | Only the scorer adds or fixes rounds, rejoins, or closes the game. | db | 0012 – 0016 RPCs |
+| RUMMY-6 | Only the scorer (whoever started the game) adds or fixes rounds, brings players back, closes, or deletes the game; everyone else in the group can only watch. | test | demo rummy writes, 0012 – 0016 RPCs and delete policy |
 | RUMMY-7 | Every rummy game belongs to a Rummy group and its players are that group's members; Poker and Expense groups can't start one, and there's no stand-alone rummy. | test | demo `createRummyGame`, 0026 `create_rummy_game` |
 | RUMMY-8 | A Rummy group has a leaderboard like Poker: finished games played, games won, and money won or lost (from payouts in its balances), best night. | test | `rummyLeaderboard` |
 | RUMMY-9 | A rummy game reads **In progress** or **Final**, like a poker game, and has a **Share** picture of its standings. | test | `rummyTableData`, `imageBanner` |
@@ -109,6 +110,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | RUMMY-12 | Scores are entered in a pop-up, never inline: **Add round N** at the top of the game opens **Round N** with one box per player still in; each round's ✎ (in its column header) opens **Edit round N**, and saving an edit shows what changes and asks to confirm. The pop-up's buttons stay above the phone keyboard. | manual | `RummyGamePage` — on a phone, add a round and edit one; Save is visible with the keyboard open |
 | RUMMY-13 | Starting a rummy game, each round added or changed, rejoins, closing, and deleting show in the Rummy group's History. | test | demo and Supabase rummy writes, `log()` |
 | RUMMY-14 | **Round by round** reads players down the side and rounds across (R1, R2, … Total); the player column stays put while the rounds scroll sideways. | manual | `RummyGamePage` — play 10 rounds on a phone; names stay visible while scrolling |
+| RUMMY-15 | A Rummy group has at most one rummy game in progress: starting another, or a round edit that would put a finished game back in play, is refused until the current one is closed or deleted. | test | demo `createRummyGame` / `updateRummyRound`, 0027 trigger, `NewRummyGameDialog` |
 
 ## EXP — expenses
 

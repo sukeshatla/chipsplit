@@ -14,6 +14,8 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
   const nav = useNavigate();
   const [gid, setGid] = useState(groupId ?? clubGroups[0]?.id ?? '');
   const group = data.groups.find((g) => g.id === gid);
+  // One game in progress per group (SPEC GAME-11): point to it instead of starting another.
+  const inProgress = group?.sessions.find((s) => s.status === 'open');
   const last = useMemo(() => group?.sessions.slice().sort((a, b) => b.played_on.localeCompare(a.played_on))[0], [group]);
   const [date, setDate] = useState(todayISO());
   const [location, setLocation] = useState('');
@@ -49,8 +51,14 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
 
   return (
     <Modal open={open} onClose={onClose} title="Start a game"
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} onClick={submit}>Start game</Button></>}>
-      {clubGroups.length === 0 ? (
+      footer={inProgress && group
+        ? <><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" onClick={() => { onClose(); nav(`/groups/${group.id}/games/${inProgress.id}`); }}>Open that game</Button></>
+        : <><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} onClick={submit}>Start game</Button></>}>
+      {inProgress ? (
+        <p className="rounded-xl border border-brass/40 bg-brass/10 px-3 py-3 text-sm text-ink">
+          <b>{inProgress.location || 'A game'}</b> is still in progress in {group?.name}. Finish it (or delete it) before starting a new game, so there's only one table at a time.
+        </p>
+      ) : clubGroups.length === 0 ? (
         <p className="text-sm text-ink-2">Create a poker group first, then start a game from it.</p>
       ) : (
         <div className="space-y-4">

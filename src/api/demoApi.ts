@@ -90,6 +90,16 @@ function assertAdmin(d: DemoStore, g: Group, message: string) {
   if (!g.members.some((m) => m.user_id === d.me.id && m.is_admin)) throw new Error(message);
 }
 
+/** One game in progress per group (SPEC GAME-11, RUMMY-15), same wording as the server (0027). */
+function assertNoOpenGame(g: Group, exceptId?: string) {
+  const open = g.sessions.find((s) => s.status === 'open' && s.id !== exceptId);
+  if (open) throw new Error(`A game is already in progress ("${open.location || open.played_on}"). Finish or delete it first.`);
+}
+function assertNoActiveRummy(d: DemoStore, groupId: string | null, exceptId?: string) {
+  const active = d.rummyGames.find((x) => x.group_id === groupId && x.status === 'active' && x.id !== exceptId);
+  if (active) throw new Error(`"${active.name || 'Rummy'}" is still in progress. Close or delete it before starting another rummy game.`);
+}
+
 /** A rummy game's line in its group's History (SPEC RUMMY-13), named like "Game 1". */
 function logRummy(d: DemoStore, g: RummyGame, summary: (name: string) => string) {
   if (g.group_id) log(d, g.group_id, 'rummy', g.id, summary(`"${g.name || 'Rummy'}"`));
@@ -288,6 +298,7 @@ export const demoApi: DataApi = {
   }),
 
   createSession: (s) => mutate((d) => {
+    assertNoOpenGame(group(d, s.group_id));
     const id = uid();
     group(d, s.group_id).sessions.push({ ...s, id, status: 'open', created_by: d.me.id, created_at: now(), results: [] });
     log(d, s.group_id, 'session', id, `Started a game${s.location ? ` at ${s.location}` : ''}`);
@@ -299,6 +310,7 @@ export const demoApi: DataApi = {
     assertHost(d, g, id);
     const before = g.sessions.find((s) => s.id === id)!;
     const wasFinal = before.status === 'final';
+    if (patch.status === 'open' && wasFinal) assertNoOpenGame(g, id);
     Object.assign(before, patch);
     if (patch.status === 'final' && !wasFinal) log(d, g.id, 'session', id, 'Finalized the game');
     else if (patch.status === 'open' && wasFinal) log(d, g.id, 'session', id, 'Reopened the game');
@@ -330,6 +342,7 @@ export const demoApi: DataApi = {
     if (s.created_by ? s.created_by !== d.me.id : !g.members.some((m) => m.user_id === d.me.id && m.is_admin)) {
       throw new Error('Only the person who started this game can restore it');
     }
+    if (s.status === 'open') assertNoOpenGame(g);
     const { payments = [], ...game } = s;
     g.deleted_sessions = g.deleted_sessions!.filter((x) => x.id !== id);
     g.sessions.push({ ...game, deleted_at: null });
@@ -378,6 +391,7 @@ export const demoApi: DataApi = {
   createRummyGame: ({ groupId, name, pointLimit, buyInCents, players }) => mutate((d) => {
     // Same as the server (0026): every rummy game lives in a Rummy group.
     if (!groupId || d.groups.find((g) => g.id === groupId)?.kind !== 'rummy') throw new Error('Rummy games are played in a Rummy group');
+    assertNoActiveRummy(d, groupId);
     if (players.length < 2) throw new Error('Add at least two players');
     if (buyInCents < 0) throw new Error("The buy-in can't be negative");
     const id = uid();
@@ -420,6 +434,8 @@ export const demoApi: DataApi = {
       g.finished_at = g.finished_at ?? now();
       g.winner_player_id = remaining[0]?.player.id ?? null;
     } else {
+      // Back in play only if nothing else is (an error here saves nothing).
+      if (g.status === 'finished') assertNoActiveRummy(d, g.group_id, g.id);
       g.status = 'active';
       g.finished_at = null;
       g.winner_player_id = null;

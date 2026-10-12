@@ -34,7 +34,7 @@ chipsplit/
 │   └── keep-alive.yml        ← Pings Supabase every 3 days so the free project never pauses
 ├── public/                   ← App icons
 ├── docs/                     ← DESIGN.md, feature overview PDF (features, roles, phone install, security)
-├── supabase/migrations/      ← 0001 … 0026, run in order in the Supabase SQL editor
+├── supabase/migrations/      ← 0001 … 0027, run in order in the Supabase SQL editor
 └── src/
     ├── main.tsx, App.tsx     ← Entry + HashRouter (routes below)
     ├── index.css             ← Tailwind + theme tokens (light / dark)
@@ -97,7 +97,7 @@ Open the URL Vite prints (http://localhost:5173). With no Supabase keys it runs 
 ## First-Time Setup (real accounts)
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. In its **SQL editor**, run every file in `supabase/migrations/` **in order** (0001 → 0026).
+2. In its **SQL editor**, run every file in `supabase/migrations/` **in order** (0001 → 0027).
 3. **Authentication → Providers**: turn on Google (client ID and secret from Google Cloud Console).
 4. **Authentication → URL Configuration**: Site URL `https://chipnsplit.org`; Redirect URLs `https://chipnsplit.org` and `http://localhost:5173`.
 5. Create `.env.local` from **Project settings → API**:
@@ -143,6 +143,7 @@ The app never changes the schema itself. **Run a new migration in the Supabase S
 | 0022_game_payments_go_with_game | A game's payments go with it when deleted |
 | 0023_names_admin_only | Only the app admin edits other people's names and emails |
 | 0024_remove_friends | Remove anyone from your Friends list once settled |
+| 0027_one_game_in_progress | At most one poker game and one rummy game in progress per group |
 | 0026_group_types_poker_expense_rummy | Rummy group type; a group's type is fixed; rummy games only in Rummy groups (old ones removed) |
 | 0025_member_roles_and_restorable_games | New members join as members, not admins (the creator starts as the only admin and can promote others); any member manages expenses; deleted games can be restored |
 
@@ -274,6 +275,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - Deleting a game needs that game's own payments recorded, and takes them out along with it, so everyone's balance is exactly what it was before the game. The host can **restore** a deleted game, payments and all, from the group's History tab. Deleting the whole group only needs its **total** balance settled (games + any older expenses + every payment).
 - A Poker group has a **Games** tab (the games list, with the **Leaderboard** under it: total won or lost at the table across finished games, games played, winning nights, best night; payments don't change it) and a **Balances** tab (the fewest payments to settle, where everyone stands with settled-up people last, payments recorded).
 - **Poker** (main menu) lists only the buy-in games you played, across all your Poker groups, with your totals; games you sat out or weren't in are left out.
+- **One game at a time:** a Poker group has at most one game in progress, and a Rummy group at most one rummy game. **New game** (or reopening or restoring one) points you to the one in progress ("Teja's place is still in progress… Open that game") instead. Enforced by the database too.
 - A Poker group can run more than one game on the same day — each is its own record, nothing is tied to a calendar day.
 - A Poker group tracks games only. Shared costs go in an Expense group or one-on-one; expenses an older group already had stay visible on its Expenses tab.
 
@@ -283,7 +285,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - **Round by round** comes right under that button: players down the side, rounds across (R1, R2, … Total), opened at the newest rounds, with names and totals pinned while the rounds scroll sideways. Then the payout / Settle up, then Standings.
 - Every rummy step shows in the group's History: started, each round added or changed, rejoins, closed, deleted, payout added.
 - Score pool rummy hand by hand: players are out at **101, 151, or 201** points (toggle buttons); last one standing wins.
-- Only the person who started the game enters or fixes rounds; everyone else in it can follow along. Rounds show as one table with running totals.
+- Only the person who started the game (the scorer) adds or fixes rounds, brings players back, closes, or deletes it; everyone else in the group can only watch. Same as a poker game's host.
 - Optional **buy-in**: the winner takes the pot. A knocked-out player can **rejoin** for another buy-in while two or more are still in, restarting at the highest score still in. Closing early splits the pot between everyone still in.
 - When a staked game ends, its payout goes into the group's **balances by itself** (on the scorer's screen) and the game shows the same **Settle up** card as poker: **Mark paid**, Undo, reminders, Share.
 

@@ -426,10 +426,9 @@ export const supabaseApi: DataApi = {
     // Written directly (not through createSession/updateSession) so History gets one clear line.
     const row = check(await db().from('game_sessions').insert({
       group_id: game.group_id, played_on: todayISO(), location: `Rummy${game.name ? `: ${game.name}` : ''}`, notes: null,
-      default_buy_in_cents: num(game.buy_in_cents), created_by: user.id,
+      default_buy_in_cents: num(game.buy_in_cents), created_by: user.id, status: 'final', // never "in progress" (0027)
     }).select('id').single()) as { id: string };
     check(await db().from('session_results').insert(results.map((r) => ({ ...r, returned_cents: 0, session_id: row.id }))));
-    check(await db().from('game_sessions').update({ status: 'final' }).eq('id', row.id));
     check(await db().rpc('link_rummy_session', { p_game_id: gameId, p_session_id: row.id }));
     await log(game.group_id, 'rummy', gameId, `Added "${game.name || 'Rummy'}" payout to balances`);
     return row.id;
@@ -443,7 +442,9 @@ export const supabaseApi: DataApi = {
   async deleteRummyGame(gameId) {
     // Read it first: once it's gone there's nothing left to name in History.
     const { data: before } = await db().from('rummy_games').select('group_id, name').eq('id', gameId).maybeSingle();
-    check(await db().from('rummy_games').delete().eq('id', gameId));
+    // RLS skips a row you can't delete without an error; ask for it back to tell the two apart.
+    const rows = check(await db().from('rummy_games').delete().eq('id', gameId).select('id')) as { id: string }[];
+    if (!rows.length) throw new Error('Only the scorer can delete this game');
     if (before?.group_id) await log(before.group_id, 'rummy', gameId, `Deleted rummy game "${before.name || 'Rummy'}"`);
   },
 };

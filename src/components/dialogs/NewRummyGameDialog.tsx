@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../../app/auth';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Check } from 'lucide-react';
@@ -14,7 +16,11 @@ const POINT_LIMITS = [101, 151, 201] as const;
  *  everyone picked to start with since the usual case is the whole group at the table. */
 export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; onClose(): void; group: Group }) {
   const { run, busy } = useAction();
+  const { api } = useAuth();
   const nav = useNavigate();
+  // One rummy game in progress per group (SPEC RUMMY-15): same list the Games tab shows.
+  const games = useQuery({ queryKey: ['rummy-list', group.id], queryFn: () => api.loadRummyGames(group.id), enabled: open });
+  const inProgress = games.data?.find((x) => x.status === 'active');
   const [name, setName] = useState('');
   const [pointLimit, setPointLimit] = useState<101 | 151 | 201>(101);
   const [buyIn, setBuyIn] = useState('');
@@ -36,7 +42,14 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
   const playing = group.members.length - left.length;
   return (
     <Modal open={open} onClose={close} title="New rummy game"
-      footer={<><Button variant="ghost" onClick={close}>Cancel</Button><Button variant="primary" loading={busy} onClick={submit}>Start with {playing}</Button></>}>
+      footer={inProgress
+        ? <><Button variant="ghost" onClick={close}>Cancel</Button><Button variant="primary" onClick={() => { close(); nav(`/rummy/${inProgress.id}`); }}>Open that game</Button></>
+        : <><Button variant="ghost" onClick={close}>Cancel</Button><Button variant="primary" loading={busy} onClick={submit}>Start with {playing}</Button></>}>
+      {inProgress ? (
+        <p className="rounded-xl border border-brass/40 bg-brass/10 px-3 py-3 text-sm text-ink">
+          <b>{inProgress.name || 'A rummy game'}</b> is still in progress in {group.name}. Close it (or delete it) before starting a new one, so there's only one game at a time.
+        </p>
+      ) : (
       <div className="space-y-4">
         <div>
           <span className="mb-1.5 block text-[13px] font-semibold">Out at</span>
@@ -80,6 +93,7 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
           {error && <p className="mt-2 text-[13px] text-loss">{error}</p>}
         </div>
       </div>
+      )}
     </Modal>
   );
 }

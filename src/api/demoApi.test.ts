@@ -237,3 +237,50 @@ describe('[PLAT-4] rummy payouts', () => {
     expect((await api.loadHistory(id)).filter((e) => e.summary.includes('payout'))).toHaveLength(1);
   });
 });
+
+describe('[PLAT-4] one game at a time', () => {
+  const session = (group_id: string) => ({ group_id, played_on: '2026-01-01', location: 'Teja\'s place', notes: null, default_buy_in_cents: 1000 });
+
+  it('[GAME-11] a Poker group refuses a second game while one is in progress, and says which', async () => {
+    const { id } = await newGroup('club');
+    const first = await api.createSession(session(id));
+    await expect(api.createSession(session(id))).rejects.toThrow(/in progress.*Teja's place/);
+    await api.deleteSession(first);
+    const second = await api.createSession(session(id));
+    // Restoring the deleted one would make two in progress.
+    await expect(api.restoreSession(first)).rejects.toThrow(/in progress/);
+    await api.updateSession(second, { status: 'final' });
+    await api.restoreSession(first);
+    // Reopening a finished game while another is in progress is refused too.
+    await expect(api.updateSession(second, { status: 'open' })).rejects.toThrow(/in progress/);
+  });
+
+  it('[RUMMY-15] a Rummy group refuses a second rummy game while one is in progress', async () => {
+    const { id } = await newGroup('rummy');
+    const players = [{ name: 'Me', userId: null }, { name: 'Ravi', userId: null }];
+    const first = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 0, players });
+    await expect(api.createRummyGame({ groupId: id, name: 'Game 2', pointLimit: 101, buyInCents: 0, players })).rejects.toThrow(/"Game 1" is still in progress/);
+    const ps = (await api.loadRummyGame(first))!.players;
+    await api.addRummyRound(first, ps.map((p, i) => ({ playerId: p.id, points: i ? 120 : 0 })));
+    const second = await api.createRummyGame({ groupId: id, name: 'Game 2', pointLimit: 101, buyInCents: 0, players });
+    // Lowering the finishing score would put Game 1 back in play next to Game 2.
+    const round = (await api.loadRummyGame(first))!.rounds[0]!;
+    await expect(api.updateRummyRound(round.id, ps.map((p, i) => ({ playerId: p.id, points: i ? 20 : 0 })))).rejects.toThrow(/"Game 2" is still in progress/);
+    expect((await api.loadRummyGame(second))!.status).toBe('active');
+  });
+
+  it('[RUMMY-6] only the scorer changes or deletes a rummy game', async () => {
+    const { id } = await newGroup('rummy');
+    const players = [{ name: 'Me', userId: null }, { name: 'Ravi', userId: null }];
+    const gameId = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 0, players });
+    const ps = (await api.loadRummyGame(gameId))!.players;
+    await api.addRummyRound(gameId, ps.map((p, i) => ({ playerId: p.id, points: i * 10 })));
+    const round = (await api.loadRummyGame(gameId))!.rounds[0]!;
+    tamper((d) => { (d as unknown as { rummyGames: { id: string; scorer_id: string }[] }).rummyGames.find((g) => g.id === gameId)!.scorer_id = 'someone-else'; });
+    const scores = ps.map((p) => ({ playerId: p.id, points: 5 }));
+    await expect(api.addRummyRound(gameId, scores)).rejects.toThrow(/scorer/);
+    await expect(api.updateRummyRound(round.id, scores)).rejects.toThrow(/scorer/);
+    await expect(api.closeRummyGame(gameId)).rejects.toThrow(/scorer/);
+    await expect(api.deleteRummyGame(gameId)).rejects.toThrow(/scorer/);
+  });
+});

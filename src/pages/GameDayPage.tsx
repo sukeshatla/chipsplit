@@ -177,8 +177,10 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   };
   const gamePayments = g.settlements.filter((x) => x.session_id === s.id).length;
   const paidSettlements = gamePayments > 0;
+  // One game in progress per group (SPEC GAME-11): reopening waits for the other one to finish.
+  const otherOpen = g.sessions.find((x) => x.status === 'open' && x.id !== s.id);
   const reopen = () => {
-    if (paidSettlements) { setConfirmReopen(true); return; }
+    if (paidSettlements || otherOpen) { setConfirmReopen(true); return; }
     run((api) => api.updateSession(s.id, { status: 'open' }), 'Game reopened');
   };
   const pot = sessionTotals(s).buyIn;
@@ -348,6 +350,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
 
       <ConfirmDialog open={confirmReopen} onClose={() => setConfirmReopen(false)} title="Reopen this game?" tone="primary" icon={LockOpen}
         confirmLabel="Reopen" busy={busy}
+        blocked={otherOpen ? <><b>{otherOpen.location || 'Another game'}</b> is in progress. Finish or delete it before reopening this one.</> : undefined}
         body="Payments already recorded for this game will stay recorded, even if the numbers change once you edit results again."
         onConfirm={() => { setConfirmReopen(false); run((api) => api.updateSession(s.id, { status: 'open' }), 'Game reopened'); }} />
     </>
