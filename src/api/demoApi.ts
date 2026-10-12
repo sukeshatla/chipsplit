@@ -490,6 +490,14 @@ export const demoApi: DataApi = {
   deleteRummyGame: (gameId) => mutate((d) => {
     const g = rummyGame(d, gameId);
     if (g.scorer_id !== d.me.id) throw new Error('Only the scorer can delete this game');
+    // Same as the server (0029): its payout in the balances must be settled, and goes with it.
+    const owner = g.group_id ? d.groups.find((x) => x.id === g.group_id) : undefined;
+    const payout = owner && g.session_id ? owner.sessions.find((s) => s.id === g.session_id) : undefined;
+    if (owner && payout) {
+      if (!isSessionSettled(owner, payout)) throw new Error('Settle up everyone in this game before deleting it');
+      owner.sessions = owner.sessions.filter((s) => s.id !== payout.id);
+      owner.settlements = owner.settlements.filter((s) => s.session_id !== payout.id);
+    }
     d.rummyGames = d.rummyGames.filter((x) => x.id !== gameId);
     logRummy(d, g, (n) => `Deleted rummy game ${n}`);
   }),

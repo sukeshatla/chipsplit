@@ -307,3 +307,30 @@ describe('[PLAT-4] rummy table size and rejoining', () => {
     expect([back.total, back.eliminated, back.player.rejoins]).toEqual([51, false, 1]);
   });
 });
+
+describe('[PLAT-4] deleting a rummy game', () => {
+  it('[RUMMY-17] a finished staked game is deleted only once settled, and takes its payout with it', async () => {
+    const { id, raviId, me } = await newGroup('rummy');
+    const g0 = await byId(id);
+    const players = g0.members.map((m) => ({ name: m.name, userId: m.user_id }));
+    const gameId = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 1000, players });
+    const ps = (await api.loadRummyGame(gameId))!.players;
+    await api.addRummyRound(gameId, ps.map((p, i) => ({ playerId: p.id, points: i === 0 ? 0 : 110 })));
+    const sid = await api.postRummyPayout(gameId, [{ member_id: me, buy_in_cents: 1000, cash_out_cents: 2000 }, { member_id: raviId, buy_in_cents: 1000, cash_out_cents: 0 }]);
+    await expect(api.deleteRummyGame(gameId)).rejects.toThrow(/Settle up/);
+    await api.addSettlement({ group_id: id, from_member: raviId, to_member: me, amount_cents: 1000, method: 'Cash', note: null, session_id: sid, settled_on: '2026-01-02' });
+    await api.deleteRummyGame(gameId);
+    const g = await byId(id);
+    expect(g.sessions).toEqual([]);
+    expect(g.settlements).toEqual([]);
+    expect([...groupBalances(g).values()].every((c) => c === 0)).toBe(true);
+  });
+
+  it('[RUMMY-17] a game in progress, or without a buy-in, can be deleted any time', async () => {
+    const { id } = await newGroup('rummy');
+    const players = [{ name: 'Me', userId: null }, { name: 'Ravi', userId: null }];
+    const live = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 1000, players });
+    await api.deleteRummyGame(live);
+    expect(await api.loadRummyGames(id)).toEqual([]);
+  });
+});

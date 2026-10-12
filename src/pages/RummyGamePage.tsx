@@ -6,7 +6,7 @@ import { ArrowRight, Coins, Lock, Pencil, Plus, RotateCcw, Share2, Spade, Trash2
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { rummyCanRejoin, rummyPaid, rummyPot, rummyRejoinStart, rummyResult, rummyStandings, type RummyResult } from '../lib/rummy';
-import { isGameHost, memberName, rummyBalanceRows, rummyTableData, shortName } from '../lib/ledger';
+import { isGameHost, isSessionSettled, memberName, rummyBalanceRows, rummyTableData, shortName } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
 import { useToast } from '../app/toast';
 import { Payments } from './GameDayPage';
@@ -67,6 +67,9 @@ export function RummyGamePage() {
   const canRejoin = isScorer && rummyCanRejoin(game, standings);
   const topActive = active.length ? Math.max(...active.map((x) => x.total)) : 0;
   const result = rummyResult(game);
+  // Its payout in the group's balances, if it has one: deleting waits until it's settled (SPEC RUMMY-17).
+  const payout = group && game.session_id ? group.sessions.find((x) => x.id === game.session_id) : undefined;
+  const payoutUnsettled = !!(group && payout && !isSessionSettled(group, payout));
   const rejoinValid = rejoinAt !== '' && Number(rejoinAt) < game.point_limit;
 
   const editingRound = panel && panel !== 'new' ? game.rounds.find((r) => r.id === panel) ?? null : null;
@@ -143,7 +146,7 @@ export function RummyGamePage() {
         </div>
       )}
 
-      {/* Rounds first, right under Add round; then the money; then who is where (SPEC RUMMY-14). */}
+      {/* Rounds first, right under Add round; then who is where; then the money (SPEC RUMMY-14, RUMMY-17). */}
       <div className="space-y-5">
         <Card>
           <CardHeader title="Round by round" />
@@ -196,7 +199,6 @@ export function RummyGamePage() {
             </div>
           )}
         </Card>
-        {result && <Payout game={game} group={group ?? null} result={result} isScorer={isScorer} money={money} short={short} onPosted={refresh} />}
         <Card>
           <CardHeader title="Standings" action={group && (
             <Button size="sm" onClick={() => shareSummaryImage(rummyTableData(game, group), (pid) => memberName(group, pid))
@@ -218,6 +220,8 @@ export function RummyGamePage() {
             ))}
           </div>
         </Card>
+        {/* Settle up last, like a poker game (SPEC RUMMY-17). */}
+        {result && <Payout game={game} group={group ?? null} result={result} isScorer={isScorer} money={money} short={short} onPosted={refresh} />}
       </div>
 
       <MemberCardDialog member={cardPlayer} onClose={() => setCardPlayer(null)}
@@ -290,7 +294,9 @@ export function RummyGamePage() {
         onConfirm={async () => { setConfirmingClose(false); const ok = await run((api) => api.closeRummyGame(game.id), 'Game closed'); if (ok) refresh(); }} />
 
       <ConfirmDialog open={confirmingDelete} onClose={() => setConfirmingDelete(false)} title="Delete this rummy game?" icon={Trash2} busy={busy}
-        body="This permanently removes the game and every round's scores. This can't be undone."
+        blocked={payoutUnsettled ? 'Settle up everyone in this game first: mark the remaining payments paid in Settle up below.' : undefined}
+        body={payout ? 'This removes the game, every round, and its payout and payments from the balances, so everyone is back where they were before it. This can\'t be undone.'
+          : 'This permanently removes the game and every round\'s scores. This can\'t be undone.'}
         onConfirm={async () => {
           setConfirmingDelete(false);
           const ok = await run((api) => api.deleteRummyGame(game.id), 'Rummy game deleted');

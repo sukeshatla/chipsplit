@@ -112,6 +112,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | RUMMY-14 | **Round by round** reads players down the side and rounds across (R1, R2, … Total); the player column stays put while the rounds scroll sideways. | manual | `RummyGamePage` — play 10 rounds on a phone; names stay visible while scrolling |
 | RUMMY-15 | A Rummy group has at most one rummy game in progress: starting another, or a round edit that would put a finished game back in play, is refused until the current one is closed or deleted. | test | demo `createRummyGame` / `updateRummyRound`, 0027 trigger, `NewRummyGameDialog` |
 | RUMMY-16 | A rummy game has 2 to 7 players. | test | `NewRummyGameDialog`, demo `createRummyGame`, 0028 `create_rummy_game` |
+| RUMMY-17 | Like a poker game: a finished staked rummy game can't be deleted until its own payments settle it, and deleting it takes its payout and payments out of the group's balances, so they're exactly as before the game (zero if it was the only one). A game in progress, or one without a buy-in, can be deleted any time. The Settle up card sits at the bottom of the game. | test | demo `deleteRummyGame`, 0029 triggers, `RummyGamePage` |
 
 ## EXP — expenses
 
