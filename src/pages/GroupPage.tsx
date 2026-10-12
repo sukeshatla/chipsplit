@@ -125,7 +125,7 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
                   <p className="truncate text-[12px] text-ink-2">{s.results.length} players, {formatMoney(pot, g.currency)} in play</p>
                 </div>
                 {s.status === 'open' ? <Badge tone="brass">In progress</Badge>
-                  : unpaid > 0 ? <Badge tone="loss">{unpaid} unpaid</Badge> : <Badge tone="gain">Settled</Badge>}
+                  : unpaid > 0 ? <Badge tone="loss">Unsettled</Badge> : <Badge tone="gain">Settled</Badge>}
                 <ChevronRight size={16} className="text-ink-2" aria-hidden="true" />
               </Row>
             </Link>

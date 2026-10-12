@@ -271,7 +271,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - Everything on an open game **saves automatically**: taps (rebuy, give back, adding or removing a player) right away, typed amounts a moment after you stop typing.
 - Built for entering a full table on a phone: one line per player, a **Buy-ins / Cash-outs** switch so only one box shows at a time, and the keyboard's **Next** key jumps straight to the next player.
 - Finalize to lock the results and get the **settle-up list**: the fewest payments that clear the table.
-- Tick off each payment as **Paid** (or undo it). The game shows "3 unpaid" until everyone's square.
+- Tick off each payment as **Paid** (or undo it). In lists the game reads **Unsettled** (red) until everyone's square, then **Settled**. The Groups list shows only each group's games count and your balance.
 - A game belongs to whoever **started** it: only they can change buy-ins and cash-outs, finalize or reopen it, mark its payments, or delete it. Everyone else in the group follows along live, read-only. (Rummy works the same way.)
 - Reopen a game to fix a mistake. Date, location, and rebuy amount are set when the game starts.
 - Deleting a game needs that game's own payments recorded, and takes them out along with it, so everyone's balance is exactly what it was before the game. The host can **restore** a deleted game, payments and all, from the group's History tab. Deleting the whole group only needs its **total** balance settled (games + any older expenses + every payment).

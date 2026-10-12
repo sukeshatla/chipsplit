@@ -53,7 +53,7 @@ export function GamesPage() {
                 </div>
                 {s.status === 'open' ? <Badge tone="brass">In progress</Badge>
                   : r && <Amount cents={resultNet(r)} currency={g.currency} sign />}
-                {unpaid > 0 && <Badge tone="loss">{unpaid} unpaid</Badge>}
+                {unpaid > 0 && <Badge tone="loss">Unsettled</Badge>}
                 <ChevronRight size={16} className="text-ink-2" aria-hidden="true" />
               </Row>
             </Link>

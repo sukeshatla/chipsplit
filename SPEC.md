@@ -75,6 +75,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | GROUP-3 | The top of every group page looks the same: the name, a quiet type badge with its icon (**Poker**, **Rummy**, **Expense**; never green, so only the main action stands out), your balance in bold, then on its own row the main action: **New game** (Poker), **New rummy game** (Rummy), or **Import** and **+ Add expense** as two separate buttons (Expense). Cards below don't repeat it; only an empty list offers a start button. No Email summary. | manual | `GroupPage` — open one group of each type; same layout, no second New button |
 | GROUP-4 | On the Balances tab, **Settle up** and **Where everyone stands** collapse and expand; Settle up starts collapsed, Where everyone stands starts open. | manual | `GroupPage` `BalancesTab` — open Balances; tap each header |
 | GROUP-5 | Adding an expense is the same green **+ Add expense** button everywhere (home, friend page, Expense group). The home page's Groups card has its own **+ New group**. | manual | `AddExpenseButton` — check home, a friend, an Expense group |
+| GROUP-6 | The Groups list shows each group's people, games or expenses count, and your balance; no unpaid counts. A finished game in a list reads **Unsettled** (red) until its payments are all marked paid, then **Settled**; never "5 unpaid". | manual | `GroupsPage`, `GroupPage` Games tab, `GamesPage` — a finished game with open payments says Unsettled |
 
 ## GAME — poker games
 

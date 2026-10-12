@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Plus, Users } from 'lucide-react';
 import { useData } from '../app/data';
-import { groupBalances, listedGroups, myMemberId, sessionPayments } from '../lib/ledger';
+import { groupBalances, listedGroups, myMemberId } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Badge, Button, Card, EmptyState, PageHeader, Tabs, useShowMore } from '../components/ui';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
@@ -46,7 +46,6 @@ export function GroupsPage() {
                 const bal = mine ? groupBalances(g).get(mine) ?? 0 : 0;
                 const finals = g.sessions.filter((s) => s.status === 'final');
                 const live = g.sessions.some((s) => s.status === 'open');
-                const unpaid = finals.reduce((a, s) => a + sessionPayments(g, s).filter((p) => !p.settlementId).length, 0);
                 const dates = g.kind === 'expenses' ? g.expenses.map((e) => e.spent_on) : g.sessions.map((s) => s.played_on);
                 const lastDate = dates.sort()[dates.length - 1];
                 const counts = [
@@ -64,7 +63,6 @@ export function GroupsPage() {
                       <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-ink-2">
                         {lastDate && <span>Last {g.kind === 'expenses' ? 'expense' : 'game'} {formatDate(lastDate, { month: 'short', day: 'numeric' })}</span>}
                         {live && <Badge tone="brass">Game in progress</Badge>}
-                        {unpaid > 0 && <Badge tone="loss">{unpaid} unpaid</Badge>}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
