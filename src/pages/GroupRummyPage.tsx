@@ -2,7 +2,8 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Club } from 'lucide-react';
 import { useAuth } from '../app/auth';
-import { shortName } from '../lib/ledger';
+import { rummyLeaderboard, shortName } from '../lib/ledger';
+import { Leaderboard } from '../components/Leaderboard';
 import { rummyPot, rummyStandings } from '../lib/rummy';
 import { formatDate, formatMoney } from '../lib/money';
 import { Badge, Button, Card, CardHeader, EmptyState, Row, Spinner, useShowMore } from '../components/ui';
@@ -32,7 +33,7 @@ export function RummyGames({ g, onNew }: { g: Group; onNew(): void }) {
   }
   const games = q.data ?? [];
 
-  return (
+  return (<div className="space-y-5">
     <Card>
       <CardHeader title="Rummy games" />
       {games.length === 0 ? (
@@ -50,7 +51,7 @@ export function RummyGames({ g, onNew }: { g: Group; onNew(): void }) {
                     <p className="truncate text-sm font-semibold">{rg.name || 'Rummy'}</p>
                     <p className="truncate text-[12px] text-ink-2">{rg.players.length} players, out at {rg.point_limit}{rg.buy_in_cents > 0 ? `, ${formatMoney(rummyPot(rg), g.currency)} pot` : ''}, {formatDate(rg.created_at)}</p>
                   </div>
-                  <Badge tone={rg.status === 'active' ? 'felt' : 'neutral'}>{rg.status === 'active' ? 'Active' : 'Finished'}</Badge>
+                  {rg.status === 'active' ? <Badge tone="brass">In progress</Badge> : <Badge tone="gain">Final</Badge>}
                   {leader && <span className="hidden text-[12px] text-ink-2 sm:inline">{shortName(leader.player.name, rg.players.map((x) => x.name))} leads</span>}
                   <ChevronRight size={16} className="text-ink-2" aria-hidden="true" />
                 </Row>
@@ -61,6 +62,7 @@ export function RummyGames({ g, onNew }: { g: Group; onNew(): void }) {
       )}
       {list.more}
     </Card>
-  );
+    <Leaderboard g={g} rows={rummyLeaderboard(g, games)} />
+  </div>);
 }
 

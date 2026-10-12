@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Mail, Pencil, ShieldCheck, ShieldOff, Share2 } from 'lucide-react';
+import { Spade, Receipt, Upload, HandCoins, Trash2, UserPlus, ChevronRight, Club, Mail, Pencil, ShieldCheck, ShieldOff, Share2 } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useToast } from '../app/toast';
 import { useAuth } from '../app/auth';
@@ -10,6 +10,7 @@ import { shareSummaryImage } from '../lib/summaryImage';
 import { formatDate, formatMoney } from '../lib/money';
 import { AddExpenseButton, Amount, Avatar, AvatarButton, BackLink, byMonth, CollapsibleCard, DateTile, LIST_STEP, MonthHeader, ShowMore, useShowMore, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
+import { Leaderboard } from '../components/Leaderboard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KindBadge, KIND_LABEL } from '../components/GroupKind';
 import { ExpenseDialog } from '../components/dialogs/ExpenseDialog';
@@ -133,38 +134,8 @@ function GamesTab({ g, onNew }: { g: Group; onNew(): void }) {
       </div>
       {list.more}
     </Card>
-    <Leaderboard g={g} />
+    <Leaderboard g={g} rows={pokerLeaderboard(g)} />
   </div>);
-}
-
-function Leaderboard({ g }: { g: Group }) {
-  const board = pokerLeaderboard(g);
-  const list = useShowMore(board);
-  const [cardMember, setCardMember] = useState<Member | null>(null);
-  return (
-    <Card>
-      <CardHeader title={<span className="inline-flex items-center gap-2"><Trophy size={16} className="text-brass" aria-hidden="true" />Leaderboard</span>} />
-      {/* pokerLeaderboard() sums cash-out + chips given back − buy-in over finalized games only; payments never enter it. */}
-      <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">All-time table results, not who owes what now.</p>
-      <div className="mt-2">
-        {board.length === 0 ? <p className="px-5 pb-5 text-sm text-ink-2">Finish a game to start the leaderboard.</p> :
-          list.visible.map((r, i) => (
-            <Row key={r.memberId}>
-              <span className="amount w-5 text-center font-display text-sm text-ink-2">{i + 1}</span>
-              <AvatarButton name={r.name} src={r.avatar_url} onClick={() => setCardMember(g.members.find((m) => m.id === r.memberId) ?? null)} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{memberShort(g, r.memberId)}</p>
-                <p className="truncate text-[12px] text-ink-2">{r.games} games, won {r.wins}, best {formatMoney(r.best, g.currency)}</p>
-              </div>
-              <Amount cents={r.net} currency={g.currency} sign className="text-base" />
-            </Row>
-          ))}
-      </div>
-      {list.more}
-      <MemberCardDialog member={cardMember} onClose={() => setCardMember(null)}
-        extra={cardMember ? { label: 'All-time at the table', node: <Amount cents={board.find((b) => b.memberId === cardMember.id)?.net ?? 0} currency={g.currency} sign className="text-base" /> } : undefined} />
-    </Card>
-  );
 }
 
 /** A small "Share" that sends a picture of what's on this card. */

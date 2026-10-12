@@ -49,3 +49,48 @@ describe('rummy', () => {
     expect(rummyResult(game())).toBeNull();
   });
 });
+
+describe('rummy in a Rummy group', async () => {
+  const { rummyBalanceRows, rummyLeaderboard, rummyTableData } = await import('./ledger');
+  const { imageBanner, imageParts } = await import('./summaryImage');
+  const { group: makeGroup, member, game: session } = await import('../test/fixtures');
+  // Members A, B, C line up with the rummy players a, b, c by name.
+  const g = makeGroup({ id: 'rg', kind: 'rummy', name: 'Sunday rummy', members: ['A', 'B', 'C'].map((n) => member(`m${n}`, { name: n })) });
+  // a wins (b and c out at 101), $10 buy-in each: a +$20, b and c -$10.
+  const won = game({ id: 'g1', status: 'finished', winner_player_id: 'a' }, [[0, 60, 60], [0, 50, 50]]);
+
+  it('[RUMMY-10] a finished staked game becomes one finished-game row per member: buy-in paid, pot won', () => {
+    expect(rummyBalanceRows(won, g)).toEqual([
+      { member_id: 'mA', buy_in_cents: 1000, cash_out_cents: 3000 },
+      { member_id: 'mB', buy_in_cents: 1000, cash_out_cents: 0 },
+      { member_id: 'mC', buy_in_cents: 1000, cash_out_cents: 0 },
+    ]);
+  });
+
+  it('[RUMMY-10] nothing to add while in progress, without a buy-in, or when a player is not in the group', () => {
+    expect(rummyBalanceRows(game({ id: 'g2' }), g)).toBeNull();
+    expect(rummyBalanceRows({ ...won, buy_in_cents: 0 }, g)).toBeNull();
+    const stranger = { ...won, players: won.players.map((p) => (p.id === 'c' ? { ...p, name: 'Zed' } : p)) };
+    expect(rummyBalanceRows(stranger, g)).toBeNull();
+  });
+
+  it('[RUMMY-8] the leaderboard counts finished games and wins, and money from the payouts in balances', () => {
+    const posted = session('s1', { mA: [1000, 3000], mB: [1000, 0], mC: [1000, 0] });
+    const withPayout = { ...g, sessions: [posted] };
+    const unstaked = game({ id: 'g3', status: 'finished', winner_player_id: 'b', buy_in_cents: 0 }, [[60, 0, 60], [50, 0, 50]]);
+    const live = game({ id: 'g4' });
+    const rows = rummyLeaderboard(withPayout, [won, unstaked, live]);
+    expect(rows.map((r) => [r.name, r.games, r.wins, r.net])).toEqual([['A', 2, 1, 2000], ['B', 2, 1, -1000], ['C', 2, 0, -1000]]);
+  });
+
+  it('[RUMMY-9] a game in progress shares as "Rummy · In progress"; a finished one as "Rummy · Final"', () => {
+    const live = rummyTableData(game({ id: 'g4' }, [[0, 30, 10]]), g);
+    expect(imageParts(live)).toEqual(['table']);
+    expect(imageBanner(live, 'table').label).toBe('Rummy · In progress');
+    expect(live.rummy!.rows.map((r) => [r.name, r.total, r.out])).toEqual([['A', 0, false], ['C', 10, false], ['B', 30, false]]);
+    const fin = rummyTableData(won, g);
+    expect(imageBanner(fin, 'table').label).toBe('Rummy · Final');
+    expect(imageBanner(fin, 'table').details).toContain('Out at 101');
+    expect(fin.rummy!.rows.find((r) => r.name === 'B')!.out).toBe(true);
+  });
+});

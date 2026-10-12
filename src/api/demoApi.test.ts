@@ -203,3 +203,37 @@ describe('[PLAT-4] group types', () => {
     expect((await api.loadRummyGames(rummy.id)).map((g) => g.id)).toEqual([gameId]);
   });
 });
+
+describe('[PLAT-4] rummy history', () => {
+  it('[RUMMY-13] starting a rummy game, adding and fixing a round, and closing it show in History', async () => {
+    const { id } = await newGroup('rummy');
+    const players = [{ name: 'Me', userId: null }, { name: 'Ravi', userId: null }];
+    const gameId = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 0, players });
+    const g = (await api.loadRummyGame(gameId))!;
+    await api.addRummyRound(gameId, g.players.map((p, i) => ({ playerId: p.id, points: i * 20 })));
+    const round = (await api.loadRummyGame(gameId))!.rounds[0]!;
+    await api.updateRummyRound(round.id, g.players.map((p, i) => ({ playerId: p.id, points: i * 30 })));
+    await api.closeRummyGame(gameId);
+    const history = (await api.loadHistory(id)).map((e) => e.summary);
+    expect(history).toEqual(expect.arrayContaining([
+      'Started rummy game "Game 1"', 'Added round 1 in "Game 1"', 'Changed round 1 in "Game 1"', 'Closed rummy game "Game 1"',
+    ]));
+  });
+});
+
+describe('[PLAT-4] rummy payouts', () => {
+  it('[RUMMY-10] a finished staked game goes into balances once, with one line in History', async () => {
+    const { id, raviId, me } = await newGroup('rummy');
+    const g0 = await byId(id);
+    const players = g0.members.map((m) => ({ name: m.name, userId: m.user_id }));
+    const gameId = await api.createRummyGame({ groupId: id, name: 'Game 1', pointLimit: 101, buyInCents: 1000, players });
+    const ps = (await api.loadRummyGame(gameId))!.players;
+    await api.addRummyRound(gameId, ps.map((p, i) => ({ playerId: p.id, points: i === 0 ? 0 : 110 })));
+    const rows = [{ member_id: me, buy_in_cents: 1000, cash_out_cents: 2000 }, { member_id: raviId, buy_in_cents: 1000, cash_out_cents: 0 }];
+    await api.postRummyPayout(gameId, rows);
+    await expect(api.postRummyPayout(gameId, rows)).rejects.toThrow(/already/);
+    const g = await byId(id);
+    expect(groupBalances(g).get(raviId)).toBe(-1000);
+    expect((await api.loadHistory(id)).filter((e) => e.summary.includes('payout'))).toHaveLength(1);
+  });
+});

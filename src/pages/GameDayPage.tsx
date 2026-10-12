@@ -355,7 +355,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
 }
 
 /** Who pays whom for a finished game. Anyone can send a reminder; only the host marks payments. */
-function Payments({ g, s, host }: { g: Group; s: GameSession; host: boolean }) {
+export function Payments({ g, s, host }: { g: Group; s: GameSession; host: boolean }) {
   const { run, busy } = useAction();
   const pays = sessionPayments(g, s);
   const done = pays.filter((p) => p.settlementId).length;

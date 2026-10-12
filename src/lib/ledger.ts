@@ -1,4 +1,5 @@
-import type { AppData, ChangeLogEntry, GameSession, Group, SessionResult } from './types';
+import type { AppData, ChangeLogEntry, GameSession, Group, RummyGame, RummyPlayer, SessionResult } from './types';
+import { rummyResult, rummyStandings } from './rummy';
 import { settle, type Transfer } from './settle';
 import { formatDate, formatMoney } from './money';
 
@@ -443,6 +444,8 @@ export interface Summary {
   transfers: (Transfer & { paid?: boolean })[];
   /** Set for a game (in progress or final): the table, the buy-in, and what's on it. */
   live?: { final: boolean; buyInAmount: number; totalIn: number; buyIns: number | null; totalBack: number; totalCashOut: number; pot: number };
+  /** Set for a rummy game's picture: standings, best first, knocked-out players last. */
+  rummy?: { final: boolean; limit: number; buyIn: number; pot: number; rows: { id: string; name: string; total: number; out: boolean; rejoins: number; winner: boolean }[] };
 }
 
 /**
@@ -548,6 +551,58 @@ export function notificationLink(e: ChangeLogEntry): string {
     case 'session': return e.entity_id ? `/groups/${e.group_id}/games/${e.entity_id}` : `/groups/${e.group_id}?tab=games`;
     case 'settlement': return `/groups/${e.group_id}?tab=balances`;
     case 'member': return `/groups/${e.group_id}?tab=members`;
+    case 'rummy': return e.entity_id ? `/rummy/${e.entity_id}` : `/groups/${e.group_id}`;
     default: return `/groups/${e.group_id}`;
   }
+}
+
+/** A rummy player's member in the group: by linked account, else by exact name (players are
+ *  picked from the group's members, so names line up unless someone was renamed since). */
+function rummyMember(g: Group, p: RummyPlayer) {
+  return g.members.find((m) => (p.user_id && m.user_id === p.user_id) || m.name === p.name);
+}
+
+/** A finished staked rummy game as finished-game rows for the group's balances (SPEC RUMMY-10):
+ *  each member's buy-ins paid in and pot won. Null if there's nothing to add, or a player can't be
+ *  matched to exactly one member. */
+export function rummyBalanceRows(game: RummyGame, g: Group): Pick<SessionResult, 'member_id' | 'buy_in_cents' | 'cash_out_cents'>[] | null {
+  const result = rummyResult(game);
+  if (!result) return null;
+  const ids = game.players.map((p) => rummyMember(g, p)?.id);
+  if (ids.some((id) => !id) || new Set(ids).size !== ids.length) return null;
+  return result.rows.map((r, i) => ({ member_id: ids[i]!, buy_in_cents: r.paid, cash_out_cents: r.won }));
+}
+
+/** A Rummy group's leaderboard (SPEC RUMMY-8): finished games played and won, and the money
+ *  side from the payouts in its balances (net and best night), richest first. */
+export function rummyLeaderboard(g: Group, games: RummyGame[]): LeaderRow[] {
+  const money = new Map(pokerLeaderboard(g).map((r) => [r.memberId, r]));
+  const rows = new Map<string, LeaderRow>();
+  for (const game of games) {
+    if (game.status !== 'finished') continue;
+    for (const p of game.players) {
+      const m = rummyMember(g, p);
+      if (!m) continue;
+      const row = rows.get(m.id) ?? { memberId: m.id, name: memberName(g, m.id), avatar_url: memberAvatar(g, m.id),
+        net: money.get(m.id)?.net ?? 0, games: 0, wins: 0, best: money.get(m.id)?.best ?? 0 };
+      row.games += 1;
+      if (game.winner_player_id === p.id) row.wins += 1;
+      rows.set(m.id, row);
+    }
+  }
+  return [...rows.values()].sort((a, b) => b.net - a.net || b.wins - a.wins || a.name.localeCompare(b.name));
+}
+
+/** A rummy game as a picture (SPEC RUMMY-9): players still in by fewest points, then anyone out. */
+export function rummyTableData(game: RummyGame, g: Group): Summary {
+  const standings = rummyStandings(game);
+  const rows = standings.map((s) => ({ id: s.player.id, name: s.player.name, total: s.total, out: s.eliminated, rejoins: s.player.rejoins ?? 0, winner: game.winner_player_id === s.player.id }))
+    .sort((a, b) => Number(b.winner) - Number(a.winner) || Number(a.out) - Number(b.out) || a.total - b.total || a.name.localeCompare(b.name));
+  const pot = game.players.reduce((a, p) => a + game.buy_in_cents * (1 + (p.rejoins ?? 0)), 0);
+  return {
+    title: g.name,
+    when: formatDate(game.created_at.slice(0, 10), { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+    place: game.name, currency: g.currency, rows: [], transfers: [],
+    rummy: { final: game.status === 'finished', limit: game.point_limit, buyIn: game.buy_in_cents, pot, rows },
+  };
 }

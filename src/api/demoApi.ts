@@ -90,6 +90,11 @@ function assertAdmin(d: DemoStore, g: Group, message: string) {
   if (!g.members.some((m) => m.user_id === d.me.id && m.is_admin)) throw new Error(message);
 }
 
+/** A rummy game's line in its group's History (SPEC RUMMY-13), named like "Game 1". */
+function logRummy(d: DemoStore, g: RummyGame, summary: (name: string) => string) {
+  if (g.group_id) log(d, g.group_id, 'rummy', g.id, summary(`"${g.name || 'Rummy'}"`));
+}
+
 /** Mirrors is_group_member(): any member can add, edit, delete, or restore an expense (0025). */
 function assertMember(d: DemoStore, g: Group, message: string) {
   if (!g.members.some((m) => m.user_id === d.me.id)) throw new Error(message);
@@ -382,6 +387,7 @@ export const demoApi: DataApi = {
       scorer_id: d.me.id, winner_player_id: null, created_at: now(), finished_at: null,
       players: rummyPlayers, rounds: [],
     });
+    logRummy(d, d.rummyGames[d.rummyGames.length - 1]!, (n) => `Started rummy game ${n}`);
     return id;
   }),
 
@@ -391,6 +397,7 @@ export const demoApi: DataApi = {
     if (g.status !== 'active') throw new Error('This game is already finished');
     const roundNo = (g.rounds[g.rounds.length - 1]?.round_no ?? 0) + 1;
     g.rounds.push({ id: uid(), round_no: roundNo, created_at: now(), scores: scores.map((s) => ({ player_id: s.playerId, points: s.points })) });
+    logRummy(d, g, (n) => `Added round ${roundNo} in ${n}`);
     const remaining = rummyStandings(g).filter((s) => !s.eliminated);
     if (remaining.length <= 1) {
       g.status = 'finished';
@@ -406,6 +413,7 @@ export const demoApi: DataApi = {
     const round = g.rounds.find((r) => r.id === roundId)!;
     const points = new Map(scores.map((s) => [s.playerId, s.points]));
     round.scores = round.scores.map((s) => ({ player_id: s.player_id, points: points.get(s.player_id) ?? s.points }));
+    logRummy(d, g, (n) => `Changed round ${round.round_no} in ${n}`);
     const remaining = rummyStandings(g).filter((s) => !s.eliminated);
     if (remaining.length <= 1) {
       g.status = 'finished';
@@ -431,14 +439,23 @@ export const demoApi: DataApi = {
     const p = g.players.find((x) => x.id === playerId)!;
     p.rejoins += 1;
     p.score_offset += top - me.total;
+    logRummy(d, g, (n) => `Brought ${p.name} back into ${n}`);
   }),
 
-  linkRummySession: (gameId, sessionId) => mutate((d) => {
+  postRummyPayout: (gameId, results) => mutate((d) => {
     const g = rummyGame(d, gameId);
-    if (g.scorer_id !== d.me.id || g.status !== 'finished' || g.session_id) {
-      throw new Error("This game was already added to the club, or it isn't yours to add");
+    if (g.scorer_id !== d.me.id || g.status !== 'finished' || g.session_id || !g.group_id) {
+      throw new Error("This game was already added to the group's balances, or it isn't yours to add");
     }
-    g.session_id = sessionId;
+    const id = uid();
+    group(d, g.group_id).sessions.push({
+      id, group_id: g.group_id, played_on: now().slice(0, 10), location: `Rummy${g.name ? `: ${g.name}` : ''}`, notes: null,
+      status: 'final', default_buy_in_cents: g.buy_in_cents, created_by: d.me.id, created_at: now(),
+      results: results.map((r) => ({ ...r, returned_cents: 0 })),
+    });
+    g.session_id = id;
+    logRummy(d, g, (n) => `Added ${n} payout to balances`);
+    return id;
   }),
 
   closeRummyGame: (gameId) => mutate((d) => {
@@ -449,11 +466,13 @@ export const demoApi: DataApi = {
     g.status = 'finished';
     g.finished_at = now();
     g.winner_player_id = remaining.length === 1 ? remaining[0]!.player.id : null;
+    logRummy(d, g, (n) => `Closed rummy game ${n}`);
   }),
 
   deleteRummyGame: (gameId) => mutate((d) => {
     const g = rummyGame(d, gameId);
     if (g.scorer_id !== d.me.id) throw new Error('Only the scorer can delete this game');
     d.rummyGames = d.rummyGames.filter((x) => x.id !== gameId);
+    logRummy(d, g, (n) => `Deleted rummy game ${n}`);
   }),
 };

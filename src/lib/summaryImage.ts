@@ -14,6 +14,7 @@ export type Part = 'stands' | 'settle' | 'table';
 
 /** Which picture a card's Share sends (SPEC SHARE-8): always one, of just that card. */
 export function imageParts(d: Summary, section?: 'settle'): Part[] {
+  if (d.rummy) return ['table'];
   if (d.live) return [section === 'settle' && d.live.final ? 'settle' : 'table'];
   return [section === 'settle' ? 'settle' : 'stands'];
 }
@@ -23,6 +24,11 @@ export interface Banner { label: string; title: string; details: string[] }
 /** What the banner at the top of a picture says (SPEC SHARE-7): what it is, the group, and when. */
 export function imageBanner(d: Summary, part: Part): Banner {
   const place = d.place ? `📍 ${d.place}` : null;
+  if (d.rummy) {
+    const R = d.rummy;
+    const stake = R.buyIn ? `${formatMoney(R.buyIn, d.currency)} buy-in` : null;
+    return { label: R.final ? 'Rummy · Final' : 'Rummy · In progress', title: d.title, details: [d.when, d.place, `Out at ${R.limit}`, stake].filter(Boolean) as string[] };
+  }
   if (d.live) {
     if (part === 'settle') return { label: 'Game · Settle up', title: d.title, details: [d.when, place].filter(Boolean) as string[] };
     const buyIn = d.live.buyInAmount ? `${formatMoney(d.live.buyInAmount, d.currency)} buy-in` : null;
@@ -42,13 +48,13 @@ export async function summaryPng(d: Summary, names: (id: string) => string, part
   const W = d.live && part === 'table' ? 720 : 560, PAD = 40, HEAD = 172;
   const open = d.rows.filter((r) => r.cents !== 0), settled = d.rows.filter((r) => r.cents === 0);
   // Longer lists get tighter rows (same text size) so the picture doesn't run long (SHARE-5).
-  const count = part === 'settle' ? d.transfers.length : d.live ? d.rows.length : open.length;
+  const count = d.rummy ? d.rummy.rows.length : part === 'settle' ? d.transfers.length : d.live ? d.rows.length : open.length;
   const big = count > 8;
   const LROW = big ? 42 : 50, BROW = big ? 36 : 44;
   // The banner says which card this is, so the body is just the rows.
   const standsH = Math.max(1, open.length) * BROW + (settled.length ? 34 : 0);
   const settleH = Math.max(1, d.transfers.length) * BROW;
-  const H = HEAD + 24 + (part === 'settle' ? settleH
+  const H = d.rummy ? HEAD + 24 + 36 + d.rummy.rows.length * LROW + 28 : HEAD + 24 + (part === 'settle' ? settleH
     : d.live ? 36 + d.rows.length * LROW + LROW + (d.live.final ? 0 : 70) : standsH) + 28;
   const scale = 2;
   const c = document.createElement('canvas');
@@ -61,12 +67,13 @@ export async function summaryPng(d: Summary, names: (id: string) => string, part
   drawBanner(x, imageBanner(d, part), W, PAD, HEAD);
 
   const y = HEAD + 24;
+  if (d.rummy) return drawRummy(c, x, d, y, W, PAD, LROW);
   if (d.live) return drawLiveTable(c, x, d, y, W, PAD, LROW, BROW, part);
   return drawBalances(c, x, d, open, settled, names, y - 4, W, PAD, BROW, part);
 }
 
 /** Label pill colors: a game in progress stands out in brass; everything else is light on the felt. */
-const pillColors = (label: string) => (label === 'Game · In progress' ? { bg: 'rgb(232 178 48)', ink: INK } : { bg: FELT_INK, ink: FELT });
+const pillColors = (label: string) => (label.endsWith('In progress') ? { bg: 'rgb(232 178 48)', ink: INK } : { bg: FELT_INK, ink: FELT });
 
 /** The banner: the Chip n Split logo and name with the label pill across the top, then the group
  *  name large, then when (and where, and the buy-in for a game). */
@@ -227,6 +234,32 @@ function drawBalances(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summ
   });
   }
 
+  x.textAlign = 'left';
+  return toPng(c);
+}
+
+/** A rummy game: place, player, points (red once out), and what happened to them. */
+function drawRummy(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summary, top: number, W: number, PAD: number, ROWH: number) {
+  const R = d.rummy!;
+  const RANK_X = PAD + 8, NAME_X = PAD + 34, POINTS_X = W - PAD - 110;
+  let y = top;
+  x.fillStyle = INK_2; x.font = `700 13px ${FONT}`;
+  x.textAlign = 'center'; x.fillText('#', RANK_X, y + 18);
+  x.textAlign = 'left'; x.fillText('Player', NAME_X, y + 18);
+  x.textAlign = 'right'; x.fillText('Points', POINTS_X, y + 18);
+  y += 36;
+  R.rows.forEach((r, i) => {
+    if (i % 2 === 0) { x.fillStyle = ZEBRA; x.fillRect(PAD - 12, y, W - 2 * PAD + 24, ROWH); }
+    const mid = y + ROWH / 2 + 6;
+    x.fillStyle = INK_2; x.font = `700 17px ${FONT}`; x.textAlign = 'center'; x.fillText(String(i + 1), RANK_X, mid);
+    x.fillStyle = r.out ? INK_2 : INK; x.font = `600 18px ${FONT}`; x.textAlign = 'left';
+    x.fillText(fit(x, r.name, POINTS_X - 70 - NAME_X), NAME_X, mid);
+    x.textAlign = 'right'; x.fillStyle = r.out ? LOSS : INK; x.font = `700 18px ${FONT}`; x.fillText(String(r.total), POINTS_X, mid);
+    const status = r.winner ? 'Winner' : r.out ? 'Out' : R.final ? 'In' : 'Playing';
+    x.fillStyle = r.winner ? GAIN : r.out ? LOSS : BRASS; x.font = `600 15px ${FONT}`;
+    x.fillText(r.rejoins ? `${status} · ↺${r.rejoins}` : status, W - PAD, mid);
+    y += ROWH;
+  });
   x.textAlign = 'left';
   return toPng(c);
 }

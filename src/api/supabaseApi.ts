@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../lib/supabase';
+import { todayISO } from '../lib/money';
 import type { AppData, ChangeLogEntry, Contact, GameSession, Group, Profile, RummyGame, Settlement } from '../lib/types';
 import type { AdminDailyActivity, AdminOverview, AdminSignup, DataApi } from './types';
 
@@ -27,6 +28,14 @@ async function log(groupId: string, entityType: ChangeLogEntry['entity_type'], e
   } catch {
     /* history is a nice-to-have; a logging failure must never surface as an action failure */
   }
+}
+
+/** A rummy game's line in its group's History (SPEC RUMMY-13), named like "Game 1". Best effort. */
+async function logRummy(gameId: string, summary: (name: string) => string) {
+  try {
+    const { data } = await db().from('rummy_games').select('group_id, name').eq('id', gameId).maybeSingle();
+    if (data?.group_id) await log(data.group_id, 'rummy', gameId, summary(`"${data.name || 'Rummy'}"`));
+  } catch { /* history never blocks the change itself */ }
 }
 
 const GROUP_SELECT = `
@@ -378,10 +387,12 @@ export const supabaseApi: DataApi = {
   },
 
   async createRummyGame({ groupId, name, pointLimit, buyInCents, players }) {
-    return check(await db().rpc('create_rummy_game', {
+    const id = check(await db().rpc('create_rummy_game', {
       p_group_id: groupId, p_name: name, p_point_limit: pointLimit, p_buy_in_cents: buyInCents,
       p_players: players.map((p) => ({ name: p.name, user_id: p.userId })),
     })) as string;
+    await logRummy(id, (n) => `Started rummy game ${n}`);
+    return id;
   },
 
   async addRummyRound(gameId, scores) {
@@ -389,28 +400,50 @@ export const supabaseApi: DataApi = {
       p_game_id: gameId,
       p_scores: scores.map((s) => ({ player_id: s.playerId, points: s.points })),
     }));
+    const { data } = await db().from('rummy_rounds').select('round_no').eq('rummy_game_id', gameId).order('round_no', { ascending: false }).limit(1).maybeSingle();
+    await logRummy(gameId, (n) => (data ? `Added round ${data.round_no} in ${n}` : `Added a round in ${n}`));
   },
 
   async updateRummyRound(roundId, scores) {
+    const { data: round } = await db().from('rummy_rounds').select('rummy_game_id, round_no').eq('id', roundId).maybeSingle();
     check(await db().rpc('update_rummy_round', {
       p_round_id: roundId,
       p_scores: scores.map((s) => ({ player_id: s.playerId, points: s.points })),
     }));
+    if (round) await logRummy(round.rummy_game_id, (n) => `Changed round ${round.round_no} in ${n}`);
   },
 
   async rejoinRummyPlayer(playerId) {
     check(await db().rpc('rejoin_rummy_player', { p_player_id: playerId }));
+    const { data: p } = await db().from('rummy_players').select('rummy_game_id, name').eq('id', playerId).maybeSingle();
+    if (p) await logRummy(p.rummy_game_id, (n) => `Brought ${p.name} back into ${n}`);
   },
 
-  async linkRummySession(gameId, sessionId) {
-    check(await db().rpc('link_rummy_session', { p_game_id: gameId, p_session_id: sessionId }));
+  async postRummyPayout(gameId, results) {
+    const user = await currentUser();
+    const game = check(await db().from('rummy_games').select('group_id, name, buy_in_cents').eq('id', gameId).maybeSingle()) as { group_id: string; name: string | null; buy_in_cents: number } | null;
+    if (!game?.group_id) throw new Error('That rummy game is not in a group');
+    // Written directly (not through createSession/updateSession) so History gets one clear line.
+    const row = check(await db().from('game_sessions').insert({
+      group_id: game.group_id, played_on: todayISO(), location: `Rummy${game.name ? `: ${game.name}` : ''}`, notes: null,
+      default_buy_in_cents: num(game.buy_in_cents), created_by: user.id,
+    }).select('id').single()) as { id: string };
+    check(await db().from('session_results').insert(results.map((r) => ({ ...r, returned_cents: 0, session_id: row.id }))));
+    check(await db().from('game_sessions').update({ status: 'final' }).eq('id', row.id));
+    check(await db().rpc('link_rummy_session', { p_game_id: gameId, p_session_id: row.id }));
+    await log(game.group_id, 'rummy', gameId, `Added "${game.name || 'Rummy'}" payout to balances`);
+    return row.id;
   },
 
   async closeRummyGame(gameId) {
     check(await db().rpc('close_rummy_game', { p_game_id: gameId }));
+    await logRummy(gameId, (n) => `Closed rummy game ${n}`);
   },
 
   async deleteRummyGame(gameId) {
+    // Read it first: once it's gone there's nothing left to name in History.
+    const { data: before } = await db().from('rummy_games').select('group_id, name').eq('id', gameId).maybeSingle();
     check(await db().from('rummy_games').delete().eq('id', gameId));
+    if (before?.group_id) await log(before.group_id, 'rummy', gameId, `Deleted rummy game "${before.name || 'Rummy'}"`);
   },
 };

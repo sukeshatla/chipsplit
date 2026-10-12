@@ -256,7 +256,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 **Group types**
 - Every group is one of three types, picked when it's made and fixed after: **Poker** (buy-in card games), **Rummy** (rummy scored hand by hand), or **Expense** (trips, rent, dinners). The Groups page filters by type.
 - **New group** is two short steps that fit above the phone keyboard: pick the type (three big buttons), a name, and the currency (toggle chips), then **Next**; pick friends, then **Create group**.
-- Every group page has the same top: the name, a bold type badge with its icon (**Poker**, **Rummy**, **Expense**), your balance in bold, then the main action on its own row: **New game**, **New rummy game**, or **Import** and **+ Add expense** as two separate buttons. Cards below don't repeat it; only an empty list offers a start button.
+- Every group page has the same top: the name, a quiet outlined type badge with its icon (never green, so only the main button stands out) (**Poker**, **Rummy**, **Expense**), your balance in bold, then the main action on its own row: **New game**, **New rummy game**, or **Import** and **+ Add expense** as two separate buttons. Cards below don't repeat it; only an empty list offers a start button.
 - Adding an expense is the same green **+ Add expense** button everywhere: home, a friend's page, and Expense groups.
 
 **Poker** (poker, blackjack — anything with buy-ins and cash-outs)
@@ -278,11 +278,13 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - A Poker group tracks games only. Shared costs go in an Expense group or one-on-one; expenses an older group already had stay visible on its Expenses tab.
 
 **Rummy**
-- Rummy lives in its own **Rummy** group: its **Games** tab lists the rummy games, and **New rummy game** starts one with the group's members (everyone picked to start). There's no stand-alone rummy.
+- Rummy lives in its own **Rummy** group, with everything a Poker group has: its **Games** tab lists the rummy games (**In progress** / **Final**) with a **Leaderboard** under them (games, wins, money won or lost, best night), plus Balances, Members, and History. **New rummy game** starts one with the group's members (everyone picked to start). There's no stand-alone rummy.
+- Each rummy game has **Share** on its standings (a **Rummy · In progress** / **Rummy · Final** picture). Rounds are fixed deliberately: tap a round's ✎, the round is highlighted, and saving shows what changes and asks to confirm.
+- Every rummy step shows in the group's History: started, each round added or changed, rejoins, closed, deleted, payout added.
 - Score pool rummy hand by hand: players are out at **101, 151, or 201** points (toggle buttons); last one standing wins.
 - Only the person who started the game enters or fixes rounds; everyone else in it can follow along. Rounds show as one table with running totals.
 - Optional **buy-in**: the winner takes the pot. A knocked-out player can **rejoin** for another buy-in while two or more are still in, restarting at the highest score still in. Closing early splits the pot between everyone still in.
-- When it ends, the **payout** lists the fewest payments, and it can be **added to the group's balances** in one tap so it settles with everything else.
+- When a staked game ends, its payout goes into the group's **balances by itself** (on the scorer's screen) and the game shows the same **Settle up** card as poker: **Mark paid**, Undo, reminders, Share.
 
 **Splitwise-style expenses**
 - Add expenses with one payer or **several payers**.

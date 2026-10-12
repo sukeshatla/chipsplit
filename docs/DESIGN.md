@@ -158,9 +158,13 @@ existed earlier and was removed: the pictures replaced it.)
 
 A **Rummy** group holds rummy games scored hand by hand: out at 101, 151, or 201 points, last
 one standing wins, with an optional buy-in and rejoins. Every rummy game belongs to a Rummy group
-and its players are the group's members (0026); the scorer runs it. When a staked game ends, its
-payout can be posted to the group's balances as a finished game, so it settles with everything
-else there. Those posted games aren't poker: the Poker page and stats leave them out.
+and its players are the group's members (0026); the scorer runs it. A Rummy group has everything
+a Poker group has: a leaderboard (games, wins, and money from its payouts), In progress / Final
+games, a share picture, and History for every step. When a staked game ends, the scorer's screen
+posts its payout to the group's balances as one finished game, and the game then shows the same
+Settle up card as poker (Mark paid, Undo). Those posted games aren't poker: the Poker page and stats
+leave them out. Rounds are corrected only through an explicit Edit with a confirm, never by tapping
+a row.
 
 ### History and notifications
 

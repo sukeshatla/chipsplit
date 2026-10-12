@@ -72,7 +72,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 |---|---|---|---|
 | GROUP-1 | A group is **Poker**, **Expense**, or **Rummy**, chosen when it's created; the type can't be changed afterwards. | test | demo `updateGroup`, 0026 trigger |
 | GROUP-2 | New group is two steps: (1) type as three big buttons, name, and currency as toggle chips, then **Next**; (2) pick friends, then **Create group**. Each step fits above the phone keyboard. | manual | `CreateGroupDialog` — on a phone, both steps' buttons stay visible with the keyboard open |
-| GROUP-3 | The top of every group page looks the same: the name, a type badge with its icon (**Poker**, **Rummy**, **Expense**), your balance in bold, then on its own row the main action: **New game** (Poker), **New rummy game** (Rummy), or **Import** and **+ Add expense** as two separate buttons (Expense). Cards below don't repeat it; only an empty list offers a start button. No Email summary. | manual | `GroupPage` — open one group of each type; same layout, no second New button |
+| GROUP-3 | The top of every group page looks the same: the name, a quiet type badge with its icon (**Poker**, **Rummy**, **Expense**; never green, so only the main action stands out), your balance in bold, then on its own row the main action: **New game** (Poker), **New rummy game** (Rummy), or **Import** and **+ Add expense** as two separate buttons (Expense). Cards below don't repeat it; only an empty list offers a start button. No Email summary. | manual | `GroupPage` — open one group of each type; same layout, no second New button |
 | GROUP-4 | On the Balances tab, **Settle up** and **Where everyone stands** collapse and expand; Settle up starts collapsed, Where everyone stands starts open. | manual | `GroupPage` `BalancesTab` — open Balances; tap each header |
 | GROUP-5 | Adding an expense is the same green **+ Add expense** button everywhere (home, friend page, Expense group). The home page's Groups card has its own **+ New group**. | manual | `AddExpenseButton` — check home, a friend, an Expense group |
 
@@ -102,6 +102,12 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | RUMMY-5 | Without a buy-in, or before the end, there's no money side. | test | `rummyResult` |
 | RUMMY-6 | Only the scorer adds or fixes rounds, rejoins, or closes the game. | db | 0012 – 0016 RPCs |
 | RUMMY-7 | Every rummy game belongs to a Rummy group and its players are that group's members; Poker and Expense groups can't start one, and there's no stand-alone rummy. | test | demo `createRummyGame`, 0026 `create_rummy_game` |
+| RUMMY-8 | A Rummy group has a leaderboard like Poker: finished games played, games won, and money won or lost (from payouts in its balances), best night. | test | `rummyLeaderboard` |
+| RUMMY-9 | A rummy game reads **In progress** or **Final**, like a poker game, and has a **Share** picture of its standings. | test | `rummyTableData`, `imageBanner` |
+| RUMMY-10 | When a staked game ends, the scorer's screen adds its payout to the group's balances by itself (no button), as a finished game the Poker page doesn't count. | test | `rummyBalanceRows`, `RummyGamePage` |
+| RUMMY-11 | A finished staked rummy game shows the same **Settle up** card as a poker game: **Mark paid** per payment (scorer), Undo, reminders, Share. | manual | `RummyGamePage` — finish a staked game; mark a payment paid |
+| RUMMY-12 | Rounds are fixed deliberately: each round has its own **Edit** button (tapping a row does nothing), the round being edited is highlighted, and saving asks to confirm the change. | manual | `RummyGamePage` — tap a row (nothing), tap Edit, change a score, confirm |
+| RUMMY-13 | Starting a rummy game, each round added or changed, rejoins, closing, and deleting show in the Rummy group's History. | test | demo and Supabase rummy writes, `log()` |
 
 ## EXP — expenses
 
@@ -149,7 +155,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | SHARE-3 | The game table lists winners first, then players still in, then even, then losers; a finished game drops sat-out rows and lists payments with paid marks. | test | `gameTableData` |
 | SHARE-4 | A reminder is addressed to the one person who owes, naming who and how much; no email on file means no reminder. | test | `reminderMailto` |
 | SHARE-5 | Share images render as phone-shaped PNGs; longer lists get tighter rows instead of a second picture. | manual | `summaryImage.ts` — share a 25-person group's balances; one picture |
-| SHARE-7 | Every picture opens with a banner: the Chip n Split logo and name, a label saying what it is (**Game · In progress**, **Game · Final results**, **Game · Settle up**, **Group · Balances**, or **Group · Settle up**), the group name, and when: *As of* today for a group; the game's date and place for a game, plus the buy-in on its results. | test | `imageBanner` |
+| SHARE-7 | Every picture opens with a banner: the Chip n Split logo and name, a label saying what it is (**Game · In progress**, **Game · Final results**, **Game · Settle up**, **Rummy · In progress**, **Rummy · Final**, **Group · Balances**, or **Group · Settle up**), the group name, and when: *As of* today for a group; the game's date and place for a game, plus the buy-in on its results. | test | `imageBanner` |
 | SHARE-8 | Each card's Share sends one picture of just that card: a game's **Players** (results) or **Settle up**; a group's **Where everyone stands** or **Settle up**. | test | `imageParts` |
 | SHARE-9 | Sharing sends only the picture(s): no title or "summary" text is added. | manual | `shareSummaryImage` — share to WhatsApp; only images arrive |
 | SHARE-10 | The leaderboard has no Share button. | manual | `GroupPage` — open a club's Games tab; the Leaderboard card has no Share |

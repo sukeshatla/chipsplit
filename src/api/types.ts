@@ -65,8 +65,9 @@ export interface DataApi {
   createRummyGame(input: { groupId: string | null; name: string; pointLimit: 101 | 151 | 201; buyInCents: number; players: NewRummyPlayer[] }): Promise<string>;
   /** Scorer only, active game: a knocked-out player buys back in at the top active total. */
   rejoinRummyPlayer(playerId: string): Promise<void>;
-  /** Scorer only: remember which club game a finished rummy game was posted as. */
-  linkRummySession(gameId: string, sessionId: string): Promise<void>;
+  /** Scorer only, a finished staked game: its payout goes into the Rummy group's balances as one
+   *  finished game, logged once in History (SPEC RUMMY-10). Returns that game's id. */
+  postRummyPayout(gameId: string, results: Pick<SessionResult, 'member_id' | 'buy_in_cents' | 'cash_out_cents'>[]): Promise<string>;
   /** `scores` must cover exactly the currently-active (non-eliminated) players. */
   addRummyRound(gameId: string, scores: { playerId: string; points: number }[]): Promise<void>;
   /** Only the scorer, at any game status -- may reopen a finished game or finish an active one. */

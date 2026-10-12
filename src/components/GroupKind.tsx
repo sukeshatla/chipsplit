@@ -17,13 +17,12 @@ export function GroupIcon({ kind, size = 40 }: { kind: GroupKind; size?: number 
   );
 }
 
-const BADGE_TONE: Record<GroupKind, string> = { club: 'bg-felt text-felt-ink', rummy: 'bg-brass text-surface', expenses: 'bg-ink text-surface' };
-
-/** The group's type, loud enough to see at a glance on the group page (SPEC GROUP-3). */
+/** The group's type, clear but quiet: an outlined pill, never green, so only the page's main
+ *  action button stands out (SPEC GROUP-3). */
 export function KindBadge({ kind }: { kind: GroupKind }) {
   const Icon = KIND_ICON[kind];
   return (
-    <span className={clsx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold uppercase tracking-wide', BADGE_TONE[kind])}>
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-ink/25 px-2.5 py-0.5 text-[12px] font-bold uppercase tracking-wide text-ink">
       <Icon size={13} strokeWidth={2.6} aria-hidden="true" />{KIND_LABEL[kind]}
     </span>
   );

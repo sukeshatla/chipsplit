@@ -126,7 +126,7 @@ export interface ChangeLogEntry {
   id: string;
   group_id: string;
   actor_id: string | null;
-  entity_type: 'member' | 'expense' | 'session' | 'settlement' | 'group';
+  entity_type: 'member' | 'expense' | 'session' | 'settlement' | 'group' | 'rummy';
   entity_id: string | null;
   summary: string;
   created_at: string;
