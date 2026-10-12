@@ -413,8 +413,8 @@ export const supabaseApi: DataApi = {
     if (round) await logRummy(round.rummy_game_id, (n) => `Changed round ${round.round_no} in ${n}`);
   },
 
-  async rejoinRummyPlayer(playerId) {
-    check(await db().rpc('rejoin_rummy_player', { p_player_id: playerId }));
+  async rejoinRummyPlayer(playerId, startAt) {
+    check(await db().rpc('rejoin_rummy_player', { p_player_id: playerId, p_start: startAt }));
     const { data: p } = await db().from('rummy_players').select('rummy_game_id, name').eq('id', playerId).maybeSingle();
     if (p) await logRummy(p.rummy_game_id, (n) => `Brought ${p.name} back into ${n}`);
   },

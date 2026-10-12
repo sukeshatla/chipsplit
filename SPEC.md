@@ -97,7 +97,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | ID | Rule | Verified by | Where |
 |---|---|---|---|
 | RUMMY-1 | A player's total is their round points plus any rejoin offset. | test | `rummyStandings` |
-| RUMMY-2 | A knocked-out player can rejoin only while two or more are still in. | test | `rummyCanRejoin` |
+| RUMMY-2 | A knocked-out player can rejoin only while two or more are still in; they restart at the highest score still in **+ 1** by default, which the scorer confirms or changes (0 up to one below the limit) before they're back. | test | `rummyCanRejoin` |
 | RUMMY-3 | With a buy-in, the winner takes the whole pot. | test | `rummyResult` |
 | RUMMY-4 | Closed early, the pot is split between everyone still in. | test | `rummyResult` |
 | RUMMY-5 | Without a buy-in, or before the end, there's no money side. | test | `rummyResult` |
@@ -107,10 +107,11 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | RUMMY-9 | A rummy game reads **In progress** or **Final**, like a poker game, and has a **Share** picture of its standings. | test | `rummyTableData`, `imageBanner` |
 | RUMMY-10 | When a staked game ends, the scorer's screen adds its payout to the group's balances by itself (no button), as a finished game the Poker page doesn't count. | test | `rummyBalanceRows`, `RummyGamePage` |
 | RUMMY-11 | A finished staked rummy game shows the same **Settle up** card as a poker game: **Mark paid** per payment (scorer), Undo, reminders, Share. | manual | `RummyGamePage` — finish a staked game; mark a payment paid |
-| RUMMY-12 | Scores are entered in a pop-up, never inline: **Add round N** at the top of the game opens **Round N** with one box per player still in; each round's ✎ (in its column header) opens **Edit round N**, and saving an edit shows what changes and asks to confirm. The pop-up's buttons stay above the phone keyboard. | manual | `RummyGamePage` — on a phone, add a round and edit one; Save is visible with the keyboard open |
+| RUMMY-12 | Scores are entered in a pop-up, never inline: **Add round N** at the top of the game opens **Round N** with a small score box per player still in, laid out two to a row so all of them (up to 7) fit on a phone screen above the keyboard without scrolling; each round's ✎ (in its column header) opens **Edit round N**, and saving an edit shows what changes and asks to confirm. The pop-up's buttons stay above the phone keyboard. | manual | `RummyGamePage` — on a phone, add a round and edit one; Save is visible with the keyboard open |
 | RUMMY-13 | Starting a rummy game, each round added or changed, rejoins, closing, and deleting show in the Rummy group's History. | test | demo and Supabase rummy writes, `log()` |
 | RUMMY-14 | **Round by round** reads players down the side and rounds across (R1, R2, … Total); the player column stays put while the rounds scroll sideways. | manual | `RummyGamePage` — play 10 rounds on a phone; names stay visible while scrolling |
 | RUMMY-15 | A Rummy group has at most one rummy game in progress: starting another, or a round edit that would put a finished game back in play, is refused until the current one is closed or deleted. | test | demo `createRummyGame` / `updateRummyRound`, 0027 trigger, `NewRummyGameDialog` |
+| RUMMY-16 | A rummy game has 2 to 7 players. | test | `NewRummyGameDialog`, demo `createRummyGame`, 0028 `create_rummy_game` |
 
 ## EXP — expenses
 

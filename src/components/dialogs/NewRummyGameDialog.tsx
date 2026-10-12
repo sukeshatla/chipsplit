@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../app/auth';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,7 @@ import { parseMoney } from '../../lib/money';
 import { useAction } from '../../app/data';
 import type { Group } from '../../lib/types';
 import type { NewRummyPlayer } from '../../api/types';
+import { RUMMY_MAX_PLAYERS } from '../../lib/rummy';
 
 const POINT_LIMITS = [101, 151, 201] as const;
 
@@ -24,14 +25,22 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
   const [name, setName] = useState('');
   const [pointLimit, setPointLimit] = useState<101 | 151 | 201>(101);
   const [buyIn, setBuyIn] = useState('');
-  const [left, setLeft] = useState<string[]>([]); // members sitting this one out
+  const [picked, setPicked] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const toggle = (id: string) => setLeft((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]));
-  const close = () => { setName(''); setPointLimit(101); setBuyIn(''); setLeft([]); setError(null); onClose(); };
+  // Everyone to start with when the whole group fits at one table (up to 7, SPEC RUMMY-16).
+  useEffect(() => {
+    if (open) setPicked(group.members.length <= RUMMY_MAX_PLAYERS ? group.members.map((m) => m.id) : []);
+  }, [open, group.members]);
+  const toggle = (id: string) => {
+    if (picked.includes(id)) { setPicked((xs) => xs.filter((x) => x !== id)); setError(null); return; }
+    if (picked.length >= RUMMY_MAX_PLAYERS) { setError(`A rummy table takes up to ${RUMMY_MAX_PLAYERS} players. Untick someone first.`); return; }
+    setPicked((xs) => [...xs, id]); setError(null);
+  };
+  const close = () => { setName(''); setPointLimit(101); setBuyIn(''); setPicked([]); setError(null); onClose(); };
 
   const submit = async () => {
-    const players: NewRummyPlayer[] = group.members.filter((m) => !left.includes(m.id)).map((m) => ({ name: m.name, userId: m.user_id }));
+    const players: NewRummyPlayer[] = group.members.filter((m) => picked.includes(m.id)).map((m) => ({ name: m.name, userId: m.user_id }));
     if (players.length < 2) { setError('Pick at least two players'); return; }
     const buyInCents = buyIn.trim() ? parseMoney(buyIn) : 0;
     if (buyInCents === null || buyInCents < 0) { setError('Enter a valid buy-in, or leave it empty'); return; }
@@ -39,7 +48,7 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
     if (id) { close(); nav(`/rummy/${id}`); }
   };
 
-  const playing = group.members.length - left.length;
+  const playing = picked.length;
   return (
     <Modal open={open} onClose={close} title="New rummy game"
       footer={inProgress
@@ -75,12 +84,12 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
           Reach the limit and you're out; last one standing wins. With a buy-in, the winner takes the pot, and anyone knocked out can rejoin for another buy-in.
         </p>
         <div>
-          <span className="mb-1.5 block text-[13px] font-semibold">Players ({playing})</span>
+          <span className="mb-1.5 block text-[13px] font-semibold">Players ({playing} of up to {RUMMY_MAX_PLAYERS})</span>
           <div className="grid grid-cols-2 gap-2">
             {group.members.map((m) => {
-              const on = !left.includes(m.id);
+              const on = picked.includes(m.id);
               return (
-                <button key={m.id} type="button" role="checkbox" aria-checked={on} onClick={() => { toggle(m.id); setError(null); }}
+                <button key={m.id} type="button" role="checkbox" aria-checked={on} onClick={() => toggle(m.id)}
                   className={clsx('flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm font-semibold transition-colors',
                     on ? 'border-felt bg-felt/10' : 'border-line text-ink-2 hover:bg-surface-2')}>
                   <Avatar name={m.name} src={m.avatar_url} size={26} />

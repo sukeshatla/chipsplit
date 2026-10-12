@@ -63,8 +63,9 @@ export interface DataApi {
   loadRummyGames(groupId: string | null): Promise<RummyGame[]>;
   loadRummyGame(id: string): Promise<RummyGame | null>;
   createRummyGame(input: { groupId: string | null; name: string; pointLimit: 101 | 151 | 201; buyInCents: number; players: NewRummyPlayer[] }): Promise<string>;
-  /** Scorer only, active game: a knocked-out player buys back in at the top active total. */
-  rejoinRummyPlayer(playerId: string): Promise<void>;
+  /** Scorer only, active game: a knocked-out player buys back in, restarting at `startAt` points
+   *  (0 up to one below the limit; the app suggests the top score still in + 1, SPEC RUMMY-2). */
+  rejoinRummyPlayer(playerId: string, startAt: number): Promise<void>;
   /** Scorer only, a finished staked game: its payout goes into the Rummy group's balances as one
    *  finished game, logged once in History (SPEC RUMMY-10). Returns that game's id. */
   postRummyPayout(gameId: string, results: Pick<SessionResult, 'member_id' | 'buy_in_cents' | 'cash_out_cents'>[]): Promise<string>;

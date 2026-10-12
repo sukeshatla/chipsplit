@@ -5,13 +5,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Coins, Lock, Pencil, Plus, RotateCcw, Share2, Spade, Trash2, Trophy } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
-import { rummyCanRejoin, rummyPaid, rummyPot, rummyResult, rummyStandings, type RummyResult } from '../lib/rummy';
+import { rummyCanRejoin, rummyPaid, rummyPot, rummyRejoinStart, rummyResult, rummyStandings, type RummyResult } from '../lib/rummy';
 import { isGameHost, memberName, rummyBalanceRows, rummyTableData, shortName } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
 import { useToast } from '../app/toast';
 import { Payments } from './GameDayPage';
 import { formatDate, formatMoney } from '../lib/money';
-import { Avatar, AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, Input, Modal, PageHeader, Row, Spinner } from '../components/ui';
+import { AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, Input, Modal, PageHeader, Row, Spinner } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
 import type { Group, RummyGame, RummyPlayer } from '../lib/types';
@@ -31,6 +31,7 @@ export function RummyGamePage() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [cardPlayer, setCardPlayer] = useState<RummyPlayer | null>(null);
   const [rejoining, setRejoining] = useState<RummyPlayer | null>(null);
+  const [rejoinAt, setRejoinAt] = useState('');
   const [confirmingEdit, setConfirmingEdit] = useState(false);
   const toast = useToast();
 
@@ -66,6 +67,7 @@ export function RummyGamePage() {
   const canRejoin = isScorer && rummyCanRejoin(game, standings);
   const topActive = active.length ? Math.max(...active.map((x) => x.total)) : 0;
   const result = rummyResult(game);
+  const rejoinValid = rejoinAt !== '' && Number(rejoinAt) < game.point_limit;
 
   const editingRound = panel && panel !== 'new' ? game.rounds.find((r) => r.id === panel) ?? null : null;
   const panelPlayers = editingRound
@@ -209,7 +211,7 @@ export function RummyGamePage() {
                 <p className="min-w-0 flex-1 truncate text-sm font-semibold">{short(s.player.name)}{s.player.user_id === me.id && <span className="font-normal text-ink-2"> (you)</span>}</p>
                 {s.player.rejoins > 0 && <Badge tone="brass">↺{s.player.rejoins}</Badge>}
                 {s.eliminated && (canRejoin
-                  ? <Button size="sm" onClick={() => setRejoining(s.player)}><RotateCcw size={14} aria-hidden="true" />Rejoin</Button>
+                  ? <Button size="sm" onClick={() => { setRejoinAt(String(rummyRejoinStart(game, standings))); setRejoining(s.player); }}><RotateCcw size={14} aria-hidden="true" />Rejoin</Button>
                   : <Badge tone="loss">Out</Badge>)}
                 <span className={clsx('amount w-10 text-right font-display text-base font-medium', s.eliminated && 'text-loss')}>{s.total}</span>
               </Row>
@@ -220,33 +222,55 @@ export function RummyGamePage() {
 
       <MemberCardDialog member={cardPlayer} onClose={() => setCardPlayer(null)}
         extra={cardPlayer ? { label: 'Points this game', node: <span className="amount font-display text-base font-medium">{standings.find((x) => x.player.id === cardPlayer.id)?.total ?? 0}</span> } : undefined} />
-      <ConfirmDialog open={!!rejoining} onClose={() => setRejoining(null)} title={`Bring ${rejoining ? short(rejoining.name) : ''} back in?`} tone="primary" icon={RotateCcw} busy={busy}
-        confirmLabel="Rejoin"
-        body={rejoining && <>They restart at <b>{topActive}</b> points, the highest score still in.{staked && <> That's another <b>{money(game.buy_in_cents)}</b> buy-in, so they'll have put in <b>{money(rummyPaid(game, rejoining) + game.buy_in_cents)}</b>.</>}</>}
-        onConfirm={async () => { const pid = rejoining!.id; setRejoining(null); const ok = await run((api) => api.rejoinRummyPlayer(pid), 'Back in the game'); if (ok) refresh(); }} />
+      {/* Rejoin (SPEC RUMMY-2): starts at the top score still in + 1; the scorer confirms or changes it. */}
+      <Modal open={!!rejoining} onClose={() => setRejoining(null)} title={`Bring ${rejoining ? short(rejoining.name) : ''} back in?`}
+        footer={<><Button variant="ghost" onClick={() => setRejoining(null)}>Cancel</Button>
+          <Button variant="primary" type="submit" form="rummy-rejoin" loading={busy} disabled={!rejoinValid}><RotateCcw size={16} aria-hidden="true" />Rejoin</Button></>}>
+        <form id="rummy-rejoin" className="space-y-3" onSubmit={async (e) => {
+          e.preventDefault();
+          if (!rejoining || !rejoinValid) return;
+          const pid = rejoining.id, at = Number(rejoinAt);
+          setRejoining(null);
+          const ok = await run((api) => api.rejoinRummyPlayer(pid, at), 'Back in the game');
+          if (ok) refresh();
+        }}>
+          <label className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2">
+            <span className="text-sm">
+              <span className="block font-semibold">Restarts at</span>
+              <span className="block text-[12px] text-ink-2">Highest still in is {topActive}, so {rummyRejoinStart(game, standings)} by default</span>
+            </span>
+            <div className="w-20 shrink-0"><Input inputMode="numeric" aria-label="Restarts at" className="h-11 px-2 text-right text-base" autoFocus enterKeyHint="done"
+              value={rejoinAt} onChange={(e) => setRejoinAt(e.target.value.replace(/\D/g, ''))} /></div>
+          </label>
+          {!rejoinValid && <p className="text-[13px] text-loss">Pick a score from 0 to {game.point_limit - 1}.</p>}
+          {rejoining && staked && <p className="text-[13px] text-ink-2">That's another <b>{money(game.buy_in_cents)}</b> buy-in, so they'll have put in <b>{money(rummyPaid(game, rejoining) + game.buy_in_cents)}</b>.</p>}
+        </form>
+      </Modal>
       <Modal open={panel !== null} onClose={closePanel} title={editingRound ? `Edit round ${editingRound.round_no}` : `Round ${game.rounds.length + 1}`}
         footer={<><Button variant="ghost" onClick={closePanel}>Cancel</Button>
           <Button variant="primary" type="submit" form="rummy-round" loading={busy}>{editingRound ? 'Save changes' : 'Save round'}</Button></>}>
-        <form id="rummy-round" className="space-y-2" onSubmit={(e) => { e.preventDefault(); void saveRound(); }}>
-          <p className="text-[12px] text-ink-2">Leave the hand's winner at 0. Anyone who reaches {game.point_limit} is out.</p>
-          {panelPlayers.map((p, i) => {
-            const last = i === panelPlayers.length - 1;
-            const now = standings.find((x) => x.player.id === p.id)?.total ?? 0;
-            return (
-              <label key={p.id} className="flex items-center gap-3 rounded-xl border border-line px-3 py-2">
-                <Avatar name={p.name} src={p.avatar_url} size={30} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{short(p.name)}</span>
-                  <span className="block text-[11px] text-ink-2">{now} points{editingRound ? ' in total' : ' so far'}</span>
-                </span>
-                <div className="w-20 shrink-0"><Input inputMode="numeric" aria-label={`${p.name} points`} className="h-11 px-2 text-right text-base" placeholder="0"
-                  autoFocus={i === 0} data-entry="rummy" enterKeyHint={last ? 'done' : 'next'} onKeyDown={last ? undefined : enterToNext}
-                  onFocus={(e) => { const el = e.currentTarget; setTimeout(() => el.scrollIntoView({ block: 'nearest' }), 300); }}
-                  value={inputs[p.id] ?? ''} onChange={(e) => { setInputs((v) => ({ ...v, [p.id]: e.target.value.replace(/\D/g, '') })); setRoundError(null); }} /></div>
-              </label>
-            );
-          })}
-          {roundError && <p className="text-[13px] text-loss">{roundError}</p>}
+        {/* Two small boxes to a row, so every player (up to 7) fits above the keyboard without
+            scrolling (SPEC RUMMY-12). */}
+        <form id="rummy-round" onSubmit={(e) => { e.preventDefault(); void saveRound(); }}>
+          <p className="mb-2 text-[12px] text-ink-2">Leave the hand's winner at 0. Out at {game.point_limit}.</p>
+          <div className="grid grid-cols-2 gap-2">
+            {panelPlayers.map((p, i) => {
+              const last = i === panelPlayers.length - 1;
+              const now = standings.find((x) => x.player.id === p.id)?.total ?? 0;
+              return (
+                <label key={p.id} className="flex min-w-0 items-center gap-2 rounded-lg border border-line py-1 pl-2.5 pr-1">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold leading-tight">{short(p.name)}</span>
+                    <span className="block text-[11px] leading-tight text-ink-2">{now} pts</span>
+                  </span>
+                  <div className="w-14 shrink-0"><Input inputMode="numeric" aria-label={`${p.name} points`} className="h-9 px-2 text-right" placeholder="0"
+                    autoFocus={i === 0} data-entry="rummy" enterKeyHint={last ? 'done' : 'next'} onKeyDown={last ? undefined : enterToNext}
+                    value={inputs[p.id] ?? ''} onChange={(e) => { setInputs((v) => ({ ...v, [p.id]: e.target.value.replace(/\D/g, '') })); setRoundError(null); }} /></div>
+                </label>
+              );
+            })}
+          </div>
+          {roundError && <p className="mt-2 text-[13px] text-loss">{roundError}</p>}
         </form>
       </Modal>
       <ConfirmDialog open={confirmingEdit} onClose={() => setConfirmingEdit(false)} title={`Change round ${editingRound?.round_no ?? ''}?`} tone="primary" icon={Pencil} busy={busy}

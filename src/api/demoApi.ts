@@ -1,6 +1,6 @@
 import type { AppData, ChangeLogEntry, Contact, Group, RummyGame, RummyPlayer } from '../lib/types';
 import type { DataApi } from './types';
-import { rummyStandings } from '../lib/rummy';
+import { RUMMY_MAX_PLAYERS, rummyStandings } from '../lib/rummy';
 import { isGroupSettled, isSessionSettled, memberHasActivity } from '../lib/ledger';
 import { seedChangeLog, seedDemo, uid } from './seed';
 
@@ -393,6 +393,7 @@ export const demoApi: DataApi = {
     if (!groupId || d.groups.find((g) => g.id === groupId)?.kind !== 'rummy') throw new Error('Rummy games are played in a Rummy group');
     assertNoActiveRummy(d, groupId);
     if (players.length < 2) throw new Error('Add at least two players');
+    if (players.length > RUMMY_MAX_PLAYERS) throw new Error(`A rummy table takes up to ${RUMMY_MAX_PLAYERS} players`);
     if (buyInCents < 0) throw new Error("The buy-in can't be negative");
     const id = uid();
     const rummyPlayers: RummyPlayer[] = players.map((p) => ({ id: uid(), rummy_game_id: id, user_id: p.userId, name: p.name, rejoins: 0, score_offset: 0 }));
@@ -442,7 +443,7 @@ export const demoApi: DataApi = {
     }
   }),
 
-  rejoinRummyPlayer: (playerId) => mutate((d) => {
+  rejoinRummyPlayer: (playerId, startAt) => mutate((d) => {
     const g = d.rummyGames.find((x) => x.players.some((p) => p.id === playerId));
     if (!g) throw new Error('That player no longer exists');
     if (g.scorer_id !== d.me.id || g.status !== 'active') throw new Error('Only the scorer can bring a player back, while the game is active');
@@ -451,10 +452,11 @@ export const demoApi: DataApi = {
     if (!me.eliminated) throw new Error('That player is still in');
     const active = standings.filter((s) => !s.eliminated);
     if (active.length < 2) throw new Error('Rejoining needs at least two players still in');
-    const top = Math.max(...active.map((s) => s.total));
+    // Same as the server (0028): any start from 0 up to one below the limit.
+    if (!Number.isInteger(startAt) || startAt < 0 || startAt >= g.point_limit) throw new Error(`Pick a starting score from 0 to below ${g.point_limit}`);
     const p = g.players.find((x) => x.id === playerId)!;
     p.rejoins += 1;
-    p.score_offset += top - me.total;
+    p.score_offset += startAt - me.total;
     logRummy(d, g, (n) => `Brought ${p.name} back into ${n}`);
   }),
 

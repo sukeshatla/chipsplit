@@ -284,3 +284,26 @@ describe('[PLAT-4] one game at a time', () => {
     await expect(api.deleteRummyGame(gameId)).rejects.toThrow(/scorer/);
   });
 });
+
+describe('[PLAT-4] rummy table size and rejoining', () => {
+  it('[RUMMY-16] a rummy game takes 2 to 7 players', async () => {
+    const { id } = await newGroup('rummy');
+    const seat = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `P${i}`, userId: null }));
+    await expect(api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 0, players: seat(8) })).rejects.toThrow(/7 players/);
+    await expect(api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 0, players: seat(1) })).rejects.toThrow(/two players/);
+    await api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 0, players: seat(7) });
+  });
+
+  it('[RUMMY-2] the scorer brings a player back at the start they confirm, within the limit', async () => {
+    const { id } = await newGroup('rummy');
+    const players = ['A', 'B', 'C'].map((name) => ({ name, userId: null }));
+    const gameId = await api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 0, players });
+    const [a, b, c] = (await api.loadRummyGame(gameId))!.players;
+    await api.addRummyRound(gameId, [{ playerId: a!.id, points: 110 }, { playerId: b!.id, points: 50 }, { playerId: c!.id, points: 0 }]);
+    await expect(api.rejoinRummyPlayer(a!.id, 101)).rejects.toThrow(/below 101/);
+    await api.rejoinRummyPlayer(a!.id, 51);
+    const { rummyStandings } = await import('../lib/rummy');
+    const back = rummyStandings((await api.loadRummyGame(gameId))!).find((s) => s.player.id === a!.id)!;
+    expect([back.total, back.eliminated, back.player.rejoins]).toEqual([51, false, 1]);
+  });
+});

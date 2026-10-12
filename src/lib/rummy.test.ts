@@ -23,6 +23,12 @@ describe('rummy', () => {
     expect(rummyPot(g)).toBe(4000); // 3 buy-ins + 1 rejoin
   });
 
+  it('[RUMMY-2] a rejoin starts at the highest score still in plus one, never past the limit', async () => {
+    const { rummyRejoinStart } = await import('./rummy');
+    expect(rummyRejoinStart(game({}, [[110, 20, 10], [0, 30, 0]]))).toBe(51); // b's 50 + 1
+    expect(rummyRejoinStart(game({}, [[110, 100, 10]]))).toBe(100); // 100 + 1 would be out at 101
+  });
+
   it('[RUMMY-2] only allows rejoining while two or more are still in', () => {
     expect(rummyCanRejoin(game({}, [[110, 20, 10]]))).toBe(true);
     expect(rummyCanRejoin(game({}, [[110, 120, 10]]))).toBe(false);

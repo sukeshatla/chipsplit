@@ -17,6 +17,17 @@ export function rummyStandings(g: RummyGame): RummyStanding[] {
     .sort((a, b) => a.total - b.total);
 }
 
+/** Where a rejoining player restarts by default (SPEC RUMMY-2): one above the highest score still
+ *  in, but never at or past the limit. The scorer can change it before confirming. */
+export function rummyRejoinStart(g: RummyGame, standings = rummyStandings(g)): number {
+  const active = standings.filter((s) => !s.eliminated);
+  const top = active.length ? Math.max(...active.map((s) => s.total)) : 0;
+  return Math.min(top + 1, g.point_limit - 1);
+}
+
+/** Most players at one rummy table (SPEC RUMMY-16). */
+export const RUMMY_MAX_PLAYERS = 7;
+
 export function rummyActivePlayers(g: RummyGame): RummyPlayer[] {
   return rummyStandings(g).filter((s) => !s.eliminated).map((s) => s.player);
 }
