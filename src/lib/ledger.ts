@@ -1,7 +1,7 @@
 import type { AppData, ChangeLogEntry, GameSession, Group, RummyGame, RummyPlayer, SessionResult } from './types';
 import { rummyResult, rummyStandings } from './rummy';
 import { settle, type Transfer } from './settle';
-import { formatDate, formatMoney } from './money';
+import { formatDate, formatMoney, localDay } from './money';
 
 /** Someone actually played: bought in, cashed out, or gave chips back. A row of zeros is someone
  *  who was put at the table but sat out. */
@@ -601,7 +601,7 @@ export function rummyTableData(game: RummyGame, g: Group): Summary {
   const pot = game.players.reduce((a, p) => a + game.buy_in_cents * (1 + (p.rejoins ?? 0)), 0);
   return {
     title: g.name,
-    when: formatDate(game.created_at.slice(0, 10), { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+    when: formatDate(localDay(game.created_at), { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
     place: game.name, currency: g.currency, rows: [], transfers: [],
     rummy: { final: game.status === 'finished', limit: game.point_limit, buyIn: game.buy_in_cents, pot, rows },
   };

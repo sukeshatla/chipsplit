@@ -2,10 +2,10 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Club } from 'lucide-react';
 import { useAuth } from '../app/auth';
-import { rummyLeaderboard, shortName } from '../lib/ledger';
+import { isSessionSettled, rummyLeaderboard, shortName } from '../lib/ledger';
 import { Leaderboard } from '../components/Leaderboard';
 import { rummyPot, rummyStandings } from '../lib/rummy';
-import { formatDate, formatMoney } from '../lib/money';
+import { formatDate, formatMoney, localDay } from '../lib/money';
 import { Badge, Button, Card, CardHeader, EmptyState, Row, Spinner, useShowMore } from '../components/ui';
 import type { Group } from '../lib/types';
 
@@ -43,16 +43,27 @@ export function RummyGames({ g, onNew }: { g: Group; onNew(): void }) {
         <div className="mt-2">
           {list.visible.map((rg) => {
             const leader = rummyStandings(rg)[0];
+            const day = localDay(rg.created_at);
+            // Same as a poker game's row (SPEC RUMMY-9): date, name, players and pot, then
+            // In progress / Unsettled until its payout is paid / Settled.
+            const payout = rg.session_id ? g.sessions.find((x) => x.id === rg.session_id) : undefined;
+            const unsettled = rg.buy_in_cents > 0 && (!payout || !isSessionSettled(g, payout));
             return (
               <Link key={rg.id} to={`/rummy/${rg.id}`} className="block">
                 <Row className="hover:bg-surface-2/60">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2"><Club size={16} aria-hidden="true" /></span>
+                  <div className="w-11 shrink-0 text-center">
+                    <p className="text-[11px] font-semibold text-ink-2">{formatDate(day, { month: 'short' })}</p>
+                    <p className="font-display text-xl font-medium leading-none">{formatDate(day, { day: 'numeric' })}</p>
+                  </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{rg.name || 'Rummy'}</p>
-                    <p className="truncate text-[12px] text-ink-2">{rg.players.length} players, out at {rg.point_limit}{rg.buy_in_cents > 0 ? `, ${formatMoney(rummyPot(rg), g.currency)} pot` : ''}, {formatDate(rg.created_at)}</p>
+                    <p className="truncate text-[12px] text-ink-2">
+                      {rg.players.length} players{rg.buy_in_cents > 0 ? `, ${formatMoney(rummyPot(rg), g.currency)} pot` : ''}, out at {rg.point_limit}
+                      {rg.status === 'active' && leader ? `, ${shortName(leader.player.name, rg.players.map((x) => x.name))} leads` : ''}
+                    </p>
                   </div>
-                  {rg.status === 'active' ? <Badge tone="brass">In progress</Badge> : <Badge tone="gain">Final</Badge>}
-                  {leader && <span className="hidden text-[12px] text-ink-2 sm:inline">{shortName(leader.player.name, rg.players.map((x) => x.name))} leads</span>}
+                  {rg.status === 'active' ? <Badge tone="brass">In progress</Badge>
+                    : unsettled ? <Badge tone="loss">Unsettled</Badge> : <Badge tone="gain">Settled</Badge>}
                   <ChevronRight size={16} className="text-ink-2" aria-hidden="true" />
                 </Row>
               </Link>

@@ -6,7 +6,7 @@ function game(over: Partial<RummyGame> = {}, scores: number[][] = []): RummyGame
   const players = ['a', 'b', 'c'].map((id) => ({ id, rummy_game_id: 'g', user_id: null, name: id.toUpperCase(), rejoins: 0, score_offset: 0 }));
   return {
     id: 'g', group_id: null, name: null, point_limit: 101, buy_in_cents: 1000, session_id: null, status: 'active',
-    scorer_id: 'me', winner_player_id: null, created_at: '', finished_at: null, players,
+    scorer_id: 'me', winner_player_id: null, created_at: '2026-10-03T18:00:00Z', finished_at: null, players,
     rounds: scores.map((row, i) => ({ id: `r${i}`, round_no: i + 1, created_at: '', scores: row.map((points, j) => ({ player_id: players[j]!.id, points })) })),
     ...over,
   };

@@ -85,9 +85,15 @@ export function equalPercents(n: number): string[] {
 }
 
 export function todayISO() {
-  const d = new Date();
-  const off = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - off).toISOString().slice(0, 10);
+  return localDay(new Date().toISOString());
+}
+
+/** The local calendar day (YYYY-MM-DD) of a timestamp: a game started at 9pm stays on that day
+ *  instead of the next one in UTC. */
+export function localDay(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
 export function formatDate(iso: string, opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }) {

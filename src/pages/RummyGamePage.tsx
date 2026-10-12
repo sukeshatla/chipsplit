@@ -10,7 +10,7 @@ import { isGameHost, isSessionSettled, memberName, rummyBalanceRows, rummyTableD
 import { shareSummaryImage } from '../lib/summaryImage';
 import { useToast } from '../app/toast';
 import { Payments } from './GameDayPage';
-import { formatDate, formatMoney } from '../lib/money';
+import { formatDate, formatMoney, localDay } from '../lib/money';
 import { AvatarButton, BackLink, enterToNext, Badge, Button, Card, CardHeader, Input, Modal, PageHeader, Row, Spinner } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
@@ -119,6 +119,7 @@ export function RummyGamePage() {
         title={game.name || 'Rummy'}
         subtitle={<span className="flex flex-wrap items-center gap-2">
           {game.status === 'active' ? <Badge tone="brass">In progress</Badge> : <Badge tone="gain"><Lock size={12} aria-hidden="true" />Final</Badge>}
+          <span>{formatDate(localDay(game.created_at), { weekday: 'short', month: 'short', day: 'numeric' })}</span>
           <span>Out at {game.point_limit} points</span>
           <span>{game.players.length} players</span>
           {staked && <span>{money(game.buy_in_cents)} buy-in · pot {money(rummyPot(game))}</span>}
