@@ -6,7 +6,7 @@ import { directBalanceRows, friendsList, hasActivity, isSettledFriend, memberSho
 import { formatMoney } from '../lib/money';
 import { Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, LIST_STEP, MonthHeader, Row, ShowMore } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { GroupIcon } from './GroupsPage';
+import { GroupIcon } from '../components/GroupKind';
 import { SettleDialog, type SettleDraft } from '../components/dialogs/SettleDialog';
 import { ExpenseDialog } from '../components/dialogs/ExpenseDialog';
 import { ExpenseDetailDialog } from '../components/dialogs/ExpenseDetailDialog';

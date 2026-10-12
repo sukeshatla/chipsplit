@@ -30,7 +30,7 @@ export function RummyGamePage() {
 
   const q = useQuery({ queryKey: ['rummy', id], queryFn: () => api.loadRummyGame(id!), enabled: !!id });
 
-  if (!id) return <Navigate to="/rummy" replace />;
+  if (!id) return <Navigate to="/groups" replace />;
   if (q.isLoading) return <Spinner />;
   if (q.isError) {
     return (
@@ -42,7 +42,7 @@ export function RummyGamePage() {
     );
   }
   const game = q.data;
-  if (!game) return <Navigate to="/rummy" replace />;
+  if (!game) return <Navigate to="/groups" replace />;
 
   const group = game.group_id ? groups.find((g) => g.id === game.group_id) : null;
   const standings = rummyStandings(game);
@@ -96,7 +96,7 @@ export function RummyGamePage() {
   return (
     <>
       <PageHeader
-        back={<BackLink to={group ? `/groups/${group.id}/rummy` : '/rummy'} label={group ? group.name : 'Rummy'} />}
+        back={<BackLink to={group ? `/groups/${group.id}` : '/groups'} label={group ? group.name : 'Groups'} />}
         title={game.name || 'Rummy'}
         subtitle={<span className="flex flex-wrap items-center gap-2">
           <Badge tone={game.status === 'active' ? 'felt' : 'neutral'}>{game.status === 'active' ? 'Active' : 'Finished'}</Badge>
@@ -237,22 +237,22 @@ export function RummyGamePage() {
         onConfirm={async () => {
           setConfirmingDelete(false);
           const ok = await run((api) => api.deleteRummyGame(game.id), 'Rummy game deleted');
-          if (ok) { qc.invalidateQueries({ queryKey: ['rummy-list'] }); nav(group ? `/groups/${group.id}/rummy` : '/rummy'); }
+          if (ok) { qc.invalidateQueries({ queryKey: ['rummy-list'] }); nav(group ? `/groups/${group.id}` : '/groups'); }
         }} />
     </>
   );
 }
 
-/** Money after a staked game ends: who put in what, who pays whom, and (for a club game)
- *  posting it as a finalized club game so it lands in the club's balances and settle-up. */
+/** Money after a staked game ends: who put in what, who pays whom, and posting it as a finished
+ *  game in its Rummy group, so it lands in the group's balances and settle-up. */
 function Payout({ game, group, result, isScorer, money, short, onPosted }: {
   game: RummyGame; group: Group | null; result: RummyResult; isScorer: boolean;
   money(c: number): string; short(n: string): string; onPosted(): void;
 }) {
   const { run, busy } = useAction();
   const name = (id: string) => short(game.players.find((p) => p.id === id)?.name ?? 'Someone');
-  // A rummy player maps to a club member by linked account, else by exact name (rosters are
-  // picked from the club's members, so names line up unless someone was renamed since).
+  // A rummy player maps to a group member by linked account, else by exact name (rosters are
+  // picked from the group's members, so names line up unless someone was renamed since).
   const memberFor = (p: RummyPlayer) => group?.members.find((m) => (p.user_id && m.user_id === p.user_id) || m.name === p.name);
   const mapped = game.players.map((p) => memberFor(p)?.id);
   const unmatched = game.players.filter((_, i) => !mapped[i]);
@@ -264,7 +264,7 @@ function Payout({ game, group, result, isScorer, money, short, onPosted }: {
     await api.saveSessionResults(sid, result.rows.map((r, i) => ({ member_id: mapped[i]!, buy_in_cents: r.paid, cash_out_cents: r.won })));
     await api.updateSession(sid, { status: 'final' });
     await api.linkRummySession(game.id, sid);
-  }, 'Added to club balances').then((ok) => { if (ok) onPosted(); });
+  }, 'Added to group balances').then((ok) => { if (ok) onPosted(); });
 
   return (
     <Card>
@@ -291,7 +291,7 @@ function Payout({ game, group, result, isScorer, money, short, onPosted }: {
               <Button variant="primary" className="w-full" loading={busy} disabled={unmatched.length > 0 || duplicate} onClick={post}>Add to {group.name} balances</Button>
               <p className="mt-1.5 text-[12px] text-ink-2">
                 {unmatched.length > 0 ? `${unmatched.map((p) => p.name).join(', ')} ${unmatched.length === 1 ? "isn't" : "aren't"} in ${group.name} by that name, so this can't be added. Settle these payments directly instead.`
-                  : 'Records this as a finished club game, so the payments show up in Settle up with everything else.'}
+                  : 'Records this as a finished game in the group, so the payments show up in Settle up with everything else.'}
               </p>
             </>
           ) : <p className="text-[12px] text-ink-2">The scorer can add this to {group.name}'s balances.</p>}

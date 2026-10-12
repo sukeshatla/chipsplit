@@ -188,37 +188,6 @@ describe('notificationLink', () => {
   });
 });
 
-describe('summaryMailto', async () => {
-  const { summaryMailto } = await import('./ledger');
-  const g: Group = {
-    id: 'g', name: 'Roommates', kind: 'expenses', currency: 'USD', created_by: null, created_at: '',
-    members: [
-      { id: 'a', group_id: 'g', user_id: null, contact_id: null, name: 'Ana', email: 'ana@x.com', email_opt_out: false, is_admin: true },
-      { id: 'b', group_id: 'g', user_id: null, contact_id: null, name: 'Bo', email: 'bo@x.com', email_opt_out: true, is_admin: false },
-      { id: 'c', group_id: 'g', user_id: null, contact_id: null, name: 'Cy', email: null, email_opt_out: false, is_admin: false },
-    ],
-    expenses: [{
-      id: 'e', group_id: 'g', description: 'Rent', category: 'housing', amount_cents: 3000, spent_on: '2026-01-01',
-      created_by: null, created_at: '', payers: [{ member_id: 'a', amount_cents: 3000 }],
-      shares: splitEqual(3000, ['a', 'b', 'c']),
-    }],
-    sessions: [], settlements: [],
-  };
-  it('[SHARE-1] only includes recipients with an email who have not opted out', () => {
-    const url = summaryMailto(g);
-    expect(url.startsWith('mailto:ana%40x.com')).toBe(true);
-    expect(url).not.toContain('bo%40x.com');
-    expect(url).not.toContain('cy%40x.com');
-  });
-  it('[SHARE-1] names everyone with a nonzero balance in the body', () => {
-    const url = summaryMailto(g);
-    const body = decodeURIComponent(url.split('body=')[1]!);
-    expect(body).toContain('Ana');
-    expect(body).toContain('Bo');
-    expect(body).toContain('Cy');
-  });
-});
-
 describe('summaryData', async () => {
   const { summaryData } = await import('./ledger');
   const mem = (id: string) => ({ id, group_id: 'g', user_id: null, contact_id: null, name: id.toUpperCase(), email: `${id}@x.com`, email_opt_out: false, is_admin: true });
@@ -232,7 +201,6 @@ describe('summaryData', async () => {
   it('[SHARE-2] a game covers only the people who played, with its date and place', () => {
     const d = summaryData(g, 's');
     expect(d.rows.map((r) => r.id)).toEqual(['a', 'b']);
-    expect(d.recipients).toEqual(['a@x.com', 'b@x.com']);
     expect(d.place).toBe("Ravi's");
   });
   it('[SHARE-2] marks a game payment paid once it is recorded', () => {
@@ -243,7 +211,6 @@ describe('summaryData', async () => {
   it('[SHARE-2] a group covers every member, settled or not', () => {
     const d = summaryData(g);
     expect(d.rows.map((r) => r.id).sort()).toEqual(['a', 'b', 'c', 'd']);
-    expect(d.recipients).toHaveLength(4);
     expect(d.place).toBeNull();
   });
 });

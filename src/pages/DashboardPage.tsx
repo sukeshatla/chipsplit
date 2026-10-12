@@ -6,7 +6,7 @@ import { useData } from '../app/data';
 import { activity, friendsList, groupBalances, isGameHost, listedGroups, moneyPhrase, myMemberId, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row, useShowMore } from '../components/ui';
-import { GroupIcon } from './GroupsPage';
+import { GroupIcon } from '../components/GroupKind';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import { QuickExpenseDialog } from '../components/dialogs/QuickExpenseDialog';
 
@@ -102,7 +102,7 @@ export function DashboardPage() {
         <CardHeader title="Groups" />
         <div className="mt-2">
           {groups.length === 0 ? (
-            <EmptyState icon={<Spade size={28} />} title="Start your first group" body="A club holds your card games, or make a group for shared expenses."
+            <EmptyState icon={<Spade size={28} />} title="Start your first group" body="A poker or rummy group for your card nights, or an expense group for shared costs."
               action={<Button variant="primary" onClick={() => setNewGroup(true)}>Create group</Button>} />
           ) : groupsMore.visible.map(({ g, bal }) => {
             return (

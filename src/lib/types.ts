@@ -1,5 +1,5 @@
-/** 'club' = a standing group of people you play games with repeatedly; also holds expenses. */
-export type GroupKind = 'expenses' | 'club';
+/** 'club' is a Poker group (its database name); see SPEC GROUP-1. */
+export type GroupKind = 'club' | 'expenses' | 'rummy';
 
 export interface Profile {
   id: string;

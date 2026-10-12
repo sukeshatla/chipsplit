@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { ArrowLeft, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, X, Loader2 } from 'lucide-react';
 import { currencySymbol, formatDate, formatMoney } from '../lib/money';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -40,6 +40,28 @@ export function CardHeader({ title, action, className }: { title: ReactNode; act
       <h2 className="font-display text-base font-medium text-ink">{title}</h2>
       {action}
     </div>
+  );
+}
+
+/** A card whose body opens and closes from its header. `summary` stays visible while it's closed,
+ *  so a collapsed card still says what's inside ("4 payments"). `action` sits outside the toggle. */
+export function CollapsibleCard({ title, summary, action, defaultOpen = true, children }: {
+  title: ReactNode; summary?: ReactNode; action?: ReactNode; defaultOpen?: boolean; children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Card>
+      <div className={clsx('flex items-center gap-3 px-4 md:px-5', open ? 'pt-4' : 'py-3.5')}>
+        <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)}
+          className="flex min-h-[40px] min-w-0 flex-1 items-center gap-2 text-left">
+          <ChevronDown size={18} className={clsx('shrink-0 text-ink-2 transition-transform', !open && '-rotate-90')} aria-hidden="true" />
+          <h2 className="shrink-0 font-display text-base font-medium text-ink">{title}</h2>
+          {summary && <span className="min-w-0 truncate text-[13px] text-ink-2">{summary}</span>}
+        </button>
+        {action}
+      </div>
+      {open && children}
+    </Card>
   );
 }
 

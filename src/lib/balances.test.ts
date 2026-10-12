@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { friendsList, groupBalances, pokerLeaderboard } from './ledger';
+import { friendsList, groupBalances, myPokerGames, pokerLeaderboard, pokerStats } from './ledger';
 import { data, expense, game, group, meMember, member, payment } from '../test/fixtures';
 
 describe('balances', () => {
@@ -45,5 +45,18 @@ describe('leaderboard', () => {
     const [first, second] = pokerLeaderboard(g);
     expect(first).toMatchObject({ memberId: 'a', net: 1000, games: 2, wins: 1, best: 2000 });
     expect(second).toMatchObject({ memberId: 'b', net: -1000, games: 2, wins: 1, best: 1000 });
+  });
+});
+
+describe('the Poker page', () => {
+  it('[GAME-10] lists and counts only games you played in Poker groups', () => {
+    const poker = group({ id: 'p', kind: 'club', members: [meMember('me'), member('b')],
+      sessions: [game('night', { me: [1000, 3000], b: [3000, 1000] }), game('sat-out', { b: [1000, 1000] })] });
+    // A rummy payout posted to a Rummy group's balances is stored like a game, but isn't poker.
+    const rummy = group({ id: 'r', kind: 'rummy', members: [meMember('me2'), member('c')],
+      sessions: [game('payout', { me2: [500, 0], c: [0, 500] })] });
+    const d = data([poker, rummy]);
+    expect(myPokerGames(d).map(({ s }) => s.id)).toEqual(['night']);
+    expect(pokerStats(d)).toMatchObject({ games: 1, net: 2000 });
   });
 });

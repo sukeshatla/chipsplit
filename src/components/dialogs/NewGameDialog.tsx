@@ -35,7 +35,7 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
   const toggle = (id: string) => setPlayers((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   const submit = async () => {
-    if (!group) { setError('Create a Club first'); return; }
+    if (!group) { setError('Create a poker group first'); return; }
     const cents = parseMoney(buyIn) ?? 0;
     if (cents <= 0) { setBuyInError('Enter the buy-in per player'); return; }
     if (players.length < 2) { setError('Pick at least two players'); return; }
@@ -51,7 +51,7 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
     <Modal open={open} onClose={onClose} title="Start a game"
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} onClick={submit}>Start game</Button></>}>
       {clubGroups.length === 0 ? (
-        <p className="text-sm text-ink-2">Create a Club first, then start a game from it.</p>
+        <p className="text-sm text-ink-2">Create a poker group first, then start a game from it.</p>
       ) : (
         <div className="space-y-4">
           {!groupId && (

@@ -6,7 +6,7 @@ import { Check, Loader2, Lock, Minus, LockOpen, Mail, Plus, RotateCcw, Share2, T
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { useToast } from '../app/toast';
-import { isGameHost, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, gameTableData, summaryMailto } from '../lib/ledger';
+import { isGameHost, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, gameTableData } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
 import { ActionBar, ActionButton } from '../components/ActionBar';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
@@ -195,11 +195,8 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         </span>}
         actions={<>
           {final ? (
-            <ActionBar>
-              {/* Email here; pictures from the Players and Settle up cards (SPEC SHARE-11). */}
-              <ActionButton icon={<Mail size={16} aria-hidden="true" />} onClick={() => { window.location.href = summaryMailto(g, s.id); }}>Email summary</ActionButton>
-              {host && <ActionButton icon={<LockOpen size={16} aria-hidden="true" />} onClick={reopen}>Reopen</ActionButton>}
-            </ActionBar>
+            // Pictures come from the Players and Settle up cards (SPEC SHARE-11).
+            host && <ActionBar><ActionButton icon={<LockOpen size={16} aria-hidden="true" />} onClick={reopen}>Reopen</ActionButton></ActionBar>
           ) : (<>
             {/* Mid-game there's nothing to email (nobody owes anything yet); the Players card shares the table. */}
             {host && <SaveStatus state={saveState} onRetry={() => void persist()} />}
@@ -342,8 +339,8 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
         confirmLabel="Delete game" busy={busy}
         blocked={final && !settled ? 'Settle up everyone at this table first — open Settle up below to record the remaining payments.' : undefined}
         body={<>This removes <b>{rows.length} player{rows.length === 1 ? '' : 's'}</b>{final ? <>, <b>{formatMoney(pot, g.currency)}</b> in recorded buy-ins</> : ''}
-          {gamePayments > 0 && <>, and the <b>{gamePayments} payment{gamePayments === 1 ? '' : 's'}</b> marked for this game</>} from the club.
-          {gamePayments > 0 && ' Everyone\'s club balance stays exactly as it was before this game.'} You can restore it from the group's History tab.</>}
+          {gamePayments > 0 && <>, and the <b>{gamePayments} payment{gamePayments === 1 ? '' : 's'}</b> marked for this game</>} from the group.
+          {gamePayments > 0 && ' Everyone\'s group balance stays exactly as it was before this game.'} You can restore it from the group's History tab.</>}
         onConfirm={async () => {
           const ok = await run((api) => api.deleteSession(s.id), 'Game deleted');
           if (ok !== undefined) nav(`/groups/${g.id}?tab=games`);

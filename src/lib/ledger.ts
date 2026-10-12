@@ -402,20 +402,26 @@ export function pokerLeaderboard(g: Group): LeaderRow[] {
   return [...rows.values()].sort((a, b) => b.net - a.net);
 }
 
+/** Buy-in games you played in Poker groups, in progress first, then newest (SPEC GAME-10). A
+ *  Rummy group's balances also hold games (its posted payouts); those aren't poker. */
+export function myPokerGames(data: AppData): { g: Group; s: GameSession }[] {
+  return data.groups.filter((g) => g.kind === 'club').flatMap((g) => {
+    const mine = myMemberId(g, data.me.id);
+    return g.sessions.filter((s) => s.results.some((r) => r.member_id === mine && playedIn(r))).map((s) => ({ g, s }));
+  }).sort((a, b) => (a.s.status === b.s.status ? b.s.played_on.localeCompare(a.s.played_on) : a.s.status === 'open' ? -1 : 1));
+}
+
 export function pokerStats(data: AppData) {
   let net = 0, games = 0, wins = 0, best = 0, worst = 0;
-  for (const g of data.groups) {
-    const mine = myMemberId(g, data.me.id);
-    for (const s of g.sessions) {
-      if (s.status !== 'final') continue;
-      const r = s.results.find((x) => x.member_id === mine);
-      if (!r || !playedIn(r)) continue;
-      const n = resultNet(r);
-      net += n; games += 1;
-      if (n > 0) wins += 1;
-      best = Math.max(best, n);
-      worst = Math.min(worst, n);
-    }
+  for (const { g, s } of myPokerGames(data)) {
+    if (s.status !== 'final') continue;
+    const r = s.results.find((x) => x.member_id === myMemberId(g, data.me.id));
+    if (!r) continue;
+    const n = resultNet(r);
+    net += n; games += 1;
+    if (n > 0) wins += 1;
+    best = Math.max(best, n);
+    worst = Math.min(worst, n);
   }
   return { net, games, wins, best, worst, winRate: games ? Math.round((wins / games) * 100) : 0 };
 }
@@ -435,15 +441,13 @@ export interface Summary {
   rows: SummaryRow[];
   /** `paid`: already recorded as a payment for this game (games only). */
   transfers: (Transfer & { paid?: boolean })[];
-  recipients: string[];
   /** Set for a game (in progress or final): the table, the buy-in, and what's on it. */
   live?: { final: boolean; buyInAmount: number; totalIn: number; buyIns: number | null; totalBack: number; totalCashOut: number; pot: number };
 }
 
 /**
- * What a "Send summary" shares. Pass `sessionId` for one game: only the people who played
+ * What a group or game picture shows. Pass `sessionId` for one game: only the people who played
  * (bought in or cashed out). Omit it for the whole group: every member, settled or not.
- * Members who opted out (or have no email on file) are left off the recipient list.
  */
 export function summaryData(g: Group, sessionId?: string): Summary {
   const session = sessionId ? g.sessions.find((s) => s.id === sessionId) : undefined;
@@ -460,7 +464,6 @@ export function summaryData(g: Group, sessionId?: string): Summary {
     currency: g.currency,
     rows,
     transfers: session ? sessionPayments(g, session).map(({ settlementId, ...t }) => ({ ...t, paid: !!settlementId })) : simplify(bal),
-    recipients: g.members.filter((m) => m.email && !m.email_opt_out && bal.has(m.id)).map((m) => m.email!),
   };
 }
 
@@ -500,7 +503,6 @@ export function gameTableData(g: Group, s: GameSession, allRows: LiveRow[]): Sum
       buyIn: r.buy_in_cents, buyIns: counts[i]!, back: r.returned_cents ?? 0, cashOut: r.cash_out_cents,
     })).sort((a, b) => rank(b) - rank(a) || b.buyIn - a.buyIn || a.name.localeCompare(b.name)),
     transfers: final ? sessionPayments(g, s).map(({ settlementId, ...t }) => ({ ...t, paid: !!settlementId })) : [],
-    recipients: [],
     live: {
       final, buyInAmount: unit, totalIn, totalBack, totalCashOut,
       buyIns: counts.every((c) => c !== null) ? counts.reduce<number>((a, c) => a + c!, 0) : null,
@@ -508,26 +510,6 @@ export function gameTableData(g: Group, s: GameSession, allRows: LiveRow[]): Sum
       pot: totalIn - totalBack - totalCashOut,
     },
   };
-}
-
-/** A `mailto:` link with a plain-text version of `summaryData` (mail apps won't take HTML from a link). */
-export function summaryMailto(g: Group, sessionId?: string): string {
-  const d = summaryData(g, sessionId);
-  const subject = `Chip n Split summary — ${d.title}${d.place ? `, ${d.place}` : ''}`;
-  const lines: string[] = [d.title, [d.when, d.place && `📍 ${d.place}`].filter(Boolean).join('  ·  '), ''];
-  for (const r of d.rows) {
-    const amount = formatMoney(Math.abs(r.cents), d.currency);
-    lines.push(r.cents > 0 ? `🟢 ${r.name} ${sessionId ? 'won' : 'is owed'} ${amount}`
-      : r.cents < 0 ? `🔴 ${r.name} ${sessionId ? 'lost' : 'owes'} ${amount}`
-      : `⚪ ${r.name} ${sessionId ? 'broke even' : 'is settled up'}`);
-  }
-  lines.push('', 'Settle up:');
-  if (d.transfers.length === 0) lines.push('  ✅ Everyone is settled up.');
-  else d.transfers.forEach((t) => lines.push(`  ${t.paid ? '✅' : '⬜'} ${memberName(g, t.from)} → ${memberName(g, t.to)}   ${formatMoney(t.cents, d.currency)}${t.paid ? '  (paid)' : ''}`));
-  lines.push('', '— Sent from Chip n Split');
-
-  const to = d.recipients.map(encodeURIComponent).join(',');
-  return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
 }
 
 /** A `mailto:` reminder addressed to just the one person who owes this transfer. Returns

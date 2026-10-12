@@ -27,7 +27,7 @@ fees, no ads) over protecting strangers from each other.
 
 - **One ledger, two activities.** Card games and shared expenses settle through the same
   balances, because in practice the people you play with are often the people you split the
-  pizza with. Each group has one job — a **Club** tracks games, an **Expenses** group (or a
+  pizza with. Each group has one job — a **Poker** group tracks buy-in games, a **Rummy** group rummy games, an **Expense** group (or a
   one-on-one) tracks costs — and your standing with each friend adds up across all of them.
 - **Exact money, always.** Every amount is integer cents internally; splits use largest-remainder
   distribution so a three-way split of $10.00 is always $3.34 + $3.33 + $3.33 — never a penny
@@ -43,13 +43,21 @@ fees, no ads) over protecting strangers from each other.
 
 ## 2. Feature design
 
-### Clubs and games
+### Group types
 
-A **Club** is a standing group for people who play together repeatedly. Creating one is a
-one-time action; starting a new game inside it is not — a club supports unlimited games over
-its lifetime, each an independent record (a club can run more than one game in a single day,
+Every group is one of three types, chosen when it's created and fixed after (0026): **Poker**
+(`kind = 'club'` in the database, buy-in card games), **Rummy** (rummy scored hand by hand), and
+**Expense** (shared costs). The type decides the group's tabs and its one main action at the top
+(New game, New rummy game, or Import and + Add expense). Creating a group is two short steps that
+fit above a phone keyboard: type, name, and currency (as toggle chips), then who's in it.
+
+### Poker groups and games
+
+A **Poker** group is a standing group for people who play together repeatedly. Creating one is a
+one-time action; starting a new game inside it is not — a group supports unlimited games over
+its lifetime, each an independent record (a group can run more than one game in a single day,
 since nothing is keyed to a calendar date). Starting a new game defaults the player roster to
-the club's membership (or the previous game's roster, if there was one), so the common case —
+the group's membership (or the previous game's roster, if there was one), so the common case —
 "same crew as last time" — takes one tap.
 
 A game moves through two states: **open** (buy-ins/cash-outs are still being entered) and
@@ -57,13 +65,13 @@ A game moves through two states: **open** (buy-ins/cash-outs are still being ent
 table to balance — total cash-out must equal total buy-in — which catches counting mistakes
 before they become a wrong debt. A game belongs to its **host**, whoever started it: only they
 can change its numbers, finalize or reopen it, mark its payments, or delete it, while everyone
-else in the club follows along live (see [§4 Security model](#4-security-model)). Games with no
-recorded host fall back to the club's admins. Any member can start a game. Deleting a game takes
+else in the group follows along live (see [§4 Security model](#4-security-model)). Games with no
+recorded host fall back to the group's admins. Any member can start a game. Deleting a game takes
 the payments recorded against it out with it, so balances return to exactly what they were before
 the game. A deleted game is kept (`game_sessions.deleted_at`) with its results and payments, out of
-every balance, and its host can restore it from the club's History exactly as it was (0025).
+every balance, and its host can restore it from the group's History exactly as it was (0025).
 
-A club tracks games only — there's no way to add an expense to one. Expenses a club picked up
+A Poker group tracks games only — there's no way to add an expense to one. Expenses a group picked up
 before that rule still show on its Expenses tab and still count toward its balances.
 
 ### Expenses
@@ -94,7 +102,7 @@ something shared.
 ### Friends
 
 A personal address book, independent of any one group — the same friend, once added, can be
-reused across every club or expense group without retyping. Three states describe where a
+reused across every group without retyping. Three states describe where a
 friend is in their relationship with the app, and are surfaced directly wherever a friend is
 listed:
 
@@ -133,17 +141,26 @@ up is deliberately low-ceremony — record a payment in one tap, with a method a
 own records, no approval step from the other side. The Dashboard and Friends page show each
 friend's balance summed across every group and one-on-one you share, per currency.
 
-Zero-infrastructure communication tools sit on top of this, under one **Share** button:
+On the Balances tab, **Settle up** starts collapsed (its header says how many payments) and
+**Where everyone stands** starts open, so the page opens on who's up and who's down.
 
-- **Email summary** — a `mailto:` link with the date, place (for a game), everyone's balance,
-  and the settle-up list, with a game's already-recorded payments marked paid. A game's summary
-  covers only the people who played; a group's covers every member. Members can be opted out
-  of the recipient list per group.
-- **Share image** — the same summary drawn as a colored PNG in the browser (canvas), handed to
-  the phone's share sheet, or downloaded on desktop.
+Zero-infrastructure communication tools sit on top of this:
+
+- **Share** on each card — that card drawn as a colored PNG in the browser (canvas), with a
+  banner saying what it is, handed to the phone's share sheet, or downloaded on desktop. One
+  picture per card: a game's results or settle up, a group's balances or settle up.
 - **Reminder** — a `mailto:` addressed to just the one person who owes a specific payment.
 
-All of these trade "automatic" for "no email provider, no API key, no cost."
+Both trade "automatic" for "no email provider, no API key, no cost." (An emailed group summary
+existed earlier and was removed: the pictures replaced it.)
+
+### Rummy groups
+
+A **Rummy** group holds rummy games scored hand by hand: out at 101, 151, or 201 points, last
+one standing wins, with an optional buy-in and rejoins. Every rummy game belongs to a Rummy group
+and its players are the group's members (0026); the scorer runs it. When a staked game ends, its
+payout can be posted to the group's balances as a finished game, so it settles with everything
+else there. Those posted games aren't poker: the Poker page and stats leave them out.
 
 ### History and notifications
 
@@ -156,7 +173,7 @@ with an unread count, so staying current doesn't require checking each group ind
 Everyone in a group is trusted with the day-to-day: any **member** can add, edit, delete, and
 restore expenses, start a game, record a payment, and add people. A **game** is run by its
 **host**, whoever started it. Only **admins** can change group settings, make someone else admin,
-or delete the group (clubs and expense groups alike). Whoever creates a group is its first and
+or delete the group (every group type). Whoever creates a group is its first and
 only admin; everyone added later joins as a member, and an admin can promote others (0025). A
 group always keeps at least one admin. This mirrors real social structure: one owner who can
 reshape or close the group, everyone else free to use it.
@@ -178,7 +195,7 @@ erDiagram
     GROUPS {
         uuid id PK
         text name
-        text kind "club | expenses"
+        text kind "club (Poker) | rummy | expenses"
         text currency
         bool is_direct "one-on-one, shown under Friends"
         uuid created_by FK "the first admin"
@@ -407,7 +424,7 @@ code path is domain-aware beyond the build's base path.
 - **Not multi-tenant SaaS.** There's no organization/billing layer, no per-seat pricing, no
   admin console across groups — a single Supabase project serves one friend-and-family
   population, by design, to keep the free tier sufficient indefinitely.
-- **Email is intentionally manual.** Summaries and reminders are `mailto:` links (or a shared
+- **Email is intentionally manual.** Reminders are `mailto:` links (and summaries a shared
   image), not automatically sent messages — see [§2](#balances-settling-up-and-reminders). Automatic,
   richly-formatted email is a real future option (§7) but requires standing up an email
   provider and a scheduled function, which is a deliberate line not crossed yet.
@@ -421,14 +438,14 @@ code path is domain-aware beyond the build's base path.
 
 The feature set breaks into five coherent phases, each shippable and useful on its own:
 
-1. **Core ledger** — clubs and games (buy-ins, cash-outs, finalize, leaderboard), Splitwise-style
+1. **Core ledger** — poker groups and games (buy-ins, cash-outs, finalize, leaderboard), Splitwise-style
    expenses (multi-payer, four split modes), and the minimum-cash-flow settle-up engine.
 2. **Social layer** — a personal friends list decoupled from group membership, friend-picker
    reuse across every creation flow, and email-based auto-linking for guests who later sign up.
 3. **Governance and safety** — per-group admin roles, settlement invariants enforced at the
    database layer (not just the UI), and rich in-app confirmation for destructive actions.
 4. **Communication** — a per-group history log, cross-group notifications with an unread count,
-   and `mailto:`-based summaries and targeted reminders.
+   share pictures, and `mailto:`-based targeted reminders.
 5. **Production hardening** — a full RLS/security pass (closing gaps where a direct API call
    could bypass UI-level protections), and a custom domain with GitHub-managed HTTPS.
 

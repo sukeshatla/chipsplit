@@ -29,7 +29,7 @@ const byId = async (id: string) => (await load()).groups.find((g) => g.id === id
 const mine = (g: Group, meId: string) => g.members.find((m) => m.user_id === meId)!;
 
 /** A fresh expenses group with you (admin) and Ravi (member). */
-async function newGroup(kind: 'expenses' | 'club' = 'expenses') {
+async function newGroup(kind: 'expenses' | 'club' | 'rummy' = 'expenses') {
   const id = await api.createGroup({ name: 'Test', kind, currency: 'USD' });
   const raviId = await api.addMember(id, 'Ravi', 'ravi@example.com');
   const d = await load();
@@ -182,5 +182,24 @@ describe('[PLAT-4] games', () => {
     expect(back.sessions.map((s) => ({ ...s, deleted_at: undefined }))).toEqual(before.sessions.map((s) => ({ ...s, deleted_at: undefined })));
     expect(back.settlements).toEqual(before.settlements);
     expect([...groupBalances(back)]).toEqual(balancesBefore);
+  });
+});
+
+describe('[PLAT-4] group types', () => {
+  it('[GROUP-1] a group keeps the type it was created with', async () => {
+    const { id } = await newGroup('club');
+    await expect(api.updateGroup(id, { kind: 'expenses' })).rejects.toThrow(/type/);
+    await api.updateGroup(id, { name: 'Poker Pals' });
+    expect(await byId(id)).toMatchObject({ kind: 'club', name: 'Poker Pals' });
+  });
+
+  it('[RUMMY-7] rummy games start only in a Rummy group, never stand-alone', async () => {
+    const players = [{ name: 'Me', userId: null }, { name: 'Ravi', userId: null }];
+    const poker = await newGroup('club');
+    await expect(api.createRummyGame({ groupId: poker.id, name: '', pointLimit: 101, buyInCents: 0, players })).rejects.toThrow(/Rummy group/);
+    await expect(api.createRummyGame({ groupId: null, name: '', pointLimit: 101, buyInCents: 0, players })).rejects.toThrow(/Rummy group/);
+    const rummy = await newGroup('rummy');
+    const gameId = await api.createRummyGame({ groupId: rummy.id, name: '', pointLimit: 101, buyInCents: 0, players });
+    expect((await api.loadRummyGames(rummy.id)).map((g) => g.id)).toEqual([gameId]);
   });
 });

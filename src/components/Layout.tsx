@@ -12,7 +12,7 @@ import { WelcomePage } from '../pages/WelcomePage';
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/groups', label: 'Groups', icon: Users },
-  { to: '/games', label: 'Club Games', icon: Spade },
+  { to: '/games', label: 'Poker', icon: Spade },
   { to: '/friends', label: 'Friends', icon: HeartHandshake },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ];

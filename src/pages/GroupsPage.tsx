@@ -1,28 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { Plus, Spade, Receipt, Users } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import { useData } from '../app/data';
 import { groupBalances, listedGroups, myMemberId, sessionPayments } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { Badge, Button, Card, EmptyState, PageHeader, Tabs, useShowMore } from '../components/ui';
 import { CreateGroupDialog } from '../components/dialogs/CreateGroupDialog';
 import type { GroupKind } from '../lib/types';
+import { GroupIcon, KIND_LABEL } from '../components/GroupKind';
 
-export const KIND_LABEL: Record<GroupKind, string> = { club: 'Club', expenses: 'Expenses' };
-
-type Filter = 'all' | 'games' | 'expenses';
-const FILTERS: { value: Filter; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'games', label: 'Clubs' }, { value: 'expenses', label: 'Trips & expenses' }];
-
-export function GroupIcon({ kind, size = 40 }: { kind: GroupKind; size?: number }) {
-  const Icon = kind === 'club' ? Spade : Receipt;
-  return (
-    <span style={{ width: size, height: size }}
-      className={kind === 'club' ? 'felt inline-flex shrink-0 items-center justify-center rounded-xl' : 'inline-flex shrink-0 items-center justify-center rounded-xl bg-surface-2 text-ink'}>
-      <Icon size={size * 0.5} strokeWidth={2.4} aria-hidden="true" />
-    </span>
-  );
-}
+type Filter = 'all' | GroupKind;
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: 'all', label: 'All' }, { value: 'club', label: 'Poker' }, { value: 'rummy', label: 'Rummy' }, { value: 'expenses', label: 'Expense' },
+];
 
 export function GroupsPage() {
   const data = useData();
@@ -32,16 +23,16 @@ export function GroupsPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const myBal = (g: (typeof groups)[number]) => { const mine = myMemberId(g, me.id); return mine ? groupBalances(g).get(mine) ?? 0 : 0; };
   // Where you're owed most first, down to where you owe most.
-  const shown = groups.filter((g) => filter === 'all' || (filter === 'games' ? g.kind === 'club' : g.kind === 'expenses'))
+  const shown = groups.filter((g) => filter === 'all' || g.kind === filter)
     .sort((a, b) => myBal(b) - myBal(a) || a.name.localeCompare(b.name));
   const list = useShowMore(shown, 6);
 
   return (
     <>
-      <PageHeader title="Groups" subtitle="Clubs for recurring games, groups for trips and shared expenses."
+      <PageHeader title="Groups" subtitle="Poker and rummy nights, trips and shared expenses."
         actions={<Button variant="primary" onClick={() => setOpen(true)}><Plus size={16} aria-hidden="true" />New group</Button>} />
       {groups.length === 0 ? (
-        <Card><EmptyState icon={<Users size={28} />} title="Start your first group" body="A club for your regular card night, a trip, your apartment. Add the people, then log as you go."
+        <Card><EmptyState icon={<Users size={28} />} title="Start your first group" body="Your poker or rummy night, a trip, your apartment. Add the people, then log as you go."
           action={<Button variant="primary" onClick={() => setOpen(true)}>Create group</Button>} /></Card>
       ) : (
         <>
@@ -56,11 +47,12 @@ export function GroupsPage() {
                 const finals = g.sessions.filter((s) => s.status === 'final');
                 const live = g.sessions.some((s) => s.status === 'open');
                 const unpaid = finals.reduce((a, s) => a + sessionPayments(g, s).filter((p) => !p.settlementId).length, 0);
-                const dates = g.kind === 'club' ? g.sessions.map((s) => s.played_on) : g.expenses.map((e) => e.spent_on);
+                const dates = g.kind === 'expenses' ? g.expenses.map((e) => e.spent_on) : g.sessions.map((s) => s.played_on);
                 const lastDate = dates.sort()[dates.length - 1];
                 const counts = [
                   `${g.members.length} people`,
-                  g.kind === 'club' ? `${finals.length} game${finals.length === 1 ? '' : 's'}` : `${g.expenses.length} expense${g.expenses.length === 1 ? '' : 's'}`,
+                  g.kind === 'club' ? `${finals.length} game${finals.length === 1 ? '' : 's'}`
+                    : g.kind === 'expenses' ? `${g.expenses.length} expense${g.expenses.length === 1 ? '' : 's'}` : KIND_LABEL.rummy,
                 ].join(' · ');
                 return (
                   <Link key={g.id} to={`/groups/${g.id}`}
@@ -70,7 +62,7 @@ export function GroupsPage() {
                       <p className="truncate text-base font-semibold">{g.name}</p>
                       <p className="truncate text-[13px] text-ink-2">{counts}</p>
                       <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-ink-2">
-                        {lastDate && <span>Last {g.kind === 'club' ? 'game' : 'expense'} {formatDate(lastDate, { month: 'short', day: 'numeric' })}</span>}
+                        {lastDate && <span>Last {g.kind === 'expenses' ? 'expense' : 'game'} {formatDate(lastDate, { month: 'short', day: 'numeric' })}</span>}
                         {live && <Badge tone="brass">Game in progress</Badge>}
                         {unpaid > 0 && <Badge tone="loss">{unpaid} unpaid</Badge>}
                       </p>

@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Mail, MailX, Pencil, ShieldCheck, ShieldOff, Share2 } from 'lucide-react';
+import { Plus, Spade, Receipt, Upload, HandCoins, Trash2, Trophy, UserPlus, ChevronRight, Club, Mail, Pencil, ShieldCheck, ShieldOff, Share2 } from 'lucide-react';
 import { useAction, useData } from '../app/data';
 import { useToast } from '../app/toast';
 import { useAuth } from '../app/auth';
 import { isAppAdmin } from '../lib/admin';
-import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryData, summaryMailto, type Summary } from '../lib/ledger';
+import { groupBalances, isGroupAdmin, isGroupSettled, memberAvatar, memberHasActivity, memberName, memberShort, shortName, myMemberId, pokerLeaderboard, reminderMailto, sessionPayments, simplify, summaryData, type Summary } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
 import { ActionBar, ActionButton } from '../components/ActionBar';
 import { formatDate, formatMoney } from '../lib/money';
-import { Amount, Avatar, AvatarButton, BackLink, byMonth, DateTile, LIST_STEP, MonthHeader, ShowMore, useShowMore, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Select, Tabs } from '../components/ui';
+import { Amount, Avatar, AvatarButton, BackLink, byMonth, CollapsibleCard, DateTile, LIST_STEP, MonthHeader, ShowMore, useShowMore, Badge, BalanceText, Button, Card, CardHeader, EmptyState, Field, IconButton, Input, PageHeader, Row, Tabs } from '../components/ui';
 import { HistoryList } from '../components/HistoryList';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { KIND_LABEL } from './GroupsPage';
+import { KIND_LABEL } from '../components/GroupKind';
 import { ExpenseDialog } from '../components/dialogs/ExpenseDialog';
 import { ImportDialog } from '../components/dialogs/ImportDialog';
 import { SettleDialog, type SettleDraft } from '../components/dialogs/SettleDialog';
@@ -21,17 +21,23 @@ import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
 import { ExpenseDetailDialog } from '../components/dialogs/ExpenseDetailDialog';
 import { SettleRow } from '../components/SettleRow';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
-import { CURRENCIES, KindPicker } from '../components/dialogs/CreateGroupDialog';
-import type { Expense, Group, GroupKind, Member, Settlement } from '../lib/types';
+import { CurrencyPicker } from '../components/dialogs/CreateGroupDialog';
+import { NewRummyGameDialog } from '../components/dialogs/NewRummyGameDialog';
+import { RummyGames } from './GroupRummyPage';
+import type { Expense, Group, Member, Settlement } from '../lib/types';
 
 type Tab = 'games' | 'balances' | 'expenses' | 'members' | 'history';
 
+/** Keyed by group, so moving from one group to another starts fresh (no dialog left open). */
 export function GroupPage() {
   const { groupId } = useParams();
+  return <GroupView key={groupId} groupId={groupId} />;
+}
+
+function GroupView({ groupId }: { groupId?: string }) {
   const { me, groups } = useData();
   const g = groups.find((x) => x.id === groupId);
   const [params, setParams] = useSearchParams();
-  const nav = useNavigate();
   const [newGame, setNewGame] = useState(false);
   const [expense, setExpense] = useState<Expense | null | 'new'>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -40,15 +46,14 @@ export function GroupPage() {
   if (!g) return <Navigate to="/groups" replace />;
 
   const tabs: { value: Tab; label: string }[] = [
-    // A club is games only: games (with the leaderboard under them), then Balances.
+    // Poker and Rummy groups lead with their games; an Expense group with its balances.
     ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Games' }] : []),
     { value: 'balances', label: 'Balances' },
-    ...(g.kind !== 'club' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
+    // Expenses a poker club picked up before groups had one job each still show here.
+    ...(g.kind === 'expenses' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
     { value: 'members', label: 'Members' },
     { value: 'history', label: 'History' },
   ];
-  // Rummy used to be a tab; old links (notifications, bookmarks) land on its own page now.
-  if (params.get('tab') === 'rummy') return <Navigate to={`/groups/${g.id}/rummy`} replace />;
   const requested = params.get('tab') as Tab | null;
   const tab: Tab = tabs.some((t) => t.value === requested) ? requested! : tabs[0]!.value;
   const mine = myMemberId(g, me.id);
@@ -60,33 +65,33 @@ export function GroupPage() {
         back={<BackLink to="/groups" label="Groups" />}
         title={g.name}
         subtitle={<span className="flex flex-wrap items-center gap-2">
-          <Badge tone={g.kind === 'club' ? 'felt' : 'neutral'}>{KIND_LABEL[g.kind]}</Badge>
+          <Badge tone={g.kind === 'club' ? 'felt' : g.kind === 'rummy' ? 'brass' : 'neutral'}>{KIND_LABEL[g.kind]}</Badge>
           <span>{g.members.length} people</span>
           <span>{myBal === 0 ? 'You are settled up' : <>You {myBal > 0 ? 'are owed' : 'owe'} <Amount cents={myBal} currency={g.currency} className="text-sm" /></>}</span>
         </span>}
-        actions={<><ActionBar>
-          {/* Email here; pictures from each card's own Share (SPEC SHARE-11). */}
-          <ActionButton icon={<Mail size={16} aria-hidden="true" />} onClick={() => { window.location.href = summaryMailto(g); }}>Email summary</ActionButton>
-          {g.kind === 'club' ? (<>
+        actions={mine && <ActionBar>
+          {/* One main action per group type (SPEC GROUP-3); pictures come from each card's Share. */}
+          {g.kind === 'club' ? (
             <ActionButton primary icon={<Spade size={16} aria-hidden="true" />} onClick={() => setNewGame(true)}>New game</ActionButton>
-          </>) : mine && (<>
+          ) : g.kind === 'rummy' ? (
+            <ActionButton primary icon={<Club size={16} aria-hidden="true" />} onClick={() => setNewGame(true)}>New rummy game</ActionButton>
+          ) : (<>
             <ActionButton icon={<Upload size={16} aria-hidden="true" />} onClick={() => setImportOpen(true)}>Import</ActionButton>
-            <ActionButton primary icon={<Receipt size={16} aria-hidden="true" />} onClick={() => setExpense('new')}>Expense</ActionButton>
+            <ActionButton primary icon={<Plus size={16} aria-hidden="true" />} onClick={() => setExpense('new')}>Add expense</ActionButton>
           </>)}
-        </ActionBar>
-        {/* Rummy is its own kind of game (rounds and points, not buy-ins), so it gets its own button. */}
-        {g.kind === 'club' && <Button className="h-10 rounded-xl" onClick={() => nav(`/groups/${g.id}/rummy`)}><Club size={16} aria-hidden="true" />Rummy</Button>}
-        </>}
+        </ActionBar>}
       />
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
-      {tab === 'games' && <GamesTab g={g} onNew={() => setNewGame(true)} />}
+      {tab === 'games' && (g.kind === 'rummy' ? <RummyGames g={g} onNew={() => setNewGame(true)} /> : <GamesTab g={g} onNew={() => setNewGame(true)} />)}
       {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} />}
       {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
       {tab === 'history' && <HistoryList g={g} />}
 
-      <NewGameDialog open={newGame} onClose={() => setNewGame(false)} groupId={g.id} />
+      {g.kind === 'rummy'
+        ? <NewRummyGameDialog open={newGame} onClose={() => setNewGame(false)} group={g} />
+        : <NewGameDialog open={newGame} onClose={() => setNewGame(false)} groupId={g.id} />}
       <ExpenseDialog group={g} open={expense !== null} expense={expense === 'new' ? null : expense} onClose={() => setExpense(null)} />
       <ImportDialog group={g} open={importOpen} onClose={() => setImportOpen(false)} />
       <SettleDialog group={g} draft={settle} onClose={() => setSettle(null)} />
@@ -196,8 +201,10 @@ function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       <div className="space-y-5">
-        <Card>
-          <CardHeader title="Settle up" action={<ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} section="settle" />} />
+        {/* Collapsed by default: the payment count says enough until you want the details (SPEC GROUP-4). */}
+        <CollapsibleCard title="Settle up" defaultOpen={false}
+          summary={transfers.length ? `${transfers.length} payment${transfers.length === 1 ? '' : 's'}` : 'All settled'}
+          action={transfers.length > 0 && <ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} section="settle" />}>
           <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">Fewest payments to clear it all.</p>
           <div className="mt-2">
             {transfers.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Everyone is settled up.</p> :
@@ -212,9 +219,9 @@ function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void
                   </>} />
               ))}
           </div>
-        </Card>
-        <Card>
-          <CardHeader title="Where everyone stands" action={<ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} />} />
+        </CollapsibleCard>
+        <CollapsibleCard title="Where everyone stands"
+          action={<ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} />}>
           <div className="mt-2">
             {(showSettled ? members : members.filter((m) => (bal.get(m.id) ?? 0) !== 0)).map((m) => (
               <Row key={m.id}>
@@ -231,7 +238,7 @@ function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void
               </button>
             </div>
           )}
-        </Card>
+        </CollapsibleCard>
       </div>
       <Card>
         <CardHeader title="Payments recorded" />
@@ -319,14 +326,13 @@ function MembersTab({ g }: { g: Group }) {
   const nav = useNavigate();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState(g.name);
-  const [kind, setKind] = useState<GroupKind>(g.kind);
   const [currency, setCurrency] = useState(g.currency);
   const [confirmingRemove, setConfirmingRemove] = useState<Member | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [cardId, setCardId] = useState<string | null>(null);
   const cardMember = g.members.find((m) => m.id === cardId) ?? null; // looked up live so toggles show their new state
   const admin = isGroupAdmin(g, me.id);
-  const dirty = name.trim() !== g.name || kind !== g.kind || currency !== g.currency;
+  const dirty = name.trim() !== g.name || currency !== g.currency;
   const settled = isGroupSettled(g);
   const finalGames = g.sessions.filter((s) => s.status === 'final').length;
 
@@ -356,10 +362,9 @@ function MembersTab({ g }: { g: Group }) {
         <h2 className="mb-4 font-display text-base font-medium">Group settings</h2>
         <div className="space-y-4">
           <Field label="Name"><Input value={name} disabled={!admin} onChange={(e) => setName(e.target.value)} /></Field>
-          <div><span className="mb-1.5 block text-[13px] font-semibold">What's it for</span><KindPicker value={kind} onChange={setKind} disabled={!admin} /></div>
-          <Field label="Currency">
-            <Select value={currency} disabled={!admin} onChange={(e) => setCurrency(e.target.value)}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</Select>
-          </Field>
+          {/* The type is set when the group is made (SPEC GROUP-1). */}
+          <p className="text-[13px] text-ink-2">Type: <b className="font-semibold text-ink">{KIND_LABEL[g.kind]}</b></p>
+          <div><span className="mb-1.5 block text-[13px] font-semibold">Currency</span><CurrencyPicker value={currency} onChange={setCurrency} disabled={!admin} /></div>
           {!admin && <p className="text-[13px] text-ink-2">Only a group admin can change these settings.</p>}
           <div className="flex flex-wrap items-start justify-between gap-2 pt-2">
             {admin ? (
@@ -374,7 +379,7 @@ function MembersTab({ g }: { g: Group }) {
               </div>
             ) : <span />}
             <Button variant="primary" disabled={!admin || !dirty || !name.trim()} loading={busy}
-              onClick={() => run((api) => api.updateGroup(g.id, { name: name.trim(), kind, currency }), 'Group saved')}>Save changes</Button>
+              onClick={() => run((api) => api.updateGroup(g.id, { name: name.trim(), currency }), 'Group saved')}>Save changes</Button>
           </div>
         </div>
       </Card>
@@ -382,7 +387,6 @@ function MembersTab({ g }: { g: Group }) {
       <MemberCardDialog member={cardMember} onClose={() => setCardId(null)}
         actions={cardMember && <MemberActions key={cardMember.id} g={g} m={cardMember} admin={admin} busy={busy}
           onToggleAdmin={() => run((api) => api.setGroupAdmin(cardMember.id, !cardMember.is_admin))}
-          onToggleEmail={() => run((api) => api.setEmailOptOut(cardMember.id, !cardMember.email_opt_out))}
           onRemove={() => { setCardId(null); setConfirmingRemove(cardMember); }}
           onEditPerson={(name, email) => run((api) => api.updatePerson(cardMember.id, name, email), 'Saved')} />} />
 
@@ -404,8 +408,8 @@ function MembersTab({ g }: { g: Group }) {
   );
 }
 
-function MemberActions({ g, m, admin, busy, onToggleAdmin, onToggleEmail, onRemove, onEditPerson }: {
-  g: Group; m: Member; admin: boolean; busy: boolean; onToggleAdmin(): void; onToggleEmail(): void; onRemove(): void;
+function MemberActions({ g, m, admin, busy, onToggleAdmin, onRemove, onEditPerson }: {
+  g: Group; m: Member; admin: boolean; busy: boolean; onToggleAdmin(): void; onRemove(): void;
   onEditPerson(name: string, email: string | null): Promise<unknown>;
 }) {
   const { me } = useData();
@@ -443,11 +447,6 @@ function MemberActions({ g, m, admin, busy, onToggleAdmin, onToggleEmail, onRemo
     {admin && (
       <Button className="w-full" disabled={busy} onClick={onToggleAdmin}>
         {m.is_admin ? <><ShieldOff size={16} aria-hidden="true" />Remove as admin</> : <><ShieldCheck size={16} aria-hidden="true" />Make admin</>}
-      </Button>
-    )}
-    {m.email && (
-      <Button className="w-full" disabled={busy} onClick={onToggleEmail}>
-        {m.email_opt_out ? <><Mail size={16} aria-hidden="true" />Include in email summaries</> : <><MailX size={16} aria-hidden="true" />Leave out of email summaries</>}
       </Button>
     )}
     <Button variant="danger" className="w-full" disabled={busy || active || isMe} onClick={onRemove}>

@@ -164,6 +164,8 @@ export const demoApi: DataApi = {
   updateGroup: (id, patch) => mutate((d) => {
     const g = group(d, id);
     assertAdmin(d, g, 'Only a group admin can change these settings');
+    // Same as the server (0026): Poker, Expense, or Rummy is fixed when the group is made.
+    if (patch.kind && patch.kind !== g.kind) throw new Error("A group's type can't be changed");
     Object.assign(g, patch);
     log(d, id, 'group', id, 'Updated group settings');
   }),
@@ -369,6 +371,8 @@ export const demoApi: DataApi = {
   }),
 
   createRummyGame: ({ groupId, name, pointLimit, buyInCents, players }) => mutate((d) => {
+    // Same as the server (0026): every rummy game lives in a Rummy group.
+    if (!groupId || d.groups.find((g) => g.id === groupId)?.kind !== 'rummy') throw new Error('Rummy games are played in a Rummy group');
     if (players.length < 2) throw new Error('Add at least two players');
     if (buyInCents < 0) throw new Error("The buy-in can't be negative");
     const id = uid();

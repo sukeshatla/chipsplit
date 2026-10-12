@@ -122,7 +122,10 @@ export function seedDemo(): AppData {
   const withAjay = { ...makeGroup('Ajay', 'expenses', ['Suki', 'Ajay'], 12), is_direct: true };
   withAjay.expenses.push(exp(withAjay, 'Movie tickets', 'fun', 36, 'Suki', ['Suki', 'Ajay'], 4));
 
-  return { me, groups: [club, trip, home, withAjay], contacts: [...contacts.values()] };
+  // Rummy games live in the demo store, not here; the group starts empty.
+  const rummy = makeGroup('Sunday rummy', 'rummy', ['Suki', 'Ravi', 'Kiran', 'Teja'], 20);
+
+  return { me, groups: [club, rummy, trip, home, withAjay], contacts: [...contacts.values()] };
 }
 
 /** A few recent, plausible history entries -- all from Ravi, the one demo friend who's "signed

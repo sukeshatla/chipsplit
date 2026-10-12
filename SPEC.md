@@ -22,8 +22,9 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 
 | Term | Meaning |
 |---|---|
-| **Club** | A group for recurring card games (`kind = 'club'`). |
-| **Expenses group** | A group for shared costs (`kind = 'expenses'`). |
+| **Poker group** | A group for recurring buy-in card games (`kind = 'club'` in the database; shown as *Poker*). |
+| **Expense group** | A group for shared costs (`kind = 'expenses'`). |
+| **Rummy group** | A group for rummy games scored hand by hand (`kind = 'rummy'`). |
 | **One-on-one** | A hidden "direct" group (`is_direct`) for expenses with specific friends, shown under Friends. |
 | **Member** | A row in a group's roster. **Guest** = name only; **Invited** = has an email, no account yet; **Friend** = linked account. |
 | **Admin** | A member who can change settings, promote others, and delete the group. |
@@ -65,12 +66,21 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | BAL-6 | "You get" / "You pay" are in your own currency; other currencies are listed separately, never converted. | test | `totals` |
 | BAL-7 | The Friends list and the Dashboard list people and groups biggest amount first, owed or owing, with settled last and ties by name. | test | `friendsList`, `DashboardPage` |
 
-## GAME — club games
+## GROUP — group types and pages
+
+| ID | Rule | Verified by | Where |
+|---|---|---|---|
+| GROUP-1 | A group is **Poker**, **Expense**, or **Rummy**, chosen when it's created; the type can't be changed afterwards. | test | demo `updateGroup`, 0026 trigger |
+| GROUP-2 | New group is two steps: (1) type as three big buttons, name, and currency as toggle chips, then **Next**; (2) pick friends, then **Create group**. Each step fits above the phone keyboard. | manual | `CreateGroupDialog` — on a phone, both steps' buttons stay visible with the keyboard open |
+| GROUP-3 | The top of a group page has one main action: **New game** (Poker), **New rummy game** (Rummy), or **Import** and **+ Add expense** (Expense). No Email summary. | manual | `GroupPage` — open one group of each type |
+| GROUP-4 | On the Balances tab, **Settle up** and **Where everyone stands** collapse and expand; Settle up starts collapsed, Where everyone stands starts open. | manual | `GroupPage` `BalancesTab` — open Balances; tap each header |
+
+## GAME — poker games
 
 | ID | Rule | Verified by | Where |
 |---|---|---|---|
 | GAME-1 | A game's host is whoever started it; an old game with no recorded host falls back to the group's admins. | test | `isGameHost`, 0021 |
-| GAME-2 | Any member of a club can start a game. | test | demo `createSession`, 0021 policy |
+| GAME-2 | Any member of a Poker group can start a game. | test | demo `createSession`, 0021 policy |
 | GAME-3 | Only the host can change a game's results, details, or status, or record and delete its payments. | test | demo `assertHost`, 0021 / 0025 `is_live_game_host` |
 | GAME-4 | A finished game can't be deleted until its own payments settle it; a game in progress can be deleted any time. | test | `isSessionSettled`, demo `deleteSession`, 0008 / 0025 trigger |
 | GAME-5 | Deleting a game hides it with its results and payments, so every balance is exactly what it was before the game; the host restores it exactly as it was. | test | demo `deleteSession` / `restoreSession`, 0025 |
@@ -78,6 +88,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | GAME-7 | The table balances when total buy-ins = total cash-outs + chips given back; Finalize is offered only then, with 2+ players. | test | `sessionTotals`, `GameDayPage` |
 | GAME-8 | A finished game counts as settled only by payments marked for that game. | test | `isSessionSettled` |
 | GAME-9 | The leaderboard totals finished games only: net, games played, winning nights, best night; payments don't change it. | test | `pokerLeaderboard` |
+| GAME-10 | The **Poker** page lists only buy-in games you played in Poker groups, and its stats count only those; rummy payouts posted to a Rummy group's balances aren't poker games. | test | `myPokerGames`, `pokerStats` |
 
 ## RUMMY
 
@@ -89,6 +100,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | RUMMY-4 | Closed early, the pot is split between everyone still in. | test | `rummyResult` |
 | RUMMY-5 | Without a buy-in, or before the end, there's no money side. | test | `rummyResult` |
 | RUMMY-6 | Only the scorer adds or fixes rounds, rejoins, or closes the game. | db | 0012 – 0016 RPCs |
+| RUMMY-7 | Every rummy game belongs to a Rummy group and its players are that group's members; Poker and Expense groups can't start one, and there's no stand-alone rummy. | test | demo `createRummyGame`, 0026 `create_rummy_game` |
 
 ## EXP — expenses
 
@@ -120,7 +132,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 |---|---|---|---|
 | ROLE-1 | Whoever creates a group is its admin; everyone added later joins as a member. | test | demo `createGroup` / `addMember`, 0025 |
 | ROLE-2 | An admin can make others admin or remove admin; a group always keeps at least one admin. | test | demo `setGroupAdmin`, 0004 trigger |
-| ROLE-3 | Only admins can change group settings or delete the group, for clubs and expense groups alike. | test | demo `updateGroup` / `deleteGroup`, 0004 |
+| ROLE-3 | Only admins can change group settings or delete the group, for every group type. | test | demo `updateGroup` / `deleteGroup`, 0004 |
 | ROLE-4 | A group can't be deleted until everyone in it is settled up in total. | test | `isGroupSettled`, demo `deleteGroup`, 0006 / 0018 / 0025 |
 | ROLE-5 | Someone with expenses, games, or payments in a group (deleted ones included) can't be removed from it. | test | `memberHasActivity`, demo `removeMember`, 0005 |
 | ROLE-6 | Only the app admin can change another person's name or email; a signed-up person's name comes from their own profile. | db | 0020, 0023 |
@@ -131,8 +143,8 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 
 | ID | Rule | Verified by | Where |
 |---|---|---|---|
-| SHARE-1 | An email summary goes only to members with an email who haven't opted out of that group. | test | `summaryMailto` |
-| SHARE-2 | A game's summary covers only its players (with date and place); a group's covers every member. Game payments already recorded show as paid. | test | `summaryData` |
+| ~~SHARE-1~~ | ~~An email summary goes only to members with an email who haven't opted out of that group. ~~ Retired: Email summary was removed (GROUP-3). | — | — |
+| SHARE-2 | A game's picture covers only its players (with date and place); a group's covers every member. Game payments already recorded show as paid. | test | `summaryData` |
 | SHARE-3 | The game table lists winners first, then players still in, then even, then losers; a finished game drops sat-out rows and lists payments with paid marks. | test | `gameTableData` |
 | SHARE-4 | A reminder is addressed to the one person who owes, naming who and how much; no email on file means no reminder. | test | `reminderMailto` |
 | SHARE-5 | Share images render as phone-shaped PNGs; longer lists get tighter rows instead of a second picture. | manual | `summaryImage.ts` — share a 25-person group's balances; one picture |
@@ -140,7 +152,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | SHARE-8 | Each card's Share sends one picture of just that card: a game's **Players** (results) or **Settle up**; a group's **Where everyone stands** or **Settle up**. | test | `imageParts` |
 | SHARE-9 | Sharing sends only the picture(s): no title or "summary" text is added. | manual | `shareSummaryImage` — share to WhatsApp; only images arrive |
 | SHARE-10 | The leaderboard has no Share button. | manual | `GroupPage` — open a club's Games tab; the Leaderboard card has no Share |
-| SHARE-11 | Pages share in one way per place: the top of a game or group page has a plain **Email summary** button (no menu; none while a game is in progress), and every card's **Share** sends only its picture. | manual | `GameDayPage`, `GroupPage` — no dropdown anywhere; each Share sends one image |
+| SHARE-11 | There's no Email summary anywhere; every card's **Share** sends only its picture, with no dropdown. One-person reminders stay on settle-up rows. | manual | `GameDayPage`, `GroupPage` — no Email summary button or Share menu on any page |
 | SHARE-6 | Names shorten to first name + last initial, unless two people would look the same. | test | `shortName` |
 
 ## HIST — history and notifications

@@ -13,7 +13,6 @@ import { FriendsPage } from './pages/FriendsPage';
 import { FriendDetailPage } from './pages/FriendDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AdminPage } from './pages/AdminPage';
-import { RummyListPage } from './pages/RummyListPage';
 import { RummyGamePage } from './pages/RummyGamePage';
 import { GroupRummyPage } from './pages/GroupRummyPage';
 
@@ -36,7 +35,6 @@ export default function App() {
           <Route path="groups/:groupId/games/:gameId" element={<GameDayPage />} />
           <Route path="groups/:groupId/rummy" element={<GroupRummyPage />} />
           <Route path="games" element={<GamesPage />} />
-          <Route path="rummy" element={<RummyListPage />} />
           <Route path="rummy/:id" element={<RummyGamePage />} />
           <Route path="friends" element={<FriendsPage />} />
           <Route path="friends/:key" element={<FriendDetailPage />} />
