@@ -183,11 +183,29 @@ function useVisibleViewport(active: boolean) {
   useEffect(() => {
     const vv = window.visualViewport;
     if (!active || !vv) return;
-    const update = () => setBox({ top: vv.offsetTop, height: vv.height });
-    update();
-    vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
-    return () => { vv.removeEventListener('resize', update); vv.removeEventListener('scroll', update); };
+    let frame = 0, settle = 0;
+    const measure = () => {
+      // Only step in when the keyboard covers part of the page (iOS). Where the page itself shrinks
+      // for the keyboard (Android, interactive-widget=resizes-content), the CSS height is already
+      // right, and following the viewport there only adds movement.
+      const covered = window.innerHeight - vv.height > 100;
+      const next = covered ? { top: Math.round(vv.offsetTop), height: Math.round(vv.height) } : null;
+      // Ignore tiny changes: re-placing the sheet for a pixel or two is what reads as a shake.
+      setBox((prev) => (prev && next && Math.abs(prev.top - next.top) < 3 && Math.abs(prev.height - next.height) < 3) || (!prev && !next) ? prev : next);
+    };
+    // Keyboard opening or closing: follow it, once per frame.
+    const onResize = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure); };
+    // Moving between boxes makes the browser nudge the page to show the next one. Following every
+    // step of that nudge moved the sheet, which made the browser nudge again: the screen shook.
+    // Wait until the nudge has settled, then place the sheet once.
+    const onScroll = () => { clearTimeout(settle); settle = window.setTimeout(measure, 150); };
+    measure();
+    vv.addEventListener('resize', onResize);
+    vv.addEventListener('scroll', onScroll);
+    return () => {
+      cancelAnimationFrame(frame); clearTimeout(settle);
+      vv.removeEventListener('resize', onResize); vv.removeEventListener('scroll', onScroll);
+    };
   }, [active]);
   return box;
 }
