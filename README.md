@@ -318,7 +318,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 **Balances and settling up**
 - Each group shows where everyone stands and a **simplified debts** list, one line per payment; tap one to record it or send a reminder.
 - The **Balances** tab's **Settle up** and **Where everyone stands** cards collapse and expand: Settle up starts collapsed (its header still says how many payments), Where everyone stands starts open. An **Expense** group gives them their own tabs, **Balances** and **Settle up** (with Payments recorded), both open; settled-up people stay hidden until you ask.
-- The **Members** tab shows how many people are in the group next to its title.
+- The **Members** tab's card is titled with how many people are in the group (**18 members**).
 - Every share picture opens with a **banner**: the Chip n Split logo and name, a label saying what it is (**Game · In progress** in gold, **Game · Final results**, **Game · Settle up**, **Group · Balances**, or **Group · Settle up**), the group name, and when: the game's date, place, and buy-in, or *As of* today for a group. Sharing sends only the picture, no extra text.
 - Every card's **Share** sends one picture of just that card; there's no dropdown and no Email summary.
 - **Share image** for a game is a table of each player's **Buy-ins, Bought in, Gave back, Cash-out, and Net** (green up, red down, winners first) with a totals row. In progress, a player's net shows once they cash out and the bottom shows the pot on the table. On a finished game, the **Players** card and the **Settle up** card each have their own **Share**, and each sends one picture of just that card (settle up shows who pays whom, recorded payments marked **Paid ✓**).

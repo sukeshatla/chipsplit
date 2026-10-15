@@ -82,7 +82,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | GROUP-4 | On the Balances tab, **Settle up** and **Where everyone stands** collapse and expand; Settle up starts collapsed, Where everyone stands starts open. An **Expense** group splits them into two tabs, **Balances** (Where everyone stands) and **Settle up** (Settle up and Payments recorded), both open; settled-up people stay hidden until asked for. | manual | `GroupPage` `BalancesTab` — open Balances in a Poker group and tap each header; open an Expense group: two tabs, both cards open |
 | GROUP-5 | Adding an expense is the same green **+ Add expense** button everywhere (home, friend page, Expense group). The home page's Groups card has its own **+ New group**. | manual | `AddExpenseButton` — check home, a friend, an Expense group |
 | GROUP-6 | The Groups list shows each group's people, games or expenses count, and your balance; no unpaid counts. A finished game in a list reads **Unsettled** (red) until its payments are all marked paid, then **Settled**; never "5 unpaid". | manual | `GroupsPage`, `GroupPage` Games tab, `GamesPage` — a finished game with open payments says Unsettled |
-| GROUP-7 | The Members tab shows how many people are in the group next to its **Members** title, before **Add**. | manual | `GroupPage` `MembersTab` — open Members; the count matches the list |
+| GROUP-7 | The Members tab's card is titled with how many people are in the group, **18 members** (**1 member**), before **Add**. | manual | `GroupPage` `MembersTab` — open Members; the count matches the list |
 
 ## GAME — poker games
 

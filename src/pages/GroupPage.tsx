@@ -314,7 +314,7 @@ function MembersTab({ g }: { g: Group }) {
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       <Card>
-        <CardHeader title={<>Members <span className="text-ink-2">{g.members.length}</span></>} action={<Button size="sm" onClick={() => setAdding(true)}><UserPlus size={14} aria-hidden="true" />Add</Button>} />
+        <CardHeader title={`${g.members.length} member${g.members.length === 1 ? '' : 's'}`} action={<Button size="sm" onClick={() => setAdding(true)}><UserPlus size={14} aria-hidden="true" />Add</Button>} />
         <div className="mt-2">
           {g.members.map((m) => (
             <Row key={m.id} onClick={() => setCardId(m.id)}>
