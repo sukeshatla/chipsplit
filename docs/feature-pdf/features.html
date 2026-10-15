@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chip n Split — Features</title>
+<style>
+  @page { size: Letter; margin: 0.55in 0.6in; }
+  :root { --felt: #0e4d3a; --gain: #157a50; --loss: #be3a28; --ink: #14211d; --ink2: #54665f; --line: #dae2de; --soft: #eef3f0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; color: var(--ink); font-size: 11pt; line-height: 1.45; }
+  h1, h2, h3 { margin: 0; letter-spacing: -0.01em; }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+
+  /* Cover */
+  .cover { display: block; }
+  .cover .shots { margin-top: 14px; }
+  .cover figure img.phone { width: 1.4in; border-radius: 14px; }
+  .cover .hero { padding: 22px 30px; }
+  .cover .hero h1 { margin-top: 18px; }
+  .hero { background: var(--felt); color: #e6f3ec; border-radius: 18px; padding: 34px 36px; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 15pt; }
+  .logo { width: 40px; height: 40px; border-radius: 10px; background: #1a7a5a; display: grid; place-items: center; font-weight: 800; }
+  .hero h1 { font-size: 30pt; margin-top: 26px; line-height: 1.1; }
+  .hero p { font-size: 12.5pt; opacity: 0.9; margin: 12px 0 0; max-width: 5.4in; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chip { background: rgba(255,255,255,0.14); border-radius: 999px; padding: 4px 12px; font-size: 9.5pt; font-weight: 600; }
+  .toc { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 7px 22px; }
+  .toc div { border-left: 4px solid var(--gain); padding: 4px 0 4px 12px; }
+  .toc b { display: block; font-size: 11pt; }
+  .toc span { color: var(--ink2); font-size: 9.5pt; }
+
+  /* Feature pages */
+  .eyebrow { color: var(--gain); font-weight: 700; font-size: 9pt; letter-spacing: 0.12em; text-transform: uppercase; }
+  h2 { font-size: 21pt; margin-top: 4px; }
+  .lead { color: var(--ink2); font-size: 11.5pt; margin: 8px 0 14px; max-width: 6.6in; }
+  ul.points { margin: 0 0 16px; padding-left: 18px; }
+  ul.points li { margin: 3px 0; }
+  .shots { display: flex; gap: 18px; align-items: flex-start; justify-content: center; break-inside: avoid; }
+  figure { margin: 0; text-align: center; }
+  figure img.phone { width: 2.05in; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(20,33,29,0.12); display: block; }
+  figure img.pic { border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(20,33,29,0.10); display: block; }
+  figcaption { color: var(--ink2); font-size: 8.5pt; margin-top: 6px; }
+  .note { background: var(--soft); border-radius: 12px; padding: 10px 14px; font-size: 9.5pt; color: var(--ink2); margin-top: 14px; }
+
+  /* Security */
+  .sec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin: 10px 0 16px; }
+  .sec { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .sec b { display: block; font-size: 10.5pt; margin-bottom: 2px; }
+  .sec span { font-size: 9.5pt; color: var(--ink2); }
+  .flow { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0 14px; font-size: 9.5pt; font-weight: 600; }
+  .flow span.step { background: var(--soft); border-radius: 999px; padding: 5px 12px; }
+  .flow span.arrow { color: var(--gain); }
+  .quote { border-left: 4px solid var(--gain); padding: 8px 14px; background: #f6faf8; font-size: 10pt; border-radius: 0 10px 10px 0; }
+
+  /* Install guide: phone mockups drawn in CSS over a real app screenshot */
+  .steps { display: flex; gap: 16px; justify-content: center; align-items: flex-start; margin-top: 8px; }
+  .step-col { width: 2.05in; text-align: center; }
+  .step-col .num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--felt); color: #fff; font-weight: 700; font-size: 9pt; margin-bottom: 6px; }
+  .step-col p { font-size: 9pt; color: var(--ink2); margin: 6px 0 0; }
+  .step-col p b { color: var(--ink); }
+  .mock { position: relative; width: 2.05in; height: 4.3in; border-radius: 18px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(20,33,29,0.12); background: #f3f6f4; font-family: Roboto, -apple-system, Arial, sans-serif; }
+  .mock .app { position: absolute; left: 0; right: 0; top: 34px; width: 100%; }
+  .mock .bar { position: absolute; left: 0; right: 0; top: 0; height: 34px; background: #fff; border-bottom: 1px solid #ddd; display: flex; align-items: center; gap: 6px; padding: 0 8px; font-size: 7pt; color: #333; z-index: 2; }
+  .mock .bar.bottom { top: auto; bottom: 0; border-top: 1px solid #ddd; border-bottom: 0; justify-content: space-around; }
+  .mock .url { flex: 1; background: #eef0f2; border-radius: 999px; padding: 4px 8px; color: #333; white-space: nowrap; overflow: hidden; }
+  .mock .ico { font-size: 10pt; color: #444; line-height: 1; }
+  .mock .hl { outline: 2.5px solid #e8590c; outline-offset: 2px; border-radius: 6px; }
+  .mock .dim { position: absolute; inset: 0; background: rgba(0,0,0,0.35); z-index: 3; }
+  .mock .menu { position: absolute; z-index: 4; background: #fff; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.25); font-size: 7.5pt; color: #222; text-align: left; overflow: hidden; }
+  .mock .menu div { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; }
+  .mock .menu div:last-child { border-bottom: 0; }
+  .mock .menu .pick { background: #fff1e6; font-weight: 700; color: #b8430a; }
+  .mock .dialog { position: absolute; z-index: 4; left: 10px; right: 10px; top: 32%; background: #fff; border-radius: 14px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); font-size: 7.5pt; color: #222; text-align: left; }
+  .mock .dialog h4 { margin: 0 0 6px; font-size: 9pt; }
+  .mock .dialog .opt { display: flex; align-items: center; gap: 6px; padding: 5px 4px; border-radius: 6px; }
+  .mock .dialog .btns { display: flex; justify-content: flex-end; gap: 12px; margin-top: 6px; font-weight: 700; color: #1a73e8; }
+  .mock .sheet { position: absolute; z-index: 4; left: 0; right: 0; bottom: 0; background: #f2f2f7; border-radius: 14px 14px 0 0; padding: 8px 10px 14px; font-size: 7.5pt; color: #222; text-align: left; }
+  .mock .sheet .row { background: #fff; padding: 6px 10px; border-bottom: 1px solid #e5e5ea; display: flex; justify-content: space-between; }
+  .mock .sheet .row:first-of-type { border-radius: 10px 10px 0 0; }
+  .mock .sheet .row:last-of-type { border-radius: 0 0 10px 10px; border-bottom: 0; }
+  .mock .home { position: absolute; inset: 0; background: linear-gradient(160deg, #3b5b8c, #6b4c8c); display: grid; grid-template-columns: repeat(4, 1fr); align-content: start; gap: 14px 0; padding: 40px 10px; z-index: 1; }
+  .mock .home .icon { text-align: center; font-size: 6.5pt; color: #fff; }
+  .mock .home .icon i { display: block; width: 30px; height: 30px; margin: 0 auto 3px; border-radius: 8px; background: rgba(255,255,255,0.35); }
+  .mock .home .icon.us i { background: #0e4d3a url(../../public/icon.svg) center/80% no-repeat; outline: 2.5px solid #e8590c; outline-offset: 2px; }
+  .illus { text-align: center; font-size: 8pt; color: var(--ink2); margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<!-- Cover -->
+<section class="page cover">
+  <div>
+    <div class="hero">
+      <div class="brand"><div class="logo">$</div>Chip n Split</div>
+      <h1>Know who owes whom,<br>every game and every trip.</h1>
+      <p>Poker nights and shared expenses in one ledger. Log buy-ins and cash-outs, split the pizza, and get the fewest payments that square everyone up.</p>
+      <div class="chips">
+        <span class="chip">Installs on your phone</span><span class="chip">Sign in with Google</span><span class="chip">Free to run</span><span class="chip">Demo mode, no sign-up</span>
+      </div>
+    </div>
+    <div class="toc">
+      <div><b>1. Poker nights, start to finish</b><span>Buy-ins, rebuys, give-backs, cash-outs, settle-up</span></div>
+      <div><b>2. Expenses, Splitwise-style</b><span>Groups, one-on-one, USD / INR / GBP</span></div>
+      <div><b>3. Balances you can trust</b><span>Overall standing, per friend, per group</span></div>
+      <div><b>4. Share images &amp; summaries</b><span>Labelled pictures for WhatsApp</span></div>
+      <div><b>5. Poker, Rummy &amp; Expense groups</b><span>New group, rummy, leaderboard</span></div>
+      <div><b>6. Friends</b><span>Add with email or as a guest, remove once settled</span></div>
+      <div><b>7. Who can do what</b><span>Admins, members, game hosts, restore</span></div>
+      <div><b>8. Install on your phone</b><span>Chrome on Android and iPhone, step by step</span></div>
+      <div><b>Security: Google sign-in</b><span>What the app can and can't see</span></div>
+    </div>
+  </div>
+  <div class="shots">
+    <figure><img class="phone" src="shots/dashboard.png"><figcaption>Dashboard: where you stand overall</figcaption></figure>
+    <figure><img class="phone" src="shots/groups.png"><figcaption>Groups at a glance</figcaption></figure>
+    <figure><img class="phone" src="shots/game-live.png"><figcaption>A poker night in progress</figcaption></figure>
+  </div>
+</section>
+
+<!-- 1 -->
+<section class="page">
+  <div class="eyebrow">Feature 1</div>
+  <h2>Poker nights, start to finish</h2>
+  <p class="lead">Built for entering a whole table on a phone, while the game is happening.</p>
+  <ul class="points">
+    <li>Start a game with the group's regulars; the buy-in per player is required, so nobody plays on a stale amount.</li>
+    <li><b>+</b> adds a rebuy in one tap; <b>−</b> opens the player's panel: buy-ins (<i>3 × $50 = $150</i>), chips given back, and one-tap fixes.</li>
+    <li>Every tap shows an <b>Undo</b>, so a mistaken + is fixed without padding anyone's numbers.</li>
+    <li>Cash-outs when the table breaks; a live table check makes sure money in equals money out.</li>
+    <li>Finalize to get the fewest payments; tick each one off as <b>Paid</b>. Only the game's host can change it; everyone else follows live.</li>
+    <li>Any member can start a game. Deleted a game by mistake? The host can <b>Restore</b> it, payments and all, from the group's History tab.</li>
+    <li><b>One table at a time:</b> while a game is in progress, New game points you to it instead of starting a second one. Rummy works the same way.</li>
+  </ul>
+  <div class="shots">
+    <figure><img class="phone" src="shots/game-live.png"><figcaption>Buy-ins with − / + per player</figcaption></figure>
+    <figure><img class="phone" src="shots/panel.png"><figcaption>Player panel: counts, Remove 1, Undo 1</figcaption></figure>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="page">
+  <div class="eyebrow">Feature 2</div>
+  <h2>Expenses, Splitwise-style</h2>
+  <p class="lead">Trips, rent and dinners, in a group or just between two friends.</p>
+  <ul class="points">
+    <li>Short by default: what, how much, who paid, split equally or one person owes all.</li>
+    <li><b>More options</b>: several payers, split by shares, exact amounts, or percentages, always to the exact cent.</li>
+    <li><b>One-on-one</b> expenses with a friend need no group, and can be in <b>USD, INR, or GBP</b>; each currency keeps its own balance, never converted.</li>
+    <li>Anyone in the group can add, edit, or delete an expense, and bring a deleted one back from History.</li>
+    <li>Import a spreadsheet (Excel or CSV).</li>
+  </ul>
+  <div class="shots">
+    <figure><img class="phone" src="shots/expense-more.png"><figcaption>More options: currency, payers, split modes</figcaption></figure>
+    <figure><img class="phone" src="shots/trip.png"><figcaption>An expenses group</figcaption></figure>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="page">
+  <div class="eyebrow">Feature 3</div>
+  <h2>Balances you can trust</h2>
+  <p class="lead">One number per person, adding up games, expenses, and payments, with the rules enforced by the database.</p>
+  <ul class="points">
+    <li>Dashboard: <b>overall, you're up / you owe</b>, with <b>You get</b> and <b>You pay</b> at a glance, plus a banner for each poker or rummy game in progress you're playing in.</li>
+    <li>Each friend's balance across every group and one-on-one, <b>biggest amount first</b> whether you're owed or you owe (green owes you, red you owe), settled-up friends last. The Dashboard lists groups the same way.</li>
+    <li>A Poker or Rummy group's <b>Balances</b> tab: <b>Where everyone stands</b> open, <b>Settle up</b> collapsed until you tap it. An <b>Expense</b> group gives them two tabs, <b>Balances</b> and <b>Settle up</b> (with Payments recorded), both open. The fewest payments to clear it all, record a payment in one tap, remind someone by email.</li>
+    <li>Settled-up people are tucked away; groups and games can't be deleted while money is still owed.</li>
+  </ul>
+  <div class="shots">
+    <figure><img class="phone" style="width:1.95in" src="shots/balances.png"><figcaption>Poker: Settle up and where everyone stands</figcaption></figure>
+    <figure><img class="phone" style="width:1.95in" src="shots/trip-settle.png"><figcaption>Expense group: its own Settle up tab</figcaption></figure>
+    <figure><img class="phone" style="width:1.95in" src="shots/friends.png"><figcaption>Friends, across all groups</figcaption></figure>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="page">
+  <div class="eyebrow">Feature 4</div>
+  <h2>Share images &amp; summaries</h2>
+  <p class="lead">Clean, color-coded pictures to drop into a group chat, made right in the app. Green is up, red is down.</p>
+  <ul class="points">
+    <li>Every picture opens with a <b>banner</b>: the Chip n Split logo, a clear label (<b>Game · In progress</b> in gold, <b>Game · Final results</b>, <b>Game · Settle up</b>, <b>Group · Balances</b>, <b>Group · Settle up</b>), the group, and when: the game's date, place, and buy-in, or <i>as of</i> today.</li>
+    <li>Every card has its own <b>Share</b> and sends one picture of just that card: a game's <b>Players</b> and <b>Settle up</b> (with <b>Paid ✓</b> marks), a group's <b>Where everyone stands</b> and <b>Settle up</b>. A game in progress shows the pot on the table.</li>
+    <li>The top of a game or group page has one plain <b>Email summary</b> button; one-person <b>reminders</b> open pre-filled in your own mail app too.</li>
+    <li>Only the picture is sent, no extra text; longer lists get tighter rows.</li>
+  </ul>
+  <div class="shots">
+    <figure><img class="pic" style="width:3.1in" src="shots/img-final.png"><figcaption>Players card → Final results</figcaption></figure>
+    <figure><img class="pic" style="width:2.3in" src="shots/img-final-settle.png"><figcaption>Settle up card → its own picture</figcaption></figure>
+  </div>
+  <div class="shots" style="margin-top:12px; gap:12px">
+    <figure><img class="pic" style="width:2.8in" src="shots/img-live.png"><figcaption>Players card, game in progress</figcaption></figure>
+    <figure><img class="pic" style="width:1.75in" src="shots/img-balances.png"><figcaption>Where everyone stands card</figcaption></figure>
+    <figure><img class="pic" style="width:1.75in" src="shots/img-balances-settle.png"><figcaption>Group Settle up card</figcaption></figure>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="page">
+  <div class="eyebrow">Feature 5</div>
+  <h2>Poker, Rummy &amp; Expense groups</h2>
+  <p class="lead">Every group has one job, picked when you make it.</p>
+  <ul class="points">
+    <li><b>New group</b> in two short steps that fit above the phone keyboard: tap <b>Poker</b>, <b>Rummy</b>, or <b>Expense</b>, add a name and currency, then pick friends and create.</li>
+    <li>One clear button at the top of each group: <b>New game</b>, <b>New rummy game</b>, or <b>+ Add expense</b>.</li>
+    <li><b>Rummy</b> groups score pool rummy hand by hand (up to 7 players, out at 101, 151, or 201; a buy-in is required, like poker; rejoin at the top score + 1, which the scorer can change), with everything Poker has: only the person who started it can change it, <b>In progress</b> / <b>Final</b>, Share, History, and a payout that goes into balances by itself with <b>Mark paid</b> per payment. Like poker, a game can't be deleted until it's settled, and the payout follows the result: deleting the game, or an edit that puts it back in play, takes it out of the balances.</li>
+    <li><b>Add round</b> opens a compact pop-up, two small score boxes to a row, so a full table fits above the keyboard; the round-by-round table runs rounds across, newest first in view. Fix a round with its ✎ and confirm the change.</li>
+    <li>Poker and Rummy groups each have a <b>leaderboard</b>: games, wins, money won or lost, best night. The <b>Poker</b> menu lists the nights you played.</li>
+  </ul>
+  <div class="shots" style="gap:14px">
+    <figure><img class="phone" style="width:1.95in" src="shots/new-group.png"><figcaption>New group, step 1</figcaption></figure>
+    <figure><img class="phone" style="width:1.95in" src="shots/rummy-game.png"><figcaption>A rummy game, hand by hand</figcaption></figure>
+    <figure><img class="phone" style="width:1.95in" src="shots/leaderboard.png"><figcaption>Poker leaderboard</figcaption></figure>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="page">
+  <div class="eyebrow">Feature 6</div>
+  <h2>Friends</h2>
+  <p class="lead">Everyone you split with, in one list, whether you met them in a group or one-on-one.</p>
+  <ul class="points">
+    <li><b>Add a friend</b> in one short form: <b>With email</b> (name + their Google email, so they're linked when they sign in) or <b>Guest, no email</b> (just a name).</li>
+    <li>Each friend shows what you share: <b>2 shared groups</b>, <b>one-on-one</b>, or <b>nothing shared yet</b>.</li>
+    <li>A friend's page adds up your one-on-one expenses into one <b>Balance</b> per currency, plus your balance in each shared group, each with <b>Settle</b>.</li>
+    <li><b>Remove friend</b> works for anyone (friend, invited, or guest), but only once you're settled up. They come back on their own if a balance with them opens again.</li>
+  </ul>
+  <div class="shots">
+    <figure><img class="phone" src="shots/add-friend.png"><figcaption>Add a friend: with email or as a guest</figcaption></figure>
+    <figure><img class="phone" src="shots/friend-detail.png"><figcaption>Remove friend waits until you're settled</figcaption></figure>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="page">
+  <div class="eyebrow">Feature 7</div>
+  <h2>Who can do what</h2>
+  <p class="lead">Simple roles, checked by the database itself, so they hold even if someone tries to get around the app.</p>
+  <div class="sec-grid">
+    <div class="sec"><b>Every member</b><span>Add, edit, delete, and restore expenses. Start games. Record payments. Add people.</span></div>
+    <div class="sec"><b>A game's host</b><span>Whoever started the game runs it: buy-ins, cash-outs, finalize, mark paid, delete or restore it.</span></div>
+    <div class="sec"><b>Group admins</b><span>The group's creator, plus anyone they make admin. Change settings, make others admin, delete the group.</span></div>
+    <div class="sec"><b>Delete safely</b><span>A group or a finished game can't be deleted until it's settled up. Deleted expenses and games can be restored.</span></div>
+  </div>
+  <div class="shots">
+    <figure><img class="phone" src="shots/members.png"><figcaption>Members: how many, and the creator is Admin</figcaption></figure>
+    <figure><img class="phone" src="shots/history-restore.png"><figcaption>History: Restore a deleted item</figcaption></figure>
+  </div>
+</section>
+
+<!-- 8a: Android -->
+<section class="page">
+  <div class="eyebrow">Install · Android</div>
+  <h2>Install on Android (Chrome)</h2>
+  <p class="lead">Chip n Split installs like an app: its own icon, full screen, no app store. Open <b>chipnsplit.org</b> in Chrome, then:</p>
+  <div class="steps">
+    <div class="step-col">
+      <div class="num">1</div>
+      <div class="mock">
+        <div class="bar"><span class="ico">⌂</span><span class="url">chipnsplit.org</span><span class="ico">⊕</span><span class="ico hl">⋮</span></div>
+        <img class="app" src="shots/dashboard.png">
+      </div>
+      <p>Tap the <b>⋮</b> menu at the top right of Chrome.</p>
+    </div>
+    <div class="step-col">
+      <div class="num">2</div>
+      <div class="mock">
+        <div class="bar"><span class="ico">⌂</span><span class="url">chipnsplit.org</span><span class="ico">⊕</span><span class="ico">⋮</span></div>
+        <img class="app" src="shots/dashboard.png">
+        <div class="dim"></div>
+        <div class="menu" style="right:6px; top:30px; width:68%">
+          <div>New tab</div><div>New Incognito tab</div><div>History</div><div>Downloads</div><div>Share…</div><div>Find in page</div>
+          <div class="pick">Add to home screen</div><div>Desktop site</div><div>Settings</div>
+        </div>
+      </div>
+      <p>Choose <b>Add to home screen</b> (some versions say <b>Install app</b>).</p>
+    </div>
+    <div class="step-col">
+      <div class="num">3</div>
+      <div class="mock">
+        <div class="bar"><span class="ico">⌂</span><span class="url">chipnsplit.org</span><span class="ico">⊕</span><span class="ico">⋮</span></div>
+        <img class="app" src="shots/dashboard.png">
+        <div class="dim"></div>
+        <div class="dialog">
+          <h4>Add to home screen</h4>
+          <div class="opt hl" style="background:#fff1e6"><b>●</b> <span><b>Install</b><br><span style="color:#666">Opens full screen, like an app</span></span></div>
+          <div class="opt"><span>○</span> <span>Create shortcut<br><span style="color:#666">Opens in a Chrome tab</span></span></div>
+          <div class="btns"><span>Cancel</span><span>Install</span></div>
+        </div>
+      </div>
+      <p>Pick <b>Install</b> (not Create shortcut), then <b>Install</b> again.</p>
+    </div>
+  </div>
+  <div class="note" style="margin-top:16px">The <b>Chip n Split</b> icon lands on your home screen and in the app drawer. It opens full screen, signs you in once, and updates itself. To remove it: long-press the icon → <b>Uninstall</b>. Chose <b>Create shortcut</b> by mistake? Delete that icon and install again.</div>
+  <p class="illus">Illustrations of Chrome's own menus. Exact wording varies a little between Chrome versions.</p>
+</section>
+
+<!-- 8b: iPhone -->
+<section class="page">
+  <div class="eyebrow">Install · iPhone</div>
+  <h2>Install on iPhone (Chrome)</h2>
+  <p class="lead">On iPhone, Chrome adds it to the Home Screen from the Share button (iOS 16.4 or later). Open <b>chipnsplit.org</b> in Chrome, then:</p>
+  <div class="steps">
+    <div class="step-col">
+      <div class="num">1</div>
+      <div class="mock">
+        <div class="bar"><span class="url" style="text-align:center">chipnsplit.org</span><span class="ico hl">⇪</span></div>
+        <img class="app" src="shots/dashboard.png">
+      </div>
+      <p>Tap the <b>Share</b> icon (square with an arrow) at the right of the address bar.</p>
+    </div>
+    <div class="step-col">
+      <div class="num">2</div>
+      <div class="mock">
+        <div class="bar"><span class="url" style="text-align:center">chipnsplit.org</span><span class="ico">⇪</span></div>
+        <img class="app" src="shots/dashboard.png">
+        <div class="dim"></div>
+        <div class="sheet">
+          <div style="font-weight:700; margin:2px 2px 8px">Chip n Split · chipnsplit.org</div>
+          <div class="row"><span>Copy</span><span>⧉</span></div>
+          <div class="row"><span>Add to Reading List</span><span>☰</span></div>
+          <div class="row hl" style="background:#fff1e6; font-weight:700; color:#b8430a"><span>Add to Home Screen</span><span>⊞</span></div>
+          <div class="row"><span>Find on Page</span><span>⌕</span></div>
+        </div>
+      </div>
+      <p>Scroll the list and tap <b>Add to Home Screen</b>.</p>
+    </div>
+    <div class="step-col">
+      <div class="num">3</div>
+      <div class="mock">
+        <div class="home">
+          <div class="icon"><i></i>Photos</div><div class="icon"><i></i>Camera</div><div class="icon"><i></i>Maps</div><div class="icon"><i></i>Clock</div>
+          <div class="icon"><i></i>Notes</div><div class="icon"><i></i>Weather</div><div class="icon"><i></i>Chrome</div><div class="icon us"><i></i>Chip n Split</div>
+        </div>
+        <div class="dialog" style="top:auto; bottom:12px">
+          <h4 style="display:flex; justify-content:space-between; gap:6px; font-size:7.5pt"><span style="color:#1a73e8; font-weight:400">Cancel</span><span>Add to Home</span><span style="color:#1a73e8">Add</span></h4>
+          <div style="color:#666">Name: Chip n Split</div>
+        </div>
+      </div>
+      <p>Keep the name and tap <b>Add</b>. The icon appears on your Home Screen.</p>
+    </div>
+  </div>
+  <div class="note" style="margin-top:16px">Using <b>Safari</b> instead? Same steps: the <b>Share</b> button at the bottom → <b>Add to Home Screen</b> → <b>Add</b>. Opened from the icon, it runs full screen like an app. To remove it: long-press the icon → <b>Remove App</b> → <b>Delete from Home Screen</b>.</div>
+  <p class="illus">Illustrations of Chrome's and iOS's own screens. Exact wording varies a little between versions.</p>
+</section>
+
+<!-- Security -->
+<section class="page">
+  <div class="eyebrow">Security</div>
+  <h2>Signing in with Google</h2>
+  <p class="lead">Chip n Split never sees or stores a password. Google does the sign-in, on Google's own page.</p>
+  <div class="flow"><span class="step">Tap "Continue with Google"</span><span class="arrow">→</span><span class="step">Google's sign-in page</span><span class="arrow">→</span><span class="step">Google confirms it's you</span><span class="arrow">→</span><span class="step">You're in</span></div>
+  <div class="shots">
+    <figure><img class="phone" src="shots/login.png"><figcaption>The app's sign-in screen</figcaption></figure>
+    <figure><img class="phone" src="shots/google.png"><figcaption>Google's own page (accounts.google.com)</figcaption></figure>
+  </div>
+  <div class="sec-grid">
+    <div class="sec"><b>No passwords, ever</b><span>Your password and 2-step verification stay with Google. The app only gets Google's confirmation.</span></div>
+    <div class="sec"><b>Only name, email, photo</b><span>No access to Gmail, Drive, contacts, or anything else in your Google account.</span></div>
+    <div class="sec"><b>Private to your groups</b><span>The database itself checks every request: you only see groups you belong to.</span></div>
+    <div class="sec"><b>Encrypted, and revocable</b><span>HTTPS everywhere. Remove the app anytime: Google Account → Security → Third-party apps.</span></div>
+  </div>
+  <div class="quote">No money moves through the app and no bank details are stored; it only records who owes whom. No Gmail? Create a Google account with your existing email (Yahoo, Outlook, …) and sign in with that.</div>
+</section>
+
+</body>
+</html>
