@@ -26,7 +26,7 @@ import { NewRummyGameDialog } from '../components/dialogs/NewRummyGameDialog';
 import { RummyGames } from './GroupRummyPage';
 import type { Expense, Group, Member, Settlement } from '../lib/types';
 
-type Tab = 'games' | 'balances' | 'expenses' | 'members' | 'history';
+type Tab = 'games' | 'balances' | 'settle' | 'expenses' | 'members' | 'history';
 
 /** Keyed by group, so moving from one group to another starts fresh (no dialog left open). */
 export function GroupPage() {
@@ -49,12 +49,16 @@ function GroupView({ groupId }: { groupId?: string }) {
     // Poker and Rummy groups lead with their games; an Expense group with its balances.
     ...(g.kind !== 'expenses' ? [{ value: 'games' as Tab, label: 'Games' }] : []),
     { value: 'balances', label: 'Balances' },
+    // An Expense group gives settling up its own tab (SPEC GROUP-4).
+    ...(g.kind === 'expenses' ? [{ value: 'settle' as Tab, label: 'Settle up' }] : []),
     // Expenses a poker club picked up before groups had one job each still show here.
     ...(g.kind === 'expenses' || g.expenses.length ? [{ value: 'expenses' as Tab, label: 'Expenses' }] : []),
     { value: 'members', label: 'Members' },
     { value: 'history', label: 'History' },
   ];
-  const requested = params.get('tab') as Tab | null;
+  // Payment links point at Settle up; groups without that tab show it on Balances.
+  const asked = params.get('tab') as Tab | null;
+  const requested = asked === 'settle' && g.kind !== 'expenses' ? 'balances' : asked;
   const tab: Tab = tabs.some((t) => t.value === requested) ? requested! : tabs[0]!.value;
   const mine = myMemberId(g, me.id);
   const myBal = mine ? groupBalances(g).get(mine) ?? 0 : 0;
@@ -83,7 +87,8 @@ function GroupView({ groupId }: { groupId?: string }) {
       <div className="mb-5"><Tabs tabs={tabs} value={tab} onChange={(v) => setParams({ tab: v }, { replace: true })} /></div>
 
       {tab === 'games' && (g.kind === 'rummy' ? <RummyGames g={g} onNew={() => setNewGame(true)} /> : <GamesTab g={g} onNew={() => setNewGame(true)} />)}
-      {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} />}
+      {tab === 'balances' && <BalancesTab g={g} onSettle={setSettle} show={g.kind === 'expenses' ? 'standings' : 'all'} />}
+      {tab === 'settle' && <BalancesTab g={g} onSettle={setSettle} show="settle" />}
       {tab === 'expenses' && <ExpensesTab g={g} meMember={mine} onEdit={setExpense} onImport={() => setImportOpen(true)} />}
       {tab === 'members' && <MembersTab g={g} />}
       {tab === 'history' && <HistoryList g={g} />}
@@ -148,7 +153,8 @@ function ShareImageButton({ make, names, section }: { make(): Summary; names(id:
   );
 }
 
-function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void }) {
+/** `all` is the Poker/Rummy Balances tab; an Expense group splits it into `standings` and `settle` tabs. */
+function BalancesTab({ g, onSettle, show }: { g: Group; onSettle(d: SettleDraft): void; show: 'all' | 'standings' | 'settle' }) {
   const { run, busy } = useAction();
   const [confirmingPayment, setConfirmingPayment] = useState<Settlement | null>(null);
   const [cardMember, setCardMember] = useState<Member | null>(null);
@@ -170,8 +176,8 @@ function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       <div className="space-y-5">
-        {/* Collapsed by default: the payment count says enough until you want the details (SPEC GROUP-4). */}
-        <CollapsibleCard title="Settle up" defaultOpen={false}
+        {/* Collapsed by default: the payment count says enough until you want the details. On its own tab it starts open (SPEC GROUP-4). */}
+        {show !== 'standings' && <CollapsibleCard title="Settle up" defaultOpen={show === 'settle'}
           summary={transfers.length ? `${transfers.length} payment${transfers.length === 1 ? '' : 's'}` : 'All settled'}
           action={transfers.length > 0 && <ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} section="settle" />}>
           <p className="px-4 pt-1 text-[13px] text-ink-2 md:px-5">Fewest payments to clear it all.</p>
@@ -188,8 +194,8 @@ function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void
                   </>} />
               ))}
           </div>
-        </CollapsibleCard>
-        <CollapsibleCard title="Where everyone stands"
+        </CollapsibleCard>}
+        {show !== 'settle' && <CollapsibleCard title="Where everyone stands"
           action={<ShareImageButton make={() => summaryData(g)} names={(id) => memberName(g, id)} />}>
           <div className="mt-2">
             {(showSettled ? members : members.filter((m) => (bal.get(m.id) ?? 0) !== 0)).map((m) => (
@@ -207,9 +213,9 @@ function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void
               </button>
             </div>
           )}
-        </CollapsibleCard>
+        </CollapsibleCard>}
       </div>
-      <Card>
+      {show !== 'standings' && <Card>
         <CardHeader title="Payments recorded" />
         <div className="mt-2">
           {history.length === 0 ? <p className="px-5 pb-5 pt-2 text-sm text-ink-2">Payments you record show up here.</p> :
@@ -228,7 +234,7 @@ function BalancesTab({ g, onSettle }: { g: Group; onSettle(d: SettleDraft): void
             ))}
         </div>
         {payments.more}
-      </Card>
+      </Card>}
       <ConfirmDialog open={!!confirmingPayment} onClose={() => setConfirmingPayment(null)} title="Delete this payment?" icon={Trash2} busy={busy}
         body={confirmingPayment && <>This removes the record of <b>{memberName(g, confirmingPayment.from_member)}</b> paying <b>{memberName(g, confirmingPayment.to_member)}</b> <b>{formatMoney(confirmingPayment.amount_cents, g.currency)}</b>. Their balances go back to what they owed before.</>}
         onConfirm={async () => { const id = confirmingPayment!.id; setConfirmingPayment(null); await run((api) => api.deleteSettlement(id), 'Payment deleted'); }} />
@@ -308,7 +314,7 @@ function MembersTab({ g }: { g: Group }) {
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       <Card>
-        <CardHeader title="Members" action={<Button size="sm" onClick={() => setAdding(true)}><UserPlus size={14} aria-hidden="true" />Add</Button>} />
+        <CardHeader title={<>Members <span className="text-ink-2">{g.members.length}</span></>} action={<Button size="sm" onClick={() => setAdding(true)}><UserPlus size={14} aria-hidden="true" />Add</Button>} />
         <div className="mt-2">
           {g.members.map((m) => (
             <Row key={m.id} onClick={() => setCardId(m.id)}>
@@ -342,7 +348,7 @@ function MembersTab({ g }: { g: Group }) {
                   onClick={() => setConfirmingDelete(true)}><Trash2 size={16} aria-hidden="true" />Delete group</Button>
                 {!settled && (
                   <p className="mt-1.5 text-[12px] text-ink-2">
-                    Not settled yet{' — '}<Link to={`/groups/${g.id}?tab=balances`} className="font-semibold text-felt underline dark:text-gain">settle up</Link> first.
+                    Not settled yet{' — '}<Link to={`/groups/${g.id}?tab=settle`} className="font-semibold text-felt underline dark:text-gain">settle up</Link> first.
                   </p>
                 )}
               </div>

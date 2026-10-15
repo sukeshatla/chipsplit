@@ -374,7 +374,7 @@ export function activity(data: AppData, limit = 20, onlyGroupId?: string, onlyMi
         impact: null,
         note: st.from_member === mine ? `you paid ${formatMoney(st.amount_cents, g.currency)}`
           : st.to_member === mine ? `you got ${formatMoney(st.amount_cents, g.currency)}` : undefined,
-        link: direct ? `/friends/${encodeURIComponent(direct)}` : `/groups/${g.id}?tab=balances`,
+        link: direct ? `/friends/${encodeURIComponent(direct)}` : `/groups/${g.id}?tab=settle`,
       });
     }
   }
@@ -549,7 +549,7 @@ export function notificationLink(e: ChangeLogEntry): string {
   switch (e.entity_type) {
     case 'expense': return e.entity_id ? `/groups/${e.group_id}?tab=expenses&expense=${e.entity_id}` : `/groups/${e.group_id}?tab=expenses`;
     case 'session': return e.entity_id ? `/groups/${e.group_id}/games/${e.entity_id}` : `/groups/${e.group_id}?tab=games`;
-    case 'settlement': return `/groups/${e.group_id}?tab=balances`;
+    case 'settlement': return `/groups/${e.group_id}?tab=settle`;
     case 'member': return `/groups/${e.group_id}?tab=members`;
     case 'rummy': return e.entity_id ? `/rummy/${e.entity_id}` : `/groups/${e.group_id}`;
     default: return `/groups/${e.group_id}`;
