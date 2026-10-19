@@ -171,7 +171,7 @@ All enforced in Postgres (row-level security and triggers), so they hold even if
 ## Running Tests
 
 ```bash
-npm test            # Vitest: 86 tests, under a second
+npm test            # Vitest: 116 tests, under a second
 npm run test:watch  # while you work
 npm run typecheck   # TypeScript
 npm run check       # typecheck + tests + build: what CI runs on every pull request
@@ -215,7 +215,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 
 | Area | Methods |
 |---|---|
-| Load | `loadAll` (profile, groups with everything in them, friends, removed friends) |
+| Load | `loadAll` (profile, groups with everything in them, friends, removed friends), `loadSession` (one game, for live viewers) |
 | Profile | `updateProfile`, `uploadAvatar`, `removeAvatar` |
 | Groups | `createGroup`, `updateGroup`, `deleteGroup`, `addMember`, `addMemberFromContact`, `removeMember`, `setGroupAdmin`, `setEmailOptOut`, `updatePerson` |
 | Friends | `addContact`, `deleteContact`, `removeFriend` |
@@ -250,7 +250,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - **One-on-ones are small hidden groups** (`groups.is_direct`), shown under Friends instead of Groups.
 - **Friend keys:** a person is `u:<user id>` (has an account), `e:<email>` (invited), or `m:<member id>` (guest). Removed friends are stored by key in `hidden_friends`.
 - **App admin** is one hard-coded account (`src/lib/admin.ts`), and the database checks it too.
-- **Free-tier upkeep:** `keep-alive.yml` stops Supabase from pausing the project after a quiet week.
+- **Free-tier upkeep:** `keep-alive.yml` stops Supabase from pausing the project after a quiet week. To stay inside the free plan's 5 GB/month egress, data stays fresh for 5 minutes, live-game viewers refresh only that game, and avatars are cached for a year.
 - **No email service:** summaries and reminders are `mailto:` links.
 - Ideas for later are in [docs/DESIGN.md § Ideas for later](docs/DESIGN.md#8-ideas-for-later).
 
@@ -352,5 +352,6 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 **Built for low maintenance**
 - No server to run: the browser talks to Supabase directly, and **row-level security** in Postgres makes sure people only ever see groups they belong to.
 - Money is stored as integer cents everywhere, so there's no rounding drift.
+- Stays on Supabase's **free plan**: the app downloads everything only when it has to (fresh for 5 minutes, live games refresh just themselves).
 - The whole database is a handful of SQL files in `supabase/migrations`, so you can rebuild it anytime.
 - Built spec-first and test-first: every rule in SPEC.md is checked by a named test, the database, or a written manual check. GitHub Actions runs the full check on every pull request, and tests, builds, and deploys every push to main.

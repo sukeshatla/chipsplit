@@ -625,3 +625,18 @@ export function myLiveGames(data: AppData, rummyGames: RummyGame[]): LiveGame[] 
   });
   return [...poker, ...rummy];
 }
+
+/** The data with one refreshed game swapped in (SPEC PLAT-5), so someone watching a live game
+ *  downloads that game instead of everything. Untouched groups keep their identity. */
+export function withSession(d: AppData, s: GameSession): AppData {
+  return {
+    ...d,
+    groups: d.groups.map((g) => g.id !== s.group_id ? g : { ...g, sessions: g.sessions.map((x) => (x.id === s.id ? s : x)) }),
+  };
+}
+
+/** A refreshed game can only be swapped in while it's still the same live game; finishing,
+ *  reopening, or deleting it changes balances and payments, which need the full reload. */
+export function needsFullReload(cached: GameSession, fresh: GameSession | null): boolean {
+  return !fresh || !!fresh.deleted_at || fresh.status !== cached.status;
+}

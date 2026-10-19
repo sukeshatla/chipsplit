@@ -406,6 +406,12 @@ what it needs from that in memory via pure functions. For the target scale (a fr
 thousands of users), this is simpler to reason about than incremental fetching, and means
 balance logic exists in exactly one tested place rather than being recomputed per screen.
 
+Because that one query downloads everything, it runs as rarely as freshness allows, to stay inside
+Supabase's free-plan egress (5 GB a month): loaded data counts as fresh for five minutes, a write
+reloads at once, someone watching a live game refreshes just that game every 15 seconds (the full
+reload comes when it finishes or is deleted), and the host's autosave updates the cache in place
+instead of reloading.
+
 **Two interchangeable backends.** `DataApi` (`src/api/types.ts`) is the single interface the UI
 writes against; `supabaseApi.ts` implements it against Postgres, `demoApi.ts` implements the
 identical interface against `localStorage` — including the same permission rules (admin checks,

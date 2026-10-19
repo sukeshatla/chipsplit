@@ -143,6 +143,11 @@ export const demoApi: DataApi = {
     return clone;
   }),
 
+  loadSession: (id) => mutate((d) => {
+    const s = d.groups.flatMap((g) => [...g.sessions, ...(g.deleted_sessions ?? [])]).find((x) => x.id === id);
+    return s ? structuredClone(s) : null;
+  }),
+
   updateProfile: (patch) => mutate((d) => {
     d.me = { ...d.me, ...patch };
     // Same as the server's 0020 triggers: your name follows you into every linked row.

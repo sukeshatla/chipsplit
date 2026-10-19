@@ -15,7 +15,7 @@ export function NotificationsBell() {
   const data = useData();
   const { run, busy } = useAction();
   const [open, setOpen] = useState(false);
-  const { data: entries } = useQuery({ queryKey: ['notifications', mode], queryFn: () => api.loadNotifications(), refetchInterval: 60_000 });
+  const { data: entries } = useQuery({ queryKey: ['notifications', mode], queryFn: () => api.loadNotifications(), refetchInterval: 5 * 60_000 });
 
   const seenAt = data.me.notifications_seen_at;
   const items = (entries ?? []).filter((e) => e.actor_id !== data.me.id);

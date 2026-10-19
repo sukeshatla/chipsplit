@@ -11,7 +11,9 @@ applyTheme();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme());
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: true, retry: 1 } },
+  // Five minutes fresh keeps phone app-switching from re-downloading everything (SPEC PLAT-6);
+  // every write still reloads at once (useAction).
+  defaultOptions: { queries: { staleTime: 5 * 60_000, refetchOnWindowFocus: true, retry: 1 } },
 });
 
 createRoot(document.getElementById('root')!).render(

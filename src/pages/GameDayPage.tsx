@@ -6,7 +6,7 @@ import { Check, Loader2, Lock, Minus, LockOpen, Mail, Plus, RotateCcw, Share2, T
 import { useAction, useData } from '../app/data';
 import { useAuth } from '../app/auth';
 import { useToast } from '../app/toast';
-import { isGameHost, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, gameTableData } from '../lib/ledger';
+import { isGameHost, isSessionSettled, memberAvatar, memberName, memberShort, resultNet, reminderMailto, sessionPayments, sessionTotals, gameTableData, needsFullReload, withSession } from '../lib/ledger';
 import { shareSummaryImage } from '../lib/summaryImage';
 import { ActionBar, ActionButton } from '../components/ActionBar';
 import { centsToInput, formatDate, formatMoney, parseMoney, todayISO } from '../lib/money';
@@ -16,7 +16,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { AddMemberDialog } from '../components/dialogs/AddMemberDialog';
 import { MemberCardDialog } from '../components/dialogs/MemberCardDialog';
 import { SettleRow } from '../components/SettleRow';
-import type { GameSession, Group, Member } from '../lib/types';
+import type { AppData, GameSession, Group, Member } from '../lib/types';
 
 /** One player while the game is open. `returned` (cents) is chips handed back to the bank mid-game. */
 interface Line { member_id: string; buyIn: string; cashOut: string; returned: number }
@@ -44,7 +44,7 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const { run, busy } = useAction();
   const nav = useNavigate();
   const final = s.status === 'final';
-  const { api } = useAuth();
+  const { api, mode } = useAuth();
   const qc = useQueryClient();
   const toast = useToast();
   const [lines, setLines] = useState<Line[]>(() => s.results.map((r) => ({
@@ -85,12 +85,18 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
   const totalOut = rows.reduce((a, r) => a + r.cash_out_cents + r.returned_cents, 0);
   const diff = totalOut - totalIn;
   const balanced = diff === 0 && rows.length >= 2;
-  // Viewers of a game in progress pick up the host's changes every 15 seconds.
+  // Viewers of a game in progress pick up the host's changes every 15 seconds, fetching just this
+  // game (SPEC PLAT-5); finishing, reopening, or deleting it changes balances, so that reloads everything.
   useEffect(() => {
     if (editable || final) return;
-    const t = window.setInterval(() => void qc.invalidateQueries({ queryKey: ['all'] }), 15000);
+    const t = window.setInterval(() => {
+      api.loadSession(s.id).then((fresh) => {
+        if (needsFullReload(s, fresh)) void qc.invalidateQueries({ queryKey: ['all'] });
+        else qc.setQueryData<AppData>(['all', mode], (d) => (d ? withSession(d, fresh!) : d));
+      }, () => {});
+    }, 15000);
     return () => window.clearInterval(t);
-  }, [editable, final, qc]);
+  }, [editable, final, qc, api, mode, s]);
   const notPlaying = g.members.filter((m) => !lines.some((l) => l.member_id === m.id));
 
   const badLine = (ls: Line[]) => ls.find((l) => (l.buyIn && (parseMoney(l.buyIn) ?? -1) < 0) || (l.cashOut && (parseMoney(l.cashOut) ?? -1) < 0));
@@ -106,7 +112,8 @@ function GameDayEditor({ g, s }: { g: Group; s: GameSession }) {
       await api.saveSessionResults(s.id, results);
       lastSaved.current = key;
       setSaveState(JSON.stringify(toResults(linesRef.current)) === key ? 'saved' : 'pending');
-      void qc.invalidateQueries({ queryKey: ['all'] });
+      // The host's lines are already what was saved: put them in the cache instead of reloading everything.
+      qc.setQueryData<AppData>(['all', mode], (d) => (d ? withSession(d, { ...s, results }) : d));
       return true;
     } catch (e) {
       setSaveState('error');

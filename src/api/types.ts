@@ -17,6 +17,9 @@ export interface AdminSignup { id: string; display_name: string; email: string; 
 export interface DataApi {
   mode: 'demo' | 'supabase';
   loadAll(): Promise<AppData>;
+  /** One game with its results, deleted or not; null if it's gone. Lets a live game's viewers
+   *  refresh without reloading everything (SPEC PLAT-5). */
+  loadSession(id: string): Promise<GameSession | null>;
   updateProfile(patch: Partial<Pick<Profile, 'display_name' | 'default_currency' | 'name_confirmed'>>): Promise<void>;
   /** `blob` is already resized/compressed client-side; this persists it as the new avatar_url. */
   uploadAvatar(blob: Blob): Promise<void>;

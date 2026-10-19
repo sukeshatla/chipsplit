@@ -38,13 +38,15 @@ async function logRummy(gameId: string, summary: (name: string) => string) {
   } catch { /* history never blocks the change itself */ }
 }
 
+const SESSION_FIELDS = `id, group_id, played_on, location, notes, status, default_buy_in_cents, created_by, created_at, deleted_at,
+    session_results ( member_id, buy_in_cents, cash_out_cents, returned_cents )`;
+
 const GROUP_SELECT = `
   id, name, kind, currency, is_direct, created_by, created_at,
   group_members ( id, group_id, user_id, contact_id, name, email, email_opt_out, is_admin ),
   expenses ( id, group_id, description, category, amount_cents, spent_on, created_by, created_at, deleted_at,
     expense_payers ( member_id, amount_cents ), expense_shares ( member_id, amount_cents ) ),
-  game_sessions ( id, group_id, played_on, location, notes, status, default_buy_in_cents, created_by, created_at, deleted_at,
-    session_results ( member_id, buy_in_cents, cash_out_cents, returned_cents ) ),
+  game_sessions ( ${SESSION_FIELDS} ),
   settlements ( id, group_id, from_member, to_member, amount_cents, method, note, session_id, settled_on, created_at )
 `;
 
@@ -93,15 +95,19 @@ function mapExpense(e: any) {
   };
 }
 
-function mapGroup(r: any): Group {
-  const expenses = (r.expenses ?? []).map(mapExpense);
-  const sessions: GameSession[] = (r.game_sessions ?? []).map((s: any) => ({
+function mapSession(s: any): GameSession {
+  return {
     id: s.id, group_id: s.group_id, played_on: s.played_on, location: s.location, notes: s.notes, status: s.status,
     default_buy_in_cents: num(s.default_buy_in_cents), created_by: s.created_by, created_at: s.created_at, deleted_at: s.deleted_at,
     results: (s.session_results ?? []).map((x: any) => ({
       member_id: x.member_id, buy_in_cents: num(x.buy_in_cents), cash_out_cents: num(x.cash_out_cents), returned_cents: num(x.returned_cents),
     })),
-  }));
+  };
+}
+
+function mapGroup(r: any): Group {
+  const expenses = (r.expenses ?? []).map(mapExpense);
+  const sessions: GameSession[] = (r.game_sessions ?? []).map(mapSession);
   const settlements: Settlement[] = (r.settlements ?? []).map((s: any) => ({ ...s, amount_cents: num(s.amount_cents) }));
   // A deleted game's payments go with it (0025), out of balances until it's restored.
   const deleted = new Set(sessions.filter((s) => s.deleted_at).map((s) => s.id));
@@ -153,6 +159,11 @@ export const supabaseApi: DataApi = {
     return { me: profile, groups, contacts, hidden_friends: hidden.map((h) => h.friend_key) };
   },
 
+  async loadSession(id) {
+    const row = check(await db().from('game_sessions').select(SESSION_FIELDS).eq('id', id).maybeSingle());
+    return row ? mapSession(row) : null;
+  },
+
   async updateProfile(patch) {
     const user = await currentUser();
     // A database trigger (0020) carries a new display name to every group, friends list, and
@@ -163,7 +174,7 @@ export const supabaseApi: DataApi = {
   async uploadAvatar(blob) {
     const user = await currentUser();
     const path = `${user.id}/avatar.jpg`;
-    const { error: upErr } = await db().storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '3600' });
+    const { error: upErr } = await db().storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '31536000' });
     if (upErr) throw new Error(upErr.message);
     const { data } = db().storage.from('avatars').getPublicUrl(path);
     check(await db().from('profiles').update({ avatar_url: `${data.publicUrl}?v=${Date.now()}` }).eq('id', user.id));
