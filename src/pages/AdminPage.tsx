@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { ShieldCheck } from 'lucide-react';
+import { ExternalLink, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../app/auth';
 import { useData } from '../app/data';
 import { isAppAdmin } from '../lib/admin';
 import { formatDate } from '../lib/money';
 import { Avatar, Card, CardHeader, PageHeader, Row, Spinner } from '../components/ui';
 import type { AdminDailyActivity } from '../api/types';
+import { formatBytes, usageMeters, type AdminUsage, type UsageMeter } from '../lib/usage';
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
@@ -13,6 +14,47 @@ function StatCard({ label, value }: { label: string; value: number }) {
       <p className="text-[12px] text-ink-2">{label}</p>
       <p className="mt-1 font-display text-xl font-medium md:text-2xl">{value}</p>
     </div>
+  );
+}
+
+const LEVEL_BAR: Record<UsageMeter['level'], string> = { ok: 'bg-felt/70', warn: 'bg-brass', over: 'bg-loss' };
+
+/** Free-plan usage against its limits (SPEC ADMIN-1); egress and logs only Supabase can show. */
+function UsageCard({ usage }: { usage: AdminUsage }) {
+  return (
+    <Card className="p-4 md:p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-display text-base font-medium">Supabase free plan</h2>
+        <a href="https://supabase.com/dashboard/org/_/usage" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] font-semibold text-felt">
+          Egress and logs<ExternalLink size={12} aria-hidden="true" />
+        </a>
+      </div>
+      <div className="space-y-4">
+        {usageMeters(usage).map((m) => (
+          <div key={m.label}>
+            <div className="mb-1 flex items-baseline justify-between text-[13px]">
+              <span className="font-semibold">{m.label}</span>
+              <span className="text-ink-2">{m.used} of {m.limit} · {m.percent < 1 ? '<1' : Math.round(m.percent)}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-surface-2">
+              <div className={`h-full rounded-full ${LEVEL_BAR[m.level]}`} style={{ width: `${Math.min(100, Math.max(1, m.percent))}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {usage.tables && usage.tables.length > 0 && (
+        <div className="mt-5">
+          <p className="mb-1.5 text-[12px] font-semibold text-ink-2">Biggest tables</p>
+          {usage.tables.map((t) => (
+            <div key={t.name} className="flex justify-between py-0.5 text-[13px]">
+              <span className="truncate">{t.name}</span>
+              <span className="shrink-0 text-ink-2">{t.rows.toLocaleString('en-US')} rows · {formatBytes(t.bytes)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="mt-4 text-[12px] text-ink-2">The free plan never bills; going over a limit gets the project restricted instead. Egress (5 GB a month) and log ingestion (1 GB) are on Supabase's Usage page.</p>
+    </Card>
   );
 }
 
@@ -42,6 +84,7 @@ export function AdminPage() {
   const admin = isAppAdmin(me.email);
 
   const overview = useQuery({ queryKey: ['admin-overview'], queryFn: () => api.loadAdminOverview(), enabled: admin });
+  const usage = useQuery({ queryKey: ['admin-usage'], queryFn: () => api.loadAdminUsage(), enabled: admin });
   const daily = useQuery({ queryKey: ['admin-daily'], queryFn: () => api.loadAdminDailyActivity(30), enabled: admin });
   const signups = useQuery({ queryKey: ['admin-signups'], queryFn: () => api.loadAdminRecentSignups(20), enabled: admin });
 
@@ -71,6 +114,8 @@ export function AdminPage() {
               <StatCard label="Active this week" value={overview.data.active_this_week} />
             </div>
           )}
+
+          {usage.data && <UsageCard usage={usage.data} />}
 
           <Card className="p-4 md:p-5">
             <div className="mb-4 flex items-center justify-between">

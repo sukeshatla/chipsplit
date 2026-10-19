@@ -410,7 +410,9 @@ Because that one query downloads everything, it runs as rarely as freshness allo
 Supabase's free-plan egress (5 GB a month): loaded data counts as fresh for five minutes, a write
 reloads at once, someone watching a live game refreshes just that game every 15 seconds (the full
 reload comes when it finishes or is deleted), and the host's autosave updates the cache in place
-instead of reloading.
+instead of reloading. The app admin's page shows the free-plan usage Postgres can measure
+(database size, file storage, people active in 30 days) against its limits; egress and logs are
+only on Supabase's Usage page. The free plan never bills; going over gets the project restricted.
 
 **Two interchangeable backends.** `DataApi` (`src/api/types.ts`) is the single interface the UI
 writes against; `supabaseApi.ts` implements it against Postgres, `demoApi.ts` implements the

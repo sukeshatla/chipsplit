@@ -372,6 +372,16 @@ export const supabaseApi: DataApi = {
     return rows[0] ?? null;
   },
 
+  async loadAdminUsage() {
+    const rows = check(await db().rpc('admin_usage')) as any[];
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      database_bytes: num(r.database_bytes), storage_bytes: num(r.storage_bytes), active_30d: num(r.active_30d),
+      tables: (r.tables ?? []).map((t: any) => ({ name: t.name, bytes: num(t.bytes), rows: num(t.rows) })),
+    };
+  },
+
   async loadAdminDailyActivity(days = 30) {
     return check(await db().rpc('admin_daily_activity', { p_days: days })) as AdminDailyActivity[];
   },

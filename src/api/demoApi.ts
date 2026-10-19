@@ -382,6 +382,7 @@ export const demoApi: DataApi = {
   // Admin analytics reads real signup/activity data across every user, which demo mode has
   // no equivalent of; the admin page is gated to one real account anyway, so this never runs.
   loadAdminOverview: () => Promise.resolve(null),
+  loadAdminUsage: () => Promise.resolve(null),
   loadAdminDailyActivity: () => Promise.resolve([]),
   loadAdminRecentSignups: () => Promise.resolve([]),
 

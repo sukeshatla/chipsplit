@@ -34,7 +34,7 @@ chipsplit/
 │   └── keep-alive.yml        ← Pings Supabase every 3 days so the free project never pauses
 ├── public/                   ← App icons
 ├── docs/                     ← DESIGN.md, feature overview PDF (features, roles, phone install, security)
-├── supabase/migrations/      ← 0001 … 0031, run in order in the Supabase SQL editor
+├── supabase/migrations/      ← 0001 … 0032, run in order in the Supabase SQL editor
 └── src/
     ├── main.tsx, App.tsx     ← Entry + HashRouter (routes below)
     ├── index.css             ← Tailwind + theme tokens (light / dark)
@@ -97,7 +97,7 @@ Open the URL Vite prints (http://localhost:5173). With no Supabase keys it runs 
 ## First-Time Setup (real accounts)
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. In its **SQL editor**, run every file in `supabase/migrations/` **in order** (0001 → 0031).
+2. In its **SQL editor**, run every file in `supabase/migrations/` **in order** (0001 → 0032).
 3. **Authentication → Providers**: turn on Google (client ID and secret from Google Cloud Console).
 4. **Authentication → URL Configuration**: Site URL `https://chipnsplit.org`; Redirect URLs `https://chipnsplit.org` and `http://localhost:5173`.
 5. Create `.env.local` from **Project settings → API**:
@@ -143,6 +143,7 @@ The app never changes the schema itself. **Run a new migration in the Supabase S
 | 0022_game_payments_go_with_game | A game's payments go with it when deleted |
 | 0023_names_admin_only | Only the app admin edits other people's names and emails |
 | 0024_remove_friends | Remove anyone from your Friends list once settled |
+| 0032_admin_usage | Admin page: free-plan usage (database size, storage, active people, biggest tables) |
 | 0031_rummy_buy_in_required | Every new rummy game needs a buy-in above zero |
 | 0030_rummy_payout_follows_result | A round edit that changes a finished rummy game's result takes its payout out of balances |
 | 0029_rummy_delete_needs_settle | Rummy games need their payout settled before deleting; deleting takes the payout out of balances |
@@ -171,7 +172,7 @@ All enforced in Postgres (row-level security and triggers), so they hold even if
 ## Running Tests
 
 ```bash
-npm test            # Vitest: 116 tests, under a second
+npm test            # Vitest: 119 tests, under a second
 npm run test:watch  # while you work
 npm run typecheck   # TypeScript
 npm run check       # typecheck + tests + build: what CI runs on every pull request
@@ -207,7 +208,7 @@ Hash routes (`/#/...`), so GitHub Pages never needs server-side routing.
 | `/friends` | Friends | Everyone you split with, biggest amount first |
 | `/friends/:key` | FriendDetail | One-on-one expenses, balance per group, settle, remove friend |
 | `/profile` | Profile | Name, currency, theme, card-game stats |
-| `/admin` | Admin | Usage stats (app admin only) |
+| `/admin` | Admin | Signups, activity, and Supabase free-plan usage (app admin only) |
 
 ## Data API
 
@@ -224,7 +225,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 | Payments | `addSettlement`, `deleteSettlement` |
 | History | `loadHistory`, `loadNotifications`, `markNotificationsSeen` |
 | Rummy | `loadRummyGames`, `loadRummyGame`, `createRummyGame`, `addRummyRound`, `updateRummyRound`, `rejoinRummyPlayer`, `closeRummyGame`, `deleteRummyGame`, `linkRummySession` |
-| App admin | `loadAdminOverview`, `loadAdminDailyActivity`, `loadAdminRecentSignups` |
+| App admin | `loadAdminOverview`, `loadAdminUsage`, `loadAdminDailyActivity`, `loadAdminRecentSignups` |
 
 ## Tech Stack
 
@@ -250,7 +251,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - **One-on-ones are small hidden groups** (`groups.is_direct`), shown under Friends instead of Groups.
 - **Friend keys:** a person is `u:<user id>` (has an account), `e:<email>` (invited), or `m:<member id>` (guest). Removed friends are stored by key in `hidden_friends`.
 - **App admin** is one hard-coded account (`src/lib/admin.ts`), and the database checks it too.
-- **Free-tier upkeep:** `keep-alive.yml` stops Supabase from pausing the project after a quiet week. To stay inside the free plan's 5 GB/month egress, data stays fresh for 5 minutes, live-game viewers refresh only that game, and avatars are cached for a year.
+- **Free-tier upkeep:** `keep-alive.yml` stops Supabase from pausing the project after a quiet week. To stay inside the free plan's 5 GB/month egress, data stays fresh for 5 minutes, live-game viewers refresh only that game, and avatars are cached for a year. The Admin page shows database, storage, and active-user usage against the limits.
 - **No email service:** summaries and reminders are `mailto:` links.
 - Ideas for later are in [docs/DESIGN.md § Ideas for later](docs/DESIGN.md#8-ideas-for-later).
 
@@ -352,6 +353,6 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 **Built for low maintenance**
 - No server to run: the browser talks to Supabase directly, and **row-level security** in Postgres makes sure people only ever see groups they belong to.
 - Money is stored as integer cents everywhere, so there's no rounding drift.
-- Stays on Supabase's **free plan**: the app downloads everything only when it has to (fresh for 5 minutes, live games refresh just themselves).
+- Stays on Supabase's **free plan**: the app downloads everything only when it has to (fresh for 5 minutes, live games refresh just themselves), and the **Admin** page shows database size, file storage, and people active in 30 days against the free limits (amber from 80%, red at 100%), with a link to Supabase for egress and logs.
 - The whole database is a handful of SQL files in `supabase/migrations`, so you can rebuild it anytime.
 - Built spec-first and test-first: every rule in SPEC.md is checked by a named test, the database, or a written manual check. GitHub Actions runs the full check on every pull request, and tests, builds, and deploys every push to main.

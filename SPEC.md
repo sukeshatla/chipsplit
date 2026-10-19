@@ -198,3 +198,10 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | PLAT-4 | Demo mode enforces the same permission rules as the database (the `db` rules above that name a demo function). | test | `api/demoApi.test.ts` |
 | PLAT-5 | Someone watching a game in progress refreshes just that game every 15 seconds, not everything; everything reloads once, when the game finishes, reopens, or is deleted. The host's autosave updates the screen without a reload. | test | `withSession`, `needsFullReload`, `GameDayPage`, `loadSession` |
 | PLAT-6 | Loaded data stays fresh for 5 minutes: switching back to the app or between pages inside that doesn't reload everything, while any change you make reloads at once. The notifications bell checks every 5 minutes. Avatars are cached for a year (each upload gets a new address). | manual | `main.tsx`, `NotificationsBell`, `uploadAvatar` — browser Network tab: switch tabs and back within 5 minutes; no new `groups` request |
+
+## ADMIN — app admin page
+
+| ID | Rule | Verified by | Where |
+|---|---|---|---|
+| ADMIN-1 | The Admin page shows Supabase free-plan usage against its limits, with the percent used: database size (of 500 MB), file storage (of 1 GB), and people active in the last 30 days (of 50,000), plus the biggest tables. A meter turns amber from 80% and red at 100%. Egress and logs can't be read from the database, so the card links to Supabase's Usage page for them. | test | `usageMeters`, `AdminPage` |
+| ADMIN-2 | Usage figures come only from `admin_usage()`, which returns nothing unless the caller is the app admin. | db | 0032 `admin_usage` |
