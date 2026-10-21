@@ -175,7 +175,7 @@ All enforced in Postgres (row-level security and triggers), so they hold even if
 ## Running Tests
 
 ```bash
-npm test            # Vitest: 124 tests, under a second
+npm test            # Vitest: 125 tests, under a second
 npm run test:watch  # while you work
 npm run typecheck   # TypeScript
 npm run check       # typecheck + tests + build: what CI runs on every pull request
@@ -310,12 +310,12 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - **Import from Excel or CSV** (`.xlsx`, `.xls`, `.csv`) with a preview that flags bad rows before anything is saved. A template is downloadable from the import dialog.
 
 **Friends**
-- A personal friends list, independent of any one group, of **signed-up people you chose**: add someone by their Google email (they show up once they sign in with it), or tap anyone's picture in a group or game and hit **Add as friend**. Sharing a group doesn't make someone your friend.
+- A personal friends list, independent of any one group: add someone by their Google email (they're on your list right away, signed up or not, and linked once they sign in), or tap anyone's picture in a group or game and hit **Add as friend**. Friends you add stay until you remove them. Sharing a group doesn't make someone your friend.
 - **Add a friend** is one short form: name and Google email. Pop-up forms stay above the phone keyboard.
 - Each friend row says what you share: **2 shared groups**, **one-on-one**, or **nothing shared yet** (deleted expenses and empty one-on-ones don't count).
 - **Remove friend** works once you're settled up in every currency.
 - Anyone money has moved between you and (a payment recorded between you two, a one-on-one expense, or a balance open right now), guest or not, is on your Friends list too. Playing the same game or sharing a group split doesn't count on its own; your money with everyone stays in their groups and in your Dashboard totals either way.
-- Friends you're settled up with are tucked away behind **Show N settled up** at the bottom of the list (searching finds them too), and the Dashboard's Friends card leaves them out.
+- Friends you've settled up with (money moved, now even) are tucked away behind **Show N settled up** at the bottom of the list (searching finds them too), and the Dashboard's Friends card leaves them out.
 - **One name per person**: once someone has an account, their own account name is what everyone sees, in every group, friends list, and rummy game, and it follows them if they rename themselves. People without an account keep the name they were added with.
 - **Only the app admin changes other people's names and emails** (enforced in the database): **Edit name & email** on a guest's or invited person's card fixes them in every group and friends list at once, and links them if that email already has an account. Everyone else can only change their own name, on Profile.
 - Pick existing friends right when creating a group, when adding them to an expense, or when adding a player to a game — no retyping. Adding someone new to a group doesn't save them to your friends.

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, HeartHandshake, UserPlus } from 'lucide-react';
 import { useData } from '../app/data';
-import { friendsList, isSettledFriend, moneyPhrase, sharedSummary, totals, STATUS_LABEL } from '../lib/ledger';
+import { friendsList, isTuckedAway, moneyPhrase, sharedSummary, totals, STATUS_LABEL } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { Avatar, BalanceText, Button, Card, EmptyState, Input, PageHeader, useShowMore } from '../components/ui';
 import { AddFriendDialog } from '../components/dialogs/AddFriendDialog';
@@ -18,8 +18,8 @@ export function FriendsPage() {
     .sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
   // Settled-up friends wait behind Show N settled up (SPEC FRIEND-12); a search finds them anyway.
   const searching = q.trim() !== '';
-  const settledCount = searching ? 0 : friends.filter(isSettledFriend).length;
-  const shown = searching || showSettled ? friends : friends.filter((f) => !isSettledFriend(f));
+  const settledCount = searching ? 0 : friends.filter(isTuckedAway).length;
+  const shown = searching || showSettled ? friends : friends.filter((f) => !isTuckedAway(f));
   const list = useShowMore(shown);
   const t = totals(data);
 

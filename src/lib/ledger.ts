@@ -259,11 +259,17 @@ export function transactedWith(f: Friend): boolean {
 }
 
 /**
- * The Friends list (SPEC FRIEND-10): signed-up people you added as friends, plus anyone money has
- * moved between you and, guest or not. Sharing a group alone doesn't put someone here.
+ * The Friends list (SPEC FRIEND-10): everyone you added as a friend, signed up or not, until you
+ * remove them, plus anyone money has moved between you and. Sharing a group alone doesn't count.
  */
 export function friendsList(data: AppData): FriendRow[] {
-  return peopleList(data).filter((f) => (f.contactId !== null && f.status === 'friend') || transactedWith(f));
+  return peopleList(data).filter((f) => f.contactId !== null || transactedWith(f));
+}
+
+/** Settled up after money moved between you: tucked behind "Show N settled up" (SPEC FRIEND-12).
+ *  A friend with nothing shared yet isn't settled with you, so they always show. */
+export function isTuckedAway(f: Friend): boolean {
+  return isSettledFriend(f) && transactedWith(f);
 }
 
 /** Whether a group has anything in it right now -- an expense, game, or payment, settled or not.

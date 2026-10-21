@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { friendKey, friendsList, hasActivity, isSettledFriend, peopleList, sharedSummary, transactedWith } from './ledger';
+import { friendKey, friendsList, hasActivity, isSettledFriend, isTuckedAway, peopleList, sharedSummary, transactedWith } from './ledger';
 import { data, expense, game, group, meMember, member, payment } from '../test/fixtures';
 
 const ravi = (id = 'm-ravi') => member(id, { name: 'Ravi', email: 'ravi@example.com' });
@@ -95,7 +95,7 @@ describe('who is on your Friends list', () => {
       settlements: [payment('p', 'm-guest', 'me', 1000)], // Guest paid you back; Kiran still owes
     });
     const d = data([trip], { contacts: [contact('c-asha', 'Asha', { user_id: 'u-asha', email: 'asha@example.com' }), contact('c-inv', 'Invited', { email: 'inv@example.com' })] });
-    expect(names(d)).toEqual(['Asha', 'Guest', 'Kiran']);
+    expect(names(d)).toEqual(['Asha', 'Guest', 'Invited', 'Kiran']);
   });
 
   it('[FRIEND-10] a shared game or group split alone does not count once settled; a one-on-one does', () => {
@@ -116,5 +116,16 @@ describe('who is on your Friends list', () => {
     const settled = group({ members: [meMember('me'), kiran], expenses: [expense('e', 'me', 2000, { me: 1000, 'm-kiran': 1000 })], settlements: [payment('p', 'm-kiran', 'me', 1000)] });
     expect(names(data([settled]))).toEqual(['Kiran']);
     expect(names(data([settled], { hidden_friends: [friendKey(kiran)] }))).toEqual([]);
+  });
+});
+
+describe('settled friends tucked away', () => {
+  const kiran = member('m-kiran', { name: 'Kiran', user_id: 'u-kiran' });
+  it('[FRIEND-12] tucks away someone you settled with, never a friend with nothing shared yet', () => {
+    const settled = group({ members: [meMember('me'), kiran], expenses: [expense('e', 'me', 2000, { me: 1000, 'm-kiran': 1000 })], settlements: [payment('p', 'm-kiran', 'me', 1000)] });
+    const d = data([settled], { contacts: [{ id: 'c-new', owner_id: 'me-user', user_id: null, name: 'Neha', email: 'neha@example.com', created_at: '' }] });
+    const rows = friendsList(d);
+    expect(isTuckedAway(rows.find((f) => f.name === 'Kiran')!)).toBe(true);
+    expect(isTuckedAway(rows.find((f) => f.name === 'Neha')!)).toBe(false);
   });
 });
