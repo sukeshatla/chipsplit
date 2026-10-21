@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Spade, Plus, Receipt, HandCoins, ChevronRight, Radio, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { useData } from '../app/data';
-import { activity, friendsList, groupBalances, isGameHost, listedGroups, moneyPhrase, myLiveGames, myMemberId, shortName, totals } from '../lib/ledger';
+import { activity, friendsList, groupBalances, isGameHost, isSettledFriend, listedGroups, moneyPhrase, myLiveGames, myMemberId, shortName, totals } from '../lib/ledger';
 import { formatDate, formatMoney } from '../lib/money';
 import { AddExpenseButton, Amount, Avatar, BalanceText, Button, Card, CardHeader, EmptyState, PageHeader, Row, useShowMore } from '../components/ui';
 import { GroupIcon } from '../components/GroupKind';
@@ -42,7 +42,9 @@ export function DashboardPage() {
   // Where you stand with each friend across every group and one-on-one -- same numbers as the Friends page.
   const currency = me.default_currency || 'USD';
   // Biggest amount first, whether you're owed or you owe; settled up last -- same order everywhere.
-  const friends = friendsList(data).filter((f) => f.groups.length > 0).sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
+  const allFriends = friendsList(data).filter((f) => f.groups.length > 0);
+  // Only people with money open; settled-up friends live behind the Friends page's toggle (SPEC FRIEND-12).
+  const friends = allFriends.filter((f) => !isSettledFriend(f)).sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
   const myBal = (g: (typeof data.groups)[number]) => { const mine = myMemberId(g, me.id); return mine ? groupBalances(g).get(mine) ?? 0 : 0; };
   const groupList = groups.map((g) => ({ g, bal: myBal(g) })).sort((a, b) => Math.abs(b.bal) - Math.abs(a.bal) || a.g.name.localeCompare(b.g.name));
   const groupsMore = useShowMore(groupList, 5);
@@ -137,7 +139,9 @@ export function DashboardPage() {
         <CardHeader title="Friends" />
         <p className="px-4 text-[12px] text-ink-2 md:px-5">Across all your groups and one-on-one.</p>
         <div className="mt-1">
-          {friends.length === 0 ? (
+          {friends.length === 0 && allFriends.length > 0 ? (
+            <p className="px-4 pb-4 pt-2 text-sm text-ink-2 md:px-5">You're settled up with everyone.</p>
+          ) : friends.length === 0 ? (
             <EmptyState icon={<Receipt size={28} />} title="No friends yet" body="Split something with a friend, or add them to a group."
               action={<AddExpenseButton onClick={() => setQuickExpense(true)} />} />
           ) : friendsMore.visible.map((f) => (

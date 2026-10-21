@@ -315,7 +315,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - Each friend row says what you share: **2 shared groups**, **one-on-one**, or **nothing shared yet** (deleted expenses and empty one-on-ones don't count).
 - **Remove friend** works once you're settled up in every currency.
 - Anyone money has moved between you and (a payment recorded between you two, a one-on-one expense, or a balance open right now), guest or not, is on your Friends list too. Playing the same game or sharing a group split doesn't count on its own; your money with everyone stays in their groups and in your Dashboard totals either way.
-- Friends you're settled up with are tucked away behind **Show N settled up** at the bottom of the list; searching finds them too.
+- Friends you're settled up with are tucked away behind **Show N settled up** at the bottom of the list (searching finds them too), and the Dashboard's Friends card leaves them out.
 - **One name per person**: once someone has an account, their own account name is what everyone sees, in every group, friends list, and rummy game, and it follows them if they rename themselves. People without an account keep the name they were added with.
 - **Only the app admin changes other people's names and emails** (enforced in the database): **Edit name & email** on a guest's or invited person's card fixes them in every group and friends list at once, and links them if that email already has an account. Everyone else can only change their own name, on Profile.
 - Pick existing friends right when creating a group, when adding them to an expense, or when adding a player to a game — no retyping. Adding someone new to a group doesn't save them to your friends.
