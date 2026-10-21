@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { friendsList, hasActivity, isSettledFriend, sharedSummary } from './ledger';
-import { data, expense, group, meMember, member, payment } from '../test/fixtures';
+import { friendKey, friendsList, hasActivity, isSettledFriend, peopleList, sharedSummary, transactedWith } from './ledger';
+import { data, expense, game, group, meMember, member, payment } from '../test/fixtures';
 
 const ravi = (id = 'm-ravi') => member(id, { name: 'Ravi', email: 'ravi@example.com' });
-const raviRow = (d: ReturnType<typeof data>) => friendsList(d).find((f) => f.name === 'Ravi')!;
+const raviRow = (d: ReturnType<typeof data>) => peopleList(d).find((f) => f.name === 'Ravi')!;
 
 describe('what you share with a friend', () => {
   it('[FRIEND-4] counts real groups only: "1 shared group", "2 shared groups"', () => {
@@ -75,5 +75,47 @@ describe('one-on-one balance rows on a friend page', () => {
     const { directBalanceRows } = await import('./ledger');
     const empty = group({ id: 'empty', is_direct: true, members: [meMember('me-e'), ravi('r-e')] });
     expect(directBalanceRows(raviRow(data([pair('a', 'USD', 1000), empty])), 'me-user')).toHaveLength(1);
+  });
+});
+
+describe('who is on your Friends list', () => {
+  const contact = (id: string, name: string, extra: { user_id?: string | null; email?: string | null } = {}) =>
+    ({ id, owner_id: 'me-user', user_id: null, name, email: null, created_at: '', ...extra });
+  const asha = member('m-asha', { name: 'Asha', user_id: 'u-asha', email: 'asha@example.com' });
+  const kiran = member('m-kiran', { name: 'Kiran', user_id: 'u-kiran', email: 'kiran@example.com' });
+  const guest = member('m-guest', { name: 'Guest' });
+  const quiet = member('m-quiet', { name: 'Quiet', user_id: 'u-quiet' });
+  const other = member('m-other', { name: 'Other' });
+  const names = (d: ReturnType<typeof data>) => friendsList(d).map((f) => f.name).sort();
+
+  it('[FRIEND-10] lists friends you added plus anyone you have a transaction with, guests included', () => {
+    const trip = group({
+      members: [meMember('me'), asha, kiran, guest, quiet, other],
+      expenses: [
+        expense('e1', 'me', 3000, { me: 1000, 'm-kiran': 1000, 'm-guest': 1000 }), // you, Kiran, Guest
+        expense('e2', 'm-quiet', 2000, { 'm-quiet': 1000, 'm-other': 1000 }), // between others only
+      ],
+    });
+    const d = data([trip], { contacts: [contact('c-asha', 'Asha', { user_id: 'u-asha', email: 'asha@example.com' }), contact('c-inv', 'Invited', { email: 'inv@example.com' })] });
+    expect(names(d)).toEqual(['Asha', 'Guest', 'Kiran']);
+  });
+
+  it('[FRIEND-10] a game you both played or a payment between you counts; deleted ones do not', () => {
+    const club = group({
+      kind: 'club',
+      members: [meMember('me'), kiran, guest, quiet, other],
+      sessions: [game('s', { me: [1000, 2000], 'm-kiran': [1000, 0] })],
+      settlements: [payment('p', 'm-guest', 'me', 500)],
+      deleted_expenses: [expense('gone', 'me', 1000, { 'm-quiet': 1000 }, { deleted_at: '2026-02-01' })],
+      deleted_sessions: [game('old', { me: [1000, 1000], 'm-other': [1000, 1000] }, { deleted_at: '2026-02-01' })],
+    });
+    expect(names(data([club]))).toEqual(['Guest', 'Kiran']);
+    expect(transactedWith(peopleList(data([club])).find((f) => f.name === 'Quiet')!)).toBe(false);
+  });
+
+  it('[FRIEND-10] a removed friend stays off while settled, even with past transactions', () => {
+    const settled = group({ members: [meMember('me'), kiran], expenses: [expense('e', 'me', 2000, { me: 1000, 'm-kiran': 1000 })], settlements: [payment('p', 'm-kiran', 'me', 1000)] });
+    expect(names(data([settled]))).toEqual(['Kiran']);
+    expect(names(data([settled], { hidden_friends: [friendKey(kiran)] }))).toEqual([]);
   });
 });

@@ -34,7 +34,7 @@ chipsplit/
 │   └── keep-alive.yml        ← Pings Supabase every 3 days so the free project never pauses
 ├── public/                   ← App icons
 ├── docs/                     ← DESIGN.md, feature overview PDF (features, roles, phone install, security)
-├── supabase/migrations/      ← 0001 … 0033, run in order in the Supabase SQL editor
+├── supabase/migrations/      ← 0001 … 0034, run in order in the Supabase SQL editor
 └── src/
     ├── main.tsx, App.tsx     ← Entry + HashRouter (routes below)
     ├── index.css             ← Tailwind + theme tokens (light / dark)
@@ -97,7 +97,7 @@ Open the URL Vite prints (http://localhost:5173). With no Supabase keys it runs 
 ## First-Time Setup (real accounts)
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. In its **SQL editor**, run every file in `supabase/migrations/` **in order** (0001 → 0033).
+2. In its **SQL editor**, run every file in `supabase/migrations/` **in order** (0001 → 0034).
 3. **Authentication → Providers**: turn on Google (client ID and secret from Google Cloud Console).
 4. **Authentication → URL Configuration**: Site URL `https://chipnsplit.org`; Redirect URLs `https://chipnsplit.org` and `http://localhost:5173`.
 5. Create `.env.local` from **Project settings → API**:
@@ -143,6 +143,7 @@ The app never changes the schema itself. **Run a new migration in the Supabase S
 | 0022_game_payments_go_with_game | A game's payments go with it when deleted |
 | 0023_names_admin_only | Only the app admin edits other people's names and emails |
 | 0024_remove_friends | Remove anyone from your Friends list once settled |
+| 0034_members_not_auto_friends | Adding someone to a group no longer adds them to your friends |
 | 0033_explicit_grants | Every table granted to the Data API explicitly (Supabase stopped doing it automatically), so a fresh project works |
 | 0032_admin_usage | Admin page: free-plan usage (database size, storage, active people, biggest tables) |
 | 0031_rummy_buy_in_required | Every new rummy game needs a buy-in above zero |
@@ -173,7 +174,7 @@ All enforced in Postgres (row-level security and triggers), so they hold even if
 ## Running Tests
 
 ```bash
-npm test            # Vitest: 120 tests, under a second
+npm test            # Vitest: 124 tests, under a second
 npm run test:watch  # while you work
 npm run typecheck   # TypeScript
 npm run check       # typecheck + tests + build: what CI runs on every pull request
@@ -308,14 +309,14 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - **Import from Excel or CSV** (`.xlsx`, `.xls`, `.csv`) with a preview that flags bad rows before anything is saved. A template is downloadable from the import dialog.
 
 **Friends**
-- A personal friends list, independent of any one group: add someone by name, or by email so they're linked the moment they sign in with a matching Google account.
-- **Add a friend** is one short form: **With email** (name + Google email) or **Guest, no email** (just a name). Pop-up forms stay above the phone keyboard.
+- A personal friends list, independent of any one group, of **signed-up people you chose**: add someone by their Google email (they show up once they sign in with it), or tap anyone's picture in a group or game and hit **Add as friend**. Sharing a group doesn't make someone your friend.
+- **Add a friend** is one short form: name and Google email. Pop-up forms stay above the phone keyboard.
 - Each friend row says what you share: **2 shared groups**, **one-on-one**, or **nothing shared yet** (deleted expenses and empty one-on-ones don't count).
-- **Remove friend** works for anyone (friend, invited, or guest), but only once you're settled up in every currency. They come back on their own if a balance with them opens again, or if you add them back.
-- Every friend is tagged **Friend** (linked account), **Invited** (email on file, hasn't signed up), or **Guest** (name only).
+- **Remove friend** works once you're settled up in every currency.
+- Anyone you've had a transaction with (an expense you're both in, a game you both played, or a payment between you), guest or not, is on your Friends list too. Co-members you've never transacted with aren't; your money stays in their groups and in your Dashboard totals either way.
 - **One name per person**: once someone has an account, their own account name is what everyone sees, in every group, friends list, and rummy game, and it follows them if they rename themselves. People without an account keep the name they were added with.
 - **Only the app admin changes other people's names and emails** (enforced in the database): **Edit name & email** on a guest's or invited person's card fixes them in every group and friends list at once, and links them if that email already has an account. Everyone else can only change their own name, on Profile.
-- Pick existing friends right when creating a group, when adding them to an expense, or when adding a player to a game — no retyping. Adding someone new anywhere in the app also saves them to your friends list.
+- Pick existing friends right when creating a group, when adding them to an expense, or when adding a player to a game — no retyping. Adding someone new to a group doesn't save them to your friends.
 - Friend page: your overall balance with them, an **Add expense** button, your one-on-one expenses ("Just you two", one **Balance** row per currency even if you each started a one-on-one), and your balance in each group you share, each with a **Settle** button.
 
 **Balances and settling up**

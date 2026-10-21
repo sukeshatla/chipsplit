@@ -285,15 +285,15 @@ describe('reminderMailto', async () => {
 
 describe('friendsList', async () => {
   const { seedDemo } = await import('../api/seed');
-  const { friendsList, friendBalances, friendKey, statusFromKey } = await import('./ledger');
-  it('[FRIEND-3] includes a contact who is not in any shared group yet', () => {
+  const { friendsList, peopleList, friendBalances, friendKey, statusFromKey } = await import('./ledger');
+  it('[FRIEND-3] includes a friend who is not in any shared group yet', () => {
     const data = seedDemo();
-    const meera = friendsList(data).find((f) => f.name === 'Meera');
-    expect(meera).toMatchObject({ net: 0, groups: [], status: 'guest' });
+    data.contacts.push({ id: 'c-new', owner_id: data.me.id, user_id: 'u-new', name: 'Neha', email: 'neha@example.com', created_at: '' });
+    expect(friendsList(data).find((f) => f.name === 'Neha')).toMatchObject({ net: 0, groups: [], status: 'friend' });
   });
   it('[FRIEND-1] does not duplicate a friend who is both a contact and a group co-member', () => {
     const data = seedDemo();
-    const rows = friendsList(data);
+    const rows = peopleList(data);
     const keys = rows.map((f) => f.key);
     expect(new Set(keys).size).toBe(keys.length);
     // Ravi is in two groups and also a seeded contact; he must collapse into one row.
@@ -304,7 +304,7 @@ describe('friendsList', async () => {
   });
   it('[BAL-5] every friendBalances entry is present in friendsList with the same balance', () => {
     const data = seedDemo();
-    const rows = new Map(friendsList(data).map((f) => [f.key, f]));
+    const rows = new Map(peopleList(data).map((f) => [f.key, f]));
     for (const f of friendBalances(data)) {
       expect(rows.get(f.key)?.net).toBe(f.net);
     }
@@ -329,23 +329,23 @@ describe('friendsList', async () => {
         expenses: [], sessions: [], settlements: [],
       }],
     };
-    const rows = friendsList(data).filter((f) => f.name === 'Ravi');
+    const rows = peopleList(data).filter((f) => f.name === 'Ravi');
     expect(rows).toHaveLength(1);
     expect(rows[0]!.contactId).toBe('c1');
   });
   it('[FRIEND-7] hides a removed friend only while settled up and not added back', () => {
     const data = seedDemo();
     const meera = data.contacts.find((c) => c.name === 'Meera')!;
-    const owing = friendsList(data).find((f) => f.net !== 0)!;
+    const owing = peopleList(data).find((f) => f.net !== 0)!;
     data.hidden_friends = [friendKey(meera), owing.key];
     data.contacts = data.contacts.filter((c) => c.id !== meera.id);
-    const keys = friendsList(data).map((f) => f.key);
+    const keys = peopleList(data).map((f) => f.key);
     expect(keys).not.toContain(friendKey(meera));
     // A balance still open keeps them on the list.
     expect(keys).toContain(owing.key);
     // Adding them back as a friend brings them back.
     data.contacts.push(meera);
-    expect(friendsList(data).map((f) => f.key)).toContain(friendKey(meera));
+    expect(peopleList(data).map((f) => f.key)).toContain(friendKey(meera));
   });
 });
 

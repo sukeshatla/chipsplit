@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { friendsList, groupBalances, myPokerGames, pokerLeaderboard, pokerStats } from './ledger';
+import { peopleList, groupBalances, myPokerGames, pokerLeaderboard, pokerStats } from './ledger';
 import { data, expense, game, group, meMember, member, payment } from '../test/fixtures';
 
 describe('balances', () => {
@@ -26,7 +26,7 @@ describe('balances', () => {
         expense('4', 'me', 1000, { Di: 1000 }), // Di owes you 10
       ],
     });
-    expect(friendsList(data([g])).map((f) => f.name)).toEqual(['Bo', 'Ana', 'Cy', 'Di', 'Ed']);
+    expect(peopleList(data([g])).map((f) => f.name)).toEqual(['Bo', 'Ana', 'Cy', 'Di', 'Ed']);
   });
 });
 

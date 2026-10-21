@@ -200,10 +200,12 @@ export const demoApi: DataApi = {
 
   addMember: (groupId, name, email) => mutate((d) => {
     const g = group(d, groupId);
-    const c = upsertContact(d, name, email);
+    // Same as 0034: someone added to a group isn't saved to your friends (SPEC FRIEND-11).
+    const em = email?.trim().toLowerCase() || null;
+    const n = name.trim();
     const id = uid();
-    g.members.push({ id, group_id: groupId, user_id: c.user_id, contact_id: c.id, name: c.name, email: c.email, email_opt_out: false, is_admin: false });
-    log(d, groupId, 'member', id, `Added ${c.name} to the group`);
+    g.members.push({ id, group_id: groupId, user_id: em && em === d.me.email ? d.me.id : null, contact_id: null, name: n, email: em, email_opt_out: false, is_admin: false });
+    log(d, groupId, 'member', id, `Added ${n} to the group`);
     return id;
   }),
 

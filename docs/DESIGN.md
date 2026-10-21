@@ -121,6 +121,13 @@ the moment they first sign in (see `handle_new_user()` in the schema) — so som
 added as a guest to three different groups over a year, then finally signs up, sees all three
 retroactively connect to their account without anyone doing anything.
 
+**Who's on the list.** Your Friends list holds the people you actually deal with: signed-up
+people you chose as a friend (by email from **Add a friend**, or **Add as friend** on anyone's
+card), plus anyone you've had a transaction with, guest or not: an expense you're both in, a game
+you both played, or a payment between you two. Merely sharing a group doesn't put someone there,
+and adding someone to a group doesn't put them in your address book. Everyone's balances still
+live in their groups and count in your Dashboard totals.
+
 **What you share.** Each friend row says *2 shared groups* (real groups only), *one-on-one* (a
 one-on-one with an expense, game, or payment in it, settled or not), or *nothing shared yet*.
 

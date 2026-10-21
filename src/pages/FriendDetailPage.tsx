@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, HandCoins, Trash2, UserX } from 'lucide-react';
 import { useData, useAction } from '../app/data';
-import { directBalanceRows, friendsList, hasActivity, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
+import { directBalanceRows, peopleList, hasActivity, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { AddExpenseButton, Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, LIST_STEP, MonthHeader, Row, ShowMore } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -27,7 +27,7 @@ export function FriendDetailPage() {
   const { run, busy } = useAction();
   const direct = useDirectGroup();
   const [params, setParams] = useSearchParams();
-  const f = friendsList(data).find((x) => x.key === decodeURIComponent(key ?? ''));
+  const f = peopleList(data).find((x) => x.key === decodeURIComponent(key ?? ''));
   const [settle, setSettle] = useState<{ group: Group; draft: SettleDraft } | null>(null);
   const [shown, setShown] = useState(LIST_STEP);
   const [deletingPayment, setDeletingPayment] = useState<{ st: Settlement; g: Group } | null>(null);

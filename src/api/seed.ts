@@ -26,13 +26,18 @@ export function seedDemo(): AppData {
     notifications_seen_at: `${daysAgo(160)}T12:00:00Z`,
   };
 
-  // One contact per person, reused across every group so they appear once on the Friends page.
+  // Who has an account. Ravi, Kiran, and Teja are friends you added; Vamsi is signed up but not
+  // added (his card offers Add as friend) and Ajay is a guest; both are listed because you've had
+  // transactions with them (SPEC FRIEND-10).
+  const accounts: Record<string, string> = { Suki: me.id, Ravi: RAVI_USER_ID, Kiran: 'demo-kiran', Teja: 'demo-teja', Vamsi: 'demo-vamsi' };
+  const notFriends = new Set(['Suki', 'Vamsi']);
+  // One contact per friend, reused across every group so they appear once on the Friends page.
   const contacts = new Map<string, Contact>();
   const contactId = (n: string): string | null => {
-    if (n === 'Suki') return null;
+    if (notFriends.has(n)) return null;
     let c = contacts.get(n);
     if (!c) {
-      c = { id: uid(), owner_id: me.id, user_id: n === 'Ravi' ? RAVI_USER_ID : null, name: n, email: `${n.toLowerCase()}@example.com`, created_at: `${daysAgo(160)}T12:00:00Z` };
+      c = { id: uid(), owner_id: me.id, user_id: accounts[n] ?? null, name: n, email: `${n.toLowerCase()}@example.com`, created_at: `${daysAgo(160)}T12:00:00Z` };
       contacts.set(n, c);
     }
     return c.id;
@@ -41,7 +46,7 @@ export function seedDemo(): AppData {
   const makeGroup = (name: string, kind: Group['kind'], names: string[], age: number): Group => {
     const id = uid();
     const members: Member[] = names.map((n) => ({
-      id: uid(), group_id: id, user_id: n === 'Suki' ? me.id : n === 'Ravi' ? RAVI_USER_ID : null, contact_id: contactId(n), name: n,
+      id: uid(), group_id: id, user_id: accounts[n] ?? null, contact_id: contactId(n), name: n,
       email: `${n.toLowerCase()}@example.com`, email_opt_out: false, is_admin: n === 'Suki', // only the creator starts as admin (0025)
     }));
     return { id, name, kind, currency: 'USD', created_by: me.id, created_at: `${daysAgo(age)}T12:00:00Z`, members, expenses: [], deleted_expenses: [], sessions: [], settlements: [] };

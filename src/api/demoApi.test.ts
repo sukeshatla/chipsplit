@@ -378,3 +378,13 @@ describe('[PLAT-4] rummy buy-in', () => {
     await api.createRummyGame({ groupId: id, name: '', pointLimit: 101, buyInCents: 500, players });
   });
 });
+
+describe('[PLAT-4] friends', () => {
+  it('[FRIEND-11] adding someone to a group does not add them to your friends', async () => {
+    const before = (await load()).contacts.length;
+    const id = await api.createGroup({ name: 'Trip', kind: 'expenses', currency: 'USD' });
+    await api.addMember(id, 'Zoya', 'zoya@example.com');
+    await api.addMember(id, 'Guest Guy', null);
+    expect((await load()).contacts).toHaveLength(before);
+  });
+});
