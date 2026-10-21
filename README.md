@@ -34,7 +34,7 @@ chipsplit/
 │   └── keep-alive.yml        ← Pings Supabase every 3 days so the free project never pauses
 ├── public/                   ← App icons
 ├── docs/                     ← DESIGN.md, feature overview PDF (features, roles, phone install, security)
-├── supabase/migrations/      ← 0001 … 0034, run in order in the Supabase SQL editor
+├── supabase/migrations/      ← 0001 … 0035, run in order in the Supabase SQL editor
 └── src/
     ├── main.tsx, App.tsx     ← Entry + HashRouter (routes below)
     ├── index.css             ← Tailwind + theme tokens (light / dark)
@@ -97,7 +97,7 @@ Open the URL Vite prints (http://localhost:5173). With no Supabase keys it runs 
 ## First-Time Setup (real accounts)
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. In its **SQL editor**, run every file in `supabase/migrations/` **in order** (0001 → 0034).
+2. In its **SQL editor**, run every file in `supabase/migrations/` **in order** (0001 → 0035).
 3. **Authentication → Providers**: turn on Google (client ID and secret from Google Cloud Console).
 4. **Authentication → URL Configuration**: Site URL `https://chipnsplit.org`; Redirect URLs `https://chipnsplit.org` and `http://localhost:5173`.
 5. Create `.env.local` from **Project settings → API**:
@@ -143,6 +143,7 @@ The app never changes the schema itself. **Run a new migration in the Supabase S
 | 0022_game_payments_go_with_game | A game's payments go with it when deleted |
 | 0023_names_admin_only | Only the app admin edits other people's names and emails |
 | 0024_remove_friends | Remove anyone from your Friends list once settled |
+| 0035_admin_database_size_all | Admin page's database size counts every database, matching Supabase's Usage page |
 | 0034_members_not_auto_friends | Adding someone to a group no longer adds them to your friends |
 | 0033_explicit_grants | Every table granted to the Data API explicitly (Supabase stopped doing it automatically), so a fresh project works |
 | 0032_admin_usage | Admin page: free-plan usage (database size, storage, active people, biggest tables) |
