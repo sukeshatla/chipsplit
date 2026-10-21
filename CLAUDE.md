@@ -76,3 +76,7 @@ rules). Deployed to GitHub Pages at chipnsplit.org on every push to `main`.
 - RLS skips rows silently; API writes ask for the row back (`.select('id')`) to tell "not allowed"
   from success.
 - Tests run in Node (`vitest.config.ts`); `demoApi.test.ts` stubs `localStorage`.
+- Supabase doesn't grant new `public` tables to the Data API anymore (since 2026-10-30). Every
+  `create table` migration also needs `grant select … to anon`, `grant select, insert, update,
+  delete … to authenticated` and `… to service_role`, or the app gets "permission denied"
+  (see 0033). `src/migrations.test.ts` fails if a table is missing them.
