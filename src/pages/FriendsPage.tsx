@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, HeartHandshake, UserPlus } from 'lucide-react';
 import { useData } from '../app/data';
-import { friendsList, moneyPhrase, sharedSummary, totals, STATUS_LABEL } from '../lib/ledger';
+import { friendsList, isSettledFriend, moneyPhrase, sharedSummary, totals, STATUS_LABEL } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { Avatar, BalanceText, Button, Card, EmptyState, Input, PageHeader, useShowMore } from '../components/ui';
 import { AddFriendDialog } from '../components/dialogs/AddFriendDialog';
@@ -11,11 +11,16 @@ export function FriendsPage() {
   const data = useData();
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
+  const [showSettled, setShowSettled] = useState(false);
   const currency = data.me.default_currency || 'USD';
   // Biggest amount first, whether you're owed or you owe; settled up last.
   const friends = friendsList(data).filter((f) => f.name.toLowerCase().includes(q.trim().toLowerCase()))
     .sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
-  const list = useShowMore(friends);
+  // Settled-up friends wait behind Show N settled up (SPEC FRIEND-12); a search finds them anyway.
+  const searching = q.trim() !== '';
+  const settledCount = searching ? 0 : friends.filter(isSettledFriend).length;
+  const shown = searching || showSettled ? friends : friends.filter((f) => !isSettledFriend(f));
+  const list = useShowMore(shown);
   const t = totals(data);
 
   return (
@@ -40,7 +45,8 @@ export function FriendsPage() {
           <EmptyState icon={<HeartHandshake size={28} />} title={q ? 'No one by that name' : 'No friends yet'}
             body={q ? 'Try a shorter search.' : 'Add a friend directly, or add them to a group — either way they show up here.'}
             action={!q && <Button variant="primary" onClick={() => setAdding(true)}><UserPlus size={16} aria-hidden="true" />Add friend</Button>} />
-        ) : list.visible.map((f) => (
+        ) : shown.length === 0 ? <p className="px-5 pb-3 pt-4 text-sm text-ink-2">You're settled up with everyone.</p>
+        : list.visible.map((f) => (
           <Link key={f.key} to={`/friends/${encodeURIComponent(f.key)}`}
             className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-surface-2/60 md:px-5">
             <Avatar name={f.name} src={f.avatar_url} size={36} />
@@ -54,6 +60,14 @@ export function FriendsPage() {
           </Link>
         ))}
         {list.more}
+        {settledCount > 0 && (
+          // The last row above keeps its own divider, so no top border here.
+          <div className="flex justify-center px-4 py-2.5">
+            <button type="button" className="text-[13px] font-semibold text-felt hover:underline dark:text-gain" onClick={() => setShowSettled((v) => !v)}>
+              {showSettled ? 'Hide settled up' : `Show ${settledCount} settled up`}
+            </button>
+          </div>
+        )}
       </Card>
       <AddFriendDialog open={adding} onClose={() => setAdding(false)} />
     </>
