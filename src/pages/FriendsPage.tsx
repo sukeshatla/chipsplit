@@ -56,7 +56,8 @@ export function FriendsPage() {
                 {STATUS_LABEL[f.status]} · {f.others.length ? `also ${f.others.map((m) => moneyPhrase(m, 'friend')).join(', ')}` : sharedSummary(f)}
               </p>
             </div>
-            <BalanceText cents={f.net} currency={f.currency} />
+            {/* Nothing shared yet isn't "settled up": no balance to show. */}
+            {f.groups.length > 0 && <BalanceText cents={f.net} currency={f.currency} />}
           </Link>
         ))}
         {list.more}

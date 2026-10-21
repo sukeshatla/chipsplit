@@ -51,6 +51,16 @@ await go(rummyUrl.split('|')[1]); await shot('rummy-game');
 await go('#/groups'); await click('New group'); await sleep(700); await shot('new-group');
 await ev(`[...document.querySelectorAll('[role=dialog] button')].find(b=>b.textContent.trim()==='Cancel')?.click()`); await sleep(300);
 // One-on-one expense with More options open.
+// The Friends page with what's new: Neha (the demo's friend added by email, not signed up yet)
+// shows as Invited, and Teja is settled up so the list ends with Show 1 settled up (FRIEND-12).
+await ev(`(async()=>{
+  const { demoApi } = await import('/src/api/demoApi.ts');
+  const L = await import('/src/lib/ledger.ts');
+  const teja = L.peopleList(await demoApi.loadAll()).find((f) => f.name === 'Teja');
+  for (const fg of teja.groups) if (fg.cents) await demoApi.addSettlement({ group_id: fg.group.id, from_member: fg.cents > 0 ? fg.memberId : fg.myMemberId, to_member: fg.cents > 0 ? fg.myMemberId : fg.memberId, amount_cents: Math.abs(fg.cents), method: 'Zelle', note: null, session_id: null, settled_on: new Date().toISOString().slice(0, 10) });
+  return 1;
+})()`);
+await send('Page.reload'); await sleep(2000);
 await go('#/friends'); await shot('friends');
 const friend = await ev(`[...document.querySelectorAll('a[href^="#/friends/"]')].map(a=>a.getAttribute('href'))[0]`);
 await go(friend); await click('Add expense'); await sleep(800);

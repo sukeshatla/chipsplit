@@ -288,8 +288,8 @@ describe('friendsList', async () => {
   const { friendsList, peopleList, friendBalances, friendKey, statusFromKey } = await import('./ledger');
   it('[FRIEND-3] includes a friend who is not in any shared group yet', () => {
     const data = seedDemo();
-    data.contacts.push({ id: 'c-new', owner_id: data.me.id, user_id: 'u-new', name: 'Neha', email: 'neha@example.com', created_at: '' });
-    expect(friendsList(data).find((f) => f.name === 'Neha')).toMatchObject({ net: 0, groups: [], status: 'friend' });
+    data.contacts.push({ id: 'c-new', owner_id: data.me.id, user_id: 'u-new', name: 'Priya', email: 'priya@example.com', created_at: '' });
+    expect(friendsList(data).find((f) => f.name === 'Priya')).toMatchObject({ net: 0, groups: [], status: 'friend' });
   });
   it('[FRIEND-1] does not duplicate a friend who is both a contact and a group co-member', () => {
     const data = seedDemo();
@@ -335,7 +335,7 @@ describe('friendsList', async () => {
   });
   it('[FRIEND-7] hides a removed friend only while settled up and not added back', () => {
     const data = seedDemo();
-    const meera = data.contacts.find((c) => c.name === 'Meera')!;
+    const meera = data.contacts.find((c) => c.name === 'Neha')!;
     const owing = peopleList(data).find((f) => f.net !== 0)!;
     data.hidden_friends = [friendKey(meera), owing.key];
     data.contacts = data.contacts.filter((c) => c.id !== meera.id);

@@ -120,8 +120,8 @@ export function seedDemo(): AppData {
   );
   home.settlements.push(pay(home, 'Kiran', 'Suki', 775, 18), pay(home, 'Teja', 'Suki', 800, 16));
 
-  // A friend added straight to the address book, not part of any group yet.
-  contacts.set('Meera', { id: uid(), owner_id: me.id, user_id: null, name: 'Meera', email: null, created_at: `${daysAgo(5)}T12:00:00Z` });
+  // A friend added by email who hasn't signed up yet, not part of any group (SPEC FRIEND-10).
+  contacts.set('Neha', { id: uid(), owner_id: me.id, user_id: null, name: 'Neha', email: 'neha@example.com', created_at: `${daysAgo(5)}T12:00:00Z` });
 
   // ---- One-on-one with Ajay, outside any group (Quick add / a friend's page) ----
   const withAjay = { ...makeGroup('Ajay', 'expenses', ['Suki', 'Ajay'], 12), is_direct: true };
