@@ -61,13 +61,13 @@ await ev(`[...document.querySelectorAll('[role=dialog] button')].find(b=>b.textC
 await go(tripUrl); await shot('trip');
 await go(tripUrl + '?tab=settle'); await shot('trip-settle');
 
-// New since the first PDF: friend page, Add a friend (both kinds), members & roles, History restore.
+// New since the first PDF: friend page, Add a friend, Add as friend, members & roles, History restore.
 await go(friend); await shot('friend-detail');
 await view(1400); await go(friend); await shot('friend-detail-full'); await view(844);
 await go('#/friends'); await click('Add friend'); await sleep(700); await shot('add-friend');
-await ev(`[...document.querySelectorAll('[role=dialog] button')].find(b=>b.textContent.trim()==='Guest, no email')?.click()`); await sleep(300);
-await shot('add-friend-guest');
 await go(tripUrl + '?tab=members'); await shot('members');
+// Vamsi is signed up but not added as a friend, so his card offers Add as friend.
+await ev(`[...document.querySelectorAll('p, span')].find((e) => e.textContent.trim() === 'Vamsi').click()`); await sleep(700); await shot('member-card');
 await ev(`(async()=>{ const { demoApi } = await import('/src/api/demoApi.ts'); const d = await demoApi.loadAll(); const g = d.groups.find(g=>g.name.includes('Goa trip')); await demoApi.deleteExpense(g.expenses[0].id); return 1 })()`);
 await send('Page.reload'); await sleep(2000);
 await go(tripUrl + '?tab=history'); await shot('history-restore');
