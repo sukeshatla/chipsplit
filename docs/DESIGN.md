@@ -123,8 +123,10 @@ retroactively connect to their account without anyone doing anything.
 
 **Who's on the list.** Your Friends list holds the people you actually deal with: signed-up
 people you chose as a friend (by email from **Add a friend**, or **Add as friend** on anyone's
-card), plus anyone you've had a transaction with, guest or not: an expense you're both in, a game
-you both played, or a payment between you two. Merely sharing a group doesn't put someone there,
+card), plus anyone money has moved between you and, guest or not: a payment recorded between you two,
+a one-on-one expense together, or a balance open between you right now. Sitting at the same table
+or being in the same group split doesn't count on its own (the settle-up pairs you with only a
+few of them). Merely sharing a group doesn't put someone there,
 and adding someone to a group doesn't put them in your address book. Everyone's balances still
 live in their groups and count in your Dashboard totals.
 

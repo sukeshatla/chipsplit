@@ -88,28 +88,27 @@ describe('who is on your Friends list', () => {
   const other = member('m-other', { name: 'Other' });
   const names = (d: ReturnType<typeof data>) => friendsList(d).map((f) => f.name).sort();
 
-  it('[FRIEND-10] lists friends you added plus anyone you have a transaction with, guests included', () => {
+  it('[FRIEND-10] lists friends you added plus anyone money moved between you and', () => {
     const trip = group({
       members: [meMember('me'), asha, kiran, guest, quiet, other],
-      expenses: [
-        expense('e1', 'me', 3000, { me: 1000, 'm-kiran': 1000, 'm-guest': 1000 }), // you, Kiran, Guest
-        expense('e2', 'm-quiet', 2000, { 'm-quiet': 1000, 'm-other': 1000 }), // between others only
-      ],
+      expenses: [expense('e1', 'me', 3000, { me: 1000, 'm-kiran': 1000, 'm-guest': 1000 })], // Kiran and Guest owe you
+      settlements: [payment('p', 'm-guest', 'me', 1000)], // Guest paid you back; Kiran still owes
     });
     const d = data([trip], { contacts: [contact('c-asha', 'Asha', { user_id: 'u-asha', email: 'asha@example.com' }), contact('c-inv', 'Invited', { email: 'inv@example.com' })] });
     expect(names(d)).toEqual(['Asha', 'Guest', 'Kiran']);
   });
 
-  it('[FRIEND-10] a game you both played or a payment between you counts; deleted ones do not', () => {
+  it('[FRIEND-10] a shared game or group split alone does not count once settled; a one-on-one does', () => {
     const club = group({
       kind: 'club',
-      members: [meMember('me'), kiran, guest, quiet, other],
-      sessions: [game('s', { me: [1000, 2000], 'm-kiran': [1000, 0] })],
-      settlements: [payment('p', 'm-guest', 'me', 500)],
-      deleted_expenses: [expense('gone', 'me', 1000, { 'm-quiet': 1000 }, { deleted_at: '2026-02-01' })],
-      deleted_sessions: [game('old', { me: [1000, 1000], 'm-other': [1000, 1000] }, { deleted_at: '2026-02-01' })],
+      members: [meMember('me'), kiran, quiet, other],
+      sessions: [game('s', { me: [1000, 1000], 'm-quiet': [1000, 1000], 'm-other': [1000, 1000] })], // everyone even
+      expenses: [expense('e', 'me', 3000, { me: 1000, 'm-quiet': 1000, 'm-other': 1000 })],
+      settlements: [payment('p1', 'm-quiet', 'm-other', 1000), payment('p2', 'm-other', 'me', 2000)], // Quiet never paid you
     });
-    expect(names(data([club]))).toEqual(['Guest', 'Kiran']);
+    // Quiet's share went to Other, who paid you: nothing moved between you and Quiet.
+    const oneOnOne = group({ id: 'd', is_direct: true, members: [meMember('me2'), member('m-g2', { name: 'Guest' })], expenses: [expense('x', 'me2', 2000, { me2: 1000, 'm-g2': 1000 })], settlements: [payment('px', 'm-g2', 'me2', 1000)] });
+    expect(names(data([club, oneOnOne]))).toEqual(['Guest', 'Other']);
     expect(transactedWith(peopleList(data([club])).find((f) => f.name === 'Quiet')!)).toBe(false);
   });
 

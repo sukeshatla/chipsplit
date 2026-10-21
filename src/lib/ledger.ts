@@ -246,21 +246,21 @@ export function peopleList(data: AppData): FriendRow[] {
     .sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || a.name.localeCompare(b.name));
 }
 
-/** Whether you and this person have dealt with each other anywhere (SPEC FRIEND-10): an expense
- *  you're both in, a game you both played, or a payment between you two. Deleted ones don't count. */
+/** Whether money has moved between you and this person (SPEC FRIEND-10): a payment between you
+ *  two, a one-on-one expense together, or a balance open between you now. Sitting at the same
+ *  table or in the same group split doesn't count: settle-up pairs you with only a few of them. */
 export function transactedWith(f: Friend): boolean {
-  return f.groups.some(({ group: g, memberId: them, myMemberId: me }) => {
-    const inExpense = (id: string, e: Group['expenses'][number]) => e.payers.some((p) => p.member_id === id) || e.shares.some((x) => x.member_id === id);
-    const played = (id: string, s: GameSession) => s.results.some((r) => r.member_id === id && playedIn(r));
-    return g.expenses.some((e) => inExpense(me, e) && inExpense(them, e))
-      || g.sessions.some((s) => played(me, s) && played(them, s))
-      || g.settlements.some((p) => (p.from_member === me && p.to_member === them) || (p.from_member === them && p.to_member === me));
+  return f.groups.some(({ group: g, memberId: them, myMemberId: me, cents }) => {
+    const involves = (id: string, e: Group['expenses'][number]) => e.payers.some((p) => p.member_id === id) || e.shares.some((x) => x.member_id === id);
+    return cents !== 0
+      || g.settlements.some((p) => (p.from_member === me && p.to_member === them) || (p.from_member === them && p.to_member === me))
+      || (g.is_direct && g.expenses.some((e) => involves(me, e) && involves(them, e)));
   });
 }
 
 /**
- * The Friends list (SPEC FRIEND-10): signed-up people you added as friends, plus anyone you've
- * actually dealt with, guest or not. Sharing a group alone doesn't put someone here.
+ * The Friends list (SPEC FRIEND-10): signed-up people you added as friends, plus anyone money has
+ * moved between you and, guest or not. Sharing a group alone doesn't put someone here.
  */
 export function friendsList(data: AppData): FriendRow[] {
   return peopleList(data).filter((f) => (f.contactId !== null && f.status === 'friend') || transactedWith(f));
