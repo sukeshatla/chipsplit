@@ -266,10 +266,10 @@ export function friendsList(data: AppData): FriendRow[] {
   return peopleList(data).filter((f) => f.contactId !== null || transactedWith(f));
 }
 
-/** Settled up after money moved between you: tucked behind "Show N settled up" (SPEC FRIEND-12).
+/** Even with you in a group you share: tucked behind "Show N settled up" (SPEC FRIEND-12).
  *  A friend with nothing shared yet isn't settled with you, so they always show. */
 export function isTuckedAway(f: Friend): boolean {
-  return isSettledFriend(f) && transactedWith(f);
+  return isSettledFriend(f) && f.groups.length > 0;
 }
 
 /** Whether a group has anything in it right now -- an expense, game, or payment, settled or not.

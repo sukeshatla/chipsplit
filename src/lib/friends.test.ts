@@ -128,4 +128,10 @@ describe('settled friends tucked away', () => {
     expect(isTuckedAway(rows.find((f) => f.name === 'Kiran')!)).toBe(true);
     expect(isTuckedAway(rows.find((f) => f.name === 'Neha')!)).toBe(false);
   });
+  it('[FRIEND-12] tucks away a friend you added who shares a group but is even with you', () => {
+    const teja = member('m-teja', { name: 'Teja', user_id: 'u-teja', contact_id: 'c-teja' });
+    const shared = group({ members: [meMember('me'), teja] });
+    const d = data([shared], { contacts: [{ id: 'c-teja', owner_id: 'me-user', user_id: 'u-teja', name: 'Teja', email: 'teja@example.com', created_at: '' }] });
+    expect(isTuckedAway(friendsList(d).find((f) => f.name === 'Teja')!)).toBe(true);
+  });
 });
