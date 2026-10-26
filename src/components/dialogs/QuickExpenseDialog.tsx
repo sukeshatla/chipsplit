@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { clsx } from 'clsx';
 import { Search, Users } from 'lucide-react';
-import { Avatar, Badge, Button, EmptyState, Input, Modal } from '../ui';
+import { Avatar, Badge, Button, EmptyState, Input, Modal, SelectAll } from '../ui';
 import { useAction, useData } from '../../app/data';
 import { useAuth } from '../../app/auth';
 import { friendKey, friendsList, STATUS_LABEL, type FriendRow, type FriendStatus } from '../../lib/ledger';
@@ -92,7 +92,9 @@ export function QuickExpenseDialog({ open, onClose }: { open: boolean; onClose()
           <EmptyState icon={<Users size={28} />} title="No friends yet" body="Add a friend first, then split an expense with them."
             action={<Button variant="primary" onClick={() => setAddingFriend(true)}>Add a friend</Button>} />
         ) : (
-          <div className="-mx-1 max-h-72 space-y-1 overflow-y-auto">
+          <div className="-mx-1 space-y-1">
+          <div className="flex justify-end px-1"><SelectAll ids={shown.map((f) => f.key)} picked={picked} onChange={(next) => { setPicked(next); setError(null); }} /></div>
+          <div className="max-h-72 space-y-1 overflow-y-auto">
             {shown.map((f) => {
               const on = picked.includes(f.key);
               return (
@@ -107,6 +109,7 @@ export function QuickExpenseDialog({ open, onClose }: { open: boolean; onClose()
                 </button>
               );
             })}
+          </div>
           </div>
         )}
         {error && <p className="rounded-lg bg-loss/10 px-3 py-2 text-[13px] text-loss">{error}</p>}

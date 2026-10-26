@@ -303,7 +303,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 
 **Splitwise-style expenses**
 - Add expenses with one payer or **several payers**.
-- Split **equally**, by **shares** (e.g. one person owes 2 shares, everyone else 1), by **exact amounts**, or by **percentages** (defaults to an even split of 100%, not zero) — always to the exact cent. Every mode uses the same tap-to-include/exclude picker.
+- Split **equally**, by **shares** (e.g. one person owes 2 shares, everyone else 1), by **exact amounts**, or by **percentages** (defaults to an even split of 100%, not zero) — always to the exact cent. Every mode uses the same tap-to-include/exclude picker. An **All** checkbox picks or clears everyone at once, here and in every other tap-to-pick list (Start a game, a new rummy game, a new group's friends, Quick add); while searching it covers just the matches.
 - **One-on-one expenses**: from the Dashboard or a friend's page, add an expense with friends ("we ate out, one person paid") without making a group. These stay under **Friends**, never in your Groups list. Under **More options** pick **USD, INR, or GBP**; each currency keeps its own balance with that friend (never converted).
 - Tap an expense for a summary: who paid, who's in, and each share, with **Edit** and **Delete** for anyone in the group. Expenses are grouped by month and show what you lent or borrowed.
 - A deleted expense can be **restored** from the group's History tab.

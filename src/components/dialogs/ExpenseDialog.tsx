@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { clsx } from 'clsx';
 import { CalendarDays, Check, Minus, Plus, SlidersHorizontal, UserPlus } from 'lucide-react';
-import { Button, Field, IconButton, Input, Modal, MoneyInput, Select, Tabs, Avatar, enterToNext } from '../ui';
+import { Button, Field, IconButton, Input, Modal, MoneyInput, Select, SelectAll, Tabs, Avatar, enterToNext } from '../ui';
 import { useAction, useData } from '../../app/data';
 import { centsToInput, equalPercents, formatDate, formatMoney, parseMoney, splitByWeights, splitEqual, todayISO } from '../../lib/money';
 import { friendKey, memberShort, myMemberId } from '../../lib/ledger';
@@ -273,9 +273,12 @@ export function ExpenseDialog({ group, expense, open, onClose, onPickCurrency }:
         <div>
           <div className="mb-2 flex items-center justify-between">
             <p className="text-[13px] font-semibold">Split</p>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setAddingPerson(true)}>
-              <UserPlus size={14} aria-hidden="true" />Add someone
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button type="button" size="sm" variant="ghost" onClick={() => setAddingPerson(true)}>
+                <UserPlus size={14} aria-hidden="true" />Add someone
+              </Button>
+              <SelectAll ids={group.members.map((m) => m.id)} picked={included} onChange={setIncluded} />
+            </div>
           </div>
           <Tabs value={mode} onChange={(v) => {
             setMode(v); setError(null);

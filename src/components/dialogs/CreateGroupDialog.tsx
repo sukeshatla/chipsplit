@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Check, Search, UserPlus } from 'lucide-react';
-import { Avatar, Button, Field, Input, Modal } from '../ui';
+import { Avatar, Button, Field, Input, Modal, SelectAll } from '../ui';
 import { useAction, useData } from '../../app/data';
 import { friendsList, STATUS_LABEL } from '../../lib/ledger';
 import { KIND_ICON, KIND_LABEL } from '../GroupKind';
@@ -124,6 +124,7 @@ export function CreateGroupDialog({ open, onClose }: { open: boolean; onClose():
             <p className="text-[13px] text-ink-2">No friends yet. Add one, or create the group now and add people later.</p>
           ) : (
             <div className="-mx-1 space-y-1">
+              <div className="flex justify-end px-1"><SelectAll ids={shown.map((f) => f.key)} picked={picked} onChange={setPicked} /></div>
               {shown.map((f) => {
                 const on = picked.includes(f.key);
                 return (

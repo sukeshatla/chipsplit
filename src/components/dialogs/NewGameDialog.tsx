@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Check, UserPlus } from 'lucide-react';
-import { Avatar, Button, Field, Input, Modal, MoneyInput, Select } from '../ui';
+import { Avatar, Button, Field, Input, Modal, MoneyInput, Select, SelectAll } from '../ui';
 import { useAction, useData } from '../../app/data';
 import { centsToInput, formatMoney, parseMoney, todayISO } from '../../lib/money';
 import { AddMemberDialog } from './AddMemberDialog';
@@ -86,7 +86,10 @@ export function NewGameDialog({ open, onClose, groupId }: { open: boolean; onClo
             </Field>
           </div>
           <div>
-            <span className="mb-1.5 block text-[13px] font-semibold">Who's playing</span>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[13px] font-semibold">Who's playing</span>
+              {group && <SelectAll ids={group.members.map((m) => m.id)} picked={players} onChange={setPlayers} />}
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {group?.members.map((m) => {
                 const on = players.includes(m.id);

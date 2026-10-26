@@ -202,6 +202,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | PLAT-5 | Someone watching a game in progress refreshes just that game every 15 seconds, not everything; everything reloads once, when the game finishes, reopens, or is deleted. The host's autosave updates the screen without a reload. | test | `withSession`, `needsFullReload`, `GameDayPage`, `loadSession` |
 | PLAT-6 | Loaded data stays fresh for 5 minutes: switching back to the app or between pages inside that doesn't reload everything, while any change you make reloads at once. The notifications bell checks every 5 minutes. Avatars are cached for a year (each upload gets a new address). | manual | `main.tsx`, `NotificationsBell`, `uploadAvatar` — browser Network tab: switch tabs and back within 5 minutes; no new `groups` request |
 | PLAT-7 | Every table the app uses has explicit Data API grants in a migration (Supabase stopped granting new `public` tables automatically on 2026-10-30), so running the migrations on a fresh project gives a working app. | test | 0033 `explicit_grants`, `src/migrations.test.ts` |
+| PLAT-8 | Every list where you tap people to pick them (an expense's split, Start a game, a new rummy game, a new group's friends, Quick add) has an **All** checkbox: it picks everyone shown, or clears them if they're all picked already. While searching it acts on the matches only; a rummy table fills up to its 7 seats. | test | `toggleAll`, `SelectAll` in `ui.tsx` |
 
 ## ADMIN — app admin page
 

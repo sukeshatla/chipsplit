@@ -4,7 +4,7 @@ import { useAuth } from '../../app/auth';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { Check } from 'lucide-react';
-import { Avatar, Button, Field, Input, Modal, MoneyInput } from '../ui';
+import { Avatar, Button, Field, Input, Modal, MoneyInput, SelectAll } from '../ui';
 import { parseMoney } from '../../lib/money';
 import { useAction } from '../../app/data';
 import type { Group } from '../../lib/types';
@@ -86,7 +86,11 @@ export function NewRummyGameDialog({ open, onClose, group }: { open: boolean; on
           Reach the limit and you're out; last one standing takes the pot. Anyone knocked out can rejoin for another buy-in.
         </p>
         <div>
-          <span className="mb-1.5 block text-[13px] font-semibold">Players ({playing} of up to {RUMMY_MAX_PLAYERS})</span>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[13px] font-semibold">Players ({playing} of up to {RUMMY_MAX_PLAYERS})</span>
+            <SelectAll ids={group.members.map((m) => m.id)} picked={picked} max={RUMMY_MAX_PLAYERS}
+              onChange={(next) => { setPicked(next); setError(null); }} />
+          </div>
           <div className="grid grid-cols-2 gap-2">
             {group.members.map((m) => {
               const on = picked.includes(m.id);

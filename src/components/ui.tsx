@@ -1,7 +1,8 @@
 import { forwardRef, useEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { Link } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { ArrowLeft, ChevronDown, Plus, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, Plus, X, Loader2 } from 'lucide-react';
+import { isAllPicked, toggleAll } from '../lib/pick';
 import { currencySymbol, formatDate, formatMoney } from '../lib/money';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -162,6 +163,21 @@ export function AvatarButton({ name, src, size = 32, onClick }: { name: string; 
   return (
     <button type="button" aria-label={`About ${name}`} onClick={onClick} className="shrink-0 rounded-full active:opacity-70">
       <Avatar name={name} src={src} size={size} />
+    </button>
+  );
+}
+
+/** "All ☐" for a tap-to-pick list (SPEC PLAT-8): picks everyone in `ids`, or clears them. */
+export function SelectAll({ ids, picked, onChange, max }: { ids: string[]; picked: string[]; onChange(next: string[]): void; max?: number }) {
+  const all = isAllPicked(picked, ids, max);
+  if (ids.length < 2) return null;
+  return (
+    <button type="button" role="checkbox" aria-checked={all} onClick={() => onChange(toggleAll(picked, ids, max))}
+      className="inline-flex shrink-0 items-center gap-2 rounded-md px-1.5 py-1 text-[13px] font-semibold text-ink-2 hover:text-ink">
+      All
+      <span className={clsx('flex h-5 w-5 items-center justify-center rounded border-2', all ? 'border-felt bg-felt text-felt-ink' : 'border-line')}>
+        {all && <Check size={13} strokeWidth={3} aria-hidden="true" />}
+      </span>
     </button>
   );
 }
