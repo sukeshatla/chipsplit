@@ -319,7 +319,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - **One name per person**: once someone has an account, their own account name is what everyone sees, in every group, friends list, and rummy game, and it follows them if they rename themselves. People without an account keep the name they were added with.
 - **Only the app admin changes other people's names and emails** (enforced in the database): **Edit name & email** on a guest's or invited person's card fixes them in every group and friends list at once, and links them if that email already has an account. Everyone else can only change their own name, on Profile.
 - Pick existing friends right when creating a group, when adding them to an expense, or when adding a player to a game — no retyping. Adding someone new to a group doesn't save them to your friends.
-- Friend page: your overall balance with them, an **Add expense** button, your one-on-one expenses ("Just you two", one **Balance** row per currency even if you each started a one-on-one; every expense and payment also shows the balance right after it, so you can see who owed what at any point), and your balance in each group you share, each with a **Settle** button.
+- Friend page: your overall balance with them, an **Add expense** button, your one-on-one expenses ("Just you two", one **Balance** row per currency even if you each started a one-on-one), and your balance in each group you share, each with a **Settle** button.
 
 **Balances and settling up**
 - Each group shows where everyone stands and a **simplified debts** list, one line per payment; tap one to record it or send a reminder.

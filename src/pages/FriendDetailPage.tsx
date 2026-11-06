@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { clsx } from 'clsx';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, HandCoins, Trash2, UserX } from 'lucide-react';
 import { useData, useAction } from '../app/data';
-import { directBalanceRows, friendKey, peopleList, runningBalances, shortName, hasActivity, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
+import { directBalanceRows, friendKey, peopleList, hasActivity, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { AddExpenseButton, Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, LIST_STEP, MonthHeader, Row, ShowMore } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -50,21 +49,6 @@ export function FriendDetailPage() {
     ...directExpenses.map(({ e, g }) => ({ kind: 'expense' as const, date: e.spent_on, at: e.created_at, e, g })),
     ...directGroups.flatMap((fg) => fg.group.settlements.map((st) => ({ kind: 'payment' as const, date: st.settled_on, at: st.created_at, st, g: fg.group }))),
   ].sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
-  // Who owed whom right after each row (SPEC FRIEND-13).
-  const after = runningBalances(f);
-  const balanceAfter = (id: string, currency: string) => {
-    const cents = after.get(id);
-    if (cents === undefined) return null;
-    const name = shortName(f.name);
-    const amount = formatMoney(Math.abs(cents), currency);
-    return (
-      <p className="truncate text-[12px] text-ink-2">
-        Balance: <span className={clsx('amount font-semibold', cents > 0 ? 'text-gain' : cents < 0 ? 'text-loss' : 'text-ink')}>
-          {cents > 0 ? `${name} owes you ${amount}` : cents < 0 ? `you owe ${name} ${amount}` : 'all square'}
-        </span>
-      </p>
-    );
-  };
   const openId = params.get('expense');
   const openIndex = timeline.findIndex((x) => x.kind === 'expense' && x.e.id === openId);
   if (openIndex >= shown) setShown(openIndex + 1);
@@ -138,7 +122,6 @@ export function FriendDetailPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold">{memberShort(g, st.from_member)} paid {memberShort(g, st.to_member)}</p>
                         <p className="truncate text-[12px] text-ink-2">{[st.method, st.note].filter(Boolean).join(' · ') || 'Payment'}</p>
-                        {balanceAfter(st.id, g.currency)}
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-[11px] text-ink-2">{toMe ? 'you received' : 'you paid'}</p>
@@ -156,7 +139,6 @@ export function FriendDetailPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{e.description}</p>
                       <p className="truncate text-[12px] text-ink-2">{e.payers.map((p) => memberShort(g, p.member_id)).join(' and ')} paid {formatMoney(e.amount_cents, g.currency)}</p>
-                      {balanceAfter(e.id, g.currency)}
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-[11px] text-ink-2">{impact > 0 ? 'you lent' : impact < 0 ? 'you borrowed' : 'even'}</p>

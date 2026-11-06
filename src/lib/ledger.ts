@@ -312,41 +312,6 @@ export function directBalanceRows(f: Friend, meId: string): DirectBalanceRow[] {
   ];
 }
 
-/**
- * Who owed whom right after each one-on-one expense and payment with this friend (SPEC FRIEND-13):
- * item id -> cents they owe you (negative = you owe them). Replayed oldest first by date, then by
- * when it was entered. Counted like directBalanceRows -- one-on-ones for just you two add up per
- * currency, one with a third person stands alone -- so the newest item matches its Balance row.
- */
-export function runningBalances(f: Friend): Map<string, number> {
-  type Step = { id: string; date: string; at: string; fg: FriendGroupBalance; apply(g: Group): void };
-  const steps: Step[] = [];
-  const direct = f.groups.filter((fg) => fg.group.is_direct);
-  for (const fg of direct) {
-    fg.group.expenses.forEach((e) => steps.push({ id: e.id, date: e.spent_on, at: e.created_at, fg, apply: (g) => g.expenses.push(e) }));
-    fg.group.settlements.forEach((st) => steps.push({ id: st.id, date: st.settled_on, at: st.created_at, fg, apply: (g) => g.settlements.push(st) }));
-  }
-  steps.sort((a, b) => a.date.localeCompare(b.date) || a.at.localeCompare(b.at));
-  // Each one-on-one rebuilt item by item, and what it says you two owe right now.
-  const sofar = new Map(direct.map((fg) => [fg.group.id, { ...fg.group, expenses: [], settlements: [], sessions: [] } as Group]));
-  const between = new Map<string, number>();
-  const rowOf = (fg: FriendGroupBalance) => (fg.group.members.length === 2 ? `cur:${fg.group.currency}` : `grp:${fg.group.id}`);
-  const out = new Map<string, number>();
-  for (const step of steps) {
-    const g = sofar.get(step.fg.group.id)!;
-    step.apply(g);
-    let cents = 0;
-    for (const t of simplify(groupBalances(g))) {
-      if (t.from === step.fg.myMemberId && t.to === step.fg.memberId) cents -= t.cents;
-      else if (t.to === step.fg.myMemberId && t.from === step.fg.memberId) cents += t.cents;
-    }
-    between.set(g.id, cents);
-    const row = rowOf(step.fg);
-    out.set(step.id, direct.filter((fg) => rowOf(fg) === row).reduce((sum, fg) => sum + (between.get(fg.group.id) ?? 0), 0));
-  }
-  return out;
-}
-
 /** Whether you're settled up with this friend in every currency. */
 export function isSettledFriend(f: Pick<Friend, 'net' | 'others'>) {
   return f.net === 0 && f.others.every((m) => m.cents === 0);
