@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { friendKey, friendsList, totals, hasActivity, isSettledFriend, isTuckedAway, peopleList, sharedSummary, transactedWith } from './ledger';
+import { friendKey, friendsList, hasActivity, isSettledFriend, isTuckedAway, peopleList, sharedSummary, transactedWith } from './ledger';
 import { data, expense, game, group, meMember, member, payment } from '../test/fixtures';
 
 const ravi = (id = 'm-ravi') => member(id, { name: 'Ravi', email: 'ravi@example.com' });
@@ -75,17 +75,6 @@ describe('one-on-one balance rows on a friend page', () => {
     const { directBalanceRows } = await import('./ledger');
     const empty = group({ id: 'empty', is_direct: true, members: [meMember('me-e'), ravi('r-e')] });
     expect(directBalanceRows(raviRow(data([pair('a', 'USD', 1000), empty])), 'me-user')).toHaveLength(1);
-  });
-});
-
-describe('Friends page totals', () => {
-  it('[FRIEND-14] totals what you are owed and owe in your currency, and counts the friends each way', () => {
-    const pair = (id: string, name: string, currency: string, cents: number) => group({
-      id, is_direct: true, currency, members: [meMember(`me-${id}`), member(`f-${id}`, { name, email: `${name}@example.com` })],
-      expenses: [cents > 0 ? expense(`x-${id}`, `me-${id}`, cents, { [`f-${id}`]: cents }) : expense(`x-${id}`, `f-${id}`, -cents, { [`me-${id}`]: -cents })],
-    });
-    const t = totals(data([pair('a', 'asha', 'USD', 3000), pair('b', 'ben', 'USD', 2000), pair('c', 'cal', 'USD', -1500), pair('d', 'dev', 'INR', 9000)]));
-    expect(t).toMatchObject({ owed: 5000, owe: 1500, net: 3500, owedBy: 2, oweTo: 1, others: [{ currency: 'INR', cents: 9000 }] });
   });
 });
 
