@@ -310,6 +310,7 @@ There's no server of our own: the browser calls Supabase directly. Every call th
 - **Import from Excel or CSV** (`.xlsx`, `.xls`, `.csv`) with a preview that flags bad rows before anything is saved. A template is downloadable from the import dialog.
 
 **Friends**
+- **Share** at the top sends one picture of every friend you have money open with: green *owes you*, red *you owe*, each in its own currency, as of today.
 - A personal friends list, independent of any one group: add someone by their Google email (they're on your list right away, signed up or not, and linked once they sign in), or tap anyone's picture in a group or game and hit **Add as friend**. Friends you add stay until you remove them. Sharing a group doesn't make someone your friend.
 - **Add a friend** is one short form: name and Google email. Pop-up forms stay above the phone keyboard.
 - Each friend row says what you share: **2 shared groups**, **one-on-one**, or **nothing shared yet** (deleted expenses and empty one-on-ones don't count).

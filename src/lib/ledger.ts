@@ -458,6 +458,8 @@ export interface SummaryRow {
   /** Live (in-progress) games only: bought in so far, as an amount and (when it divides evenly by
    *  the game's buy-in) a count including the first; chips given back to the bank; cashed out. */
   buyIn?: number; buyIns?: number | null; back?: number; cashOut?: number;
+  /** The friends picture only: this row's own currency, when it isn't the summary's. */
+  currency?: string;
 }
 export interface Summary {
   title: string;
@@ -472,6 +474,8 @@ export interface Summary {
   live?: { final: boolean; buyInAmount: number; totalIn: number; buyIns: number | null; totalBack: number; totalCashOut: number; pot: number };
   /** Set for a rummy game's picture: standings, best first, knocked-out players last. */
   rummy?: { final: boolean; limit: number; buyIn: number; pot: number; rows: { id: string; name: string; total: number; out: boolean; rejoins: number; winner: boolean }[] };
+  /** Set for the Friends page picture: rows are friends, from your side (positive = owes you). */
+  friends?: true;
 }
 
 /**
@@ -493,6 +497,23 @@ export function summaryData(g: Group, sessionId?: string): Summary {
     currency: g.currency,
     rows,
     transfers: session ? sessionPayments(g, session).map(({ settlementId, ...t }) => ({ ...t, paid: !!settlementId })) : simplify(bal),
+  };
+}
+
+/**
+ * The Friends page picture (SPEC SHARE-12): every open balance with a friend, one row per
+ * currency (never added together), owes-you first, then biggest first. Settled ones are left out.
+ */
+export function friendsSummary(data: AppData): Summary {
+  const rows: SummaryRow[] = friendsList(data).flatMap((f) =>
+    [{ currency: f.currency, cents: f.net }, ...f.others].filter((b) => b.cents !== 0)
+      .map((b) => ({ id: `${f.key}:${b.currency}`, name: f.name, cents: b.cents, currency: b.currency })))
+    .sort((a, b) => Number(b.cents > 0) - Number(a.cents > 0) || Math.abs(b.cents) - Math.abs(a.cents) || a.name.localeCompare(b.name));
+  const first = data.me.display_name.trim().split(/\s+/)[0];
+  return {
+    title: first ? `${first}'s friends` : 'Friends',
+    when: `As of ${formatDate(todayLocal(), { month: 'short', day: 'numeric', year: 'numeric' })}`,
+    place: null, currency: data.me.default_currency || 'USD', rows, transfers: [], friends: true,
   };
 }
 

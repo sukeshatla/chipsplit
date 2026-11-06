@@ -176,11 +176,12 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | SHARE-3 | The game table lists winners first, then players still in, then even, then losers; a finished game drops sat-out rows and lists payments with paid marks. | test | `gameTableData` |
 | SHARE-4 | A reminder is addressed to the one person who owes, naming who and how much; no email on file means no reminder. | test | `reminderMailto` |
 | SHARE-5 | Share images render as phone-shaped PNGs; longer lists get tighter rows instead of a second picture. | manual | `summaryImage.ts` — share a 25-person group's balances; one picture |
-| SHARE-7 | Every picture opens with a banner: the Chip n Split logo and name, a label saying what it is (**Game · In progress**, **Game · Final results**, **Game · Settle up**, **Rummy · In progress**, **Rummy · Final**, **Group · Balances**, or **Group · Settle up**), the group name, and when: *As of* today for a group; the game's date and place for a game, plus the buy-in on its results. | test | `imageBanner` |
+| SHARE-7 | Every picture opens with a banner: the Chip n Split logo and name, a label saying what it is (**Game · In progress**, **Game · Final results**, **Game · Settle up**, **Rummy · In progress**, **Rummy · Final**, **Group · Balances**, **Group · Settle up**, or **Friends · Balances**), the group name, and when: *As of* today for a group or your friends; the game's date and place for a game, plus the buy-in on its results. | test | `imageBanner` |
 | SHARE-8 | Each card's Share sends one picture of just that card: a game's **Players** (results) or **Settle up**; a group's **Where everyone stands** or **Settle up**. | test | `imageParts` |
 | SHARE-9 | Sharing sends only the picture(s): no title or "summary" text is added. | manual | `shareSummaryImage` — share to WhatsApp; only images arrive |
 | SHARE-10 | The leaderboard has no Share button. | manual | `GroupPage` — open a club's Games tab; the Leaderboard card has no Share |
 | SHARE-11 | There's no Email summary anywhere; every card's **Share** sends only its picture, with no dropdown. One-person reminders stay on settle-up rows. | manual | `GameDayPage`, `GroupPage` — no Email summary button or Share menu on any page |
+| SHARE-12 | The Friends page has a **Share** button at the top that sends one picture of every friend you have money open with: green *owes you*, red *you owe*, each in that balance's own currency (a friend open in two currencies gets a row for each, never added together), owes-you first, biggest first. Settled-up friends are left out. | test | `friendsSummary`, `FriendsPage` |
 | SHARE-6 | Names shorten to first name + last initial, unless two people would look the same. | test | `shortName` |
 
 ## HIST — history and notifications

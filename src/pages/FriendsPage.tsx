@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, HeartHandshake, UserPlus } from 'lucide-react';
+import { Search, HeartHandshake, Share2, UserPlus } from 'lucide-react';
 import { useData } from '../app/data';
-import { friendsList, isTuckedAway, moneyPhrase, sharedSummary, totals, STATUS_LABEL } from '../lib/ledger';
+import { useToast } from '../app/toast';
+import { shareSummaryImage } from '../lib/summaryImage';
+import { friendsList, friendsSummary, isTuckedAway, moneyPhrase, sharedSummary, totals, STATUS_LABEL } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { Avatar, BalanceText, Button, Card, EmptyState, Input, PageHeader, useShowMore } from '../components/ui';
 import { AddFriendDialog } from '../components/dialogs/AddFriendDialog';
@@ -22,11 +24,21 @@ export function FriendsPage() {
   const shown = searching || showSettled ? friends : friends.filter((f) => !isTuckedAway(f));
   const list = useShowMore(shown);
   const t = totals(data);
+  const toast = useToast();
+  // One picture of every open balance, green owes you, red you owe (SPEC SHARE-12).
+  const share = () => {
+    const d = friendsSummary(data);
+    shareSummaryImage(d, (id) => d.rows.find((r) => r.id === id)?.name ?? '')
+      .catch((e) => toast.push(e instanceof Error ? e.message : "Couldn't share the image", 'error'));
+  };
 
   return (
     <>
       <PageHeader title="Friends" subtitle="Everyone you split with, in groups or one-on-one."
-        actions={<Button variant="primary" onClick={() => setAdding(true)}><UserPlus size={16} aria-hidden="true" />Add friend</Button>} />
+        actions={<>
+          <Button onClick={share}><Share2 size={16} aria-hidden="true" />Share</Button>
+          <Button variant="primary" onClick={() => setAdding(true)}><UserPlus size={16} aria-hidden="true" />Add friend</Button>
+        </>} />
       <div className="mb-4 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-surface-2 px-4 py-3"><p className="text-[13px] text-ink-2">Owed to you</p><p className="amount font-display text-xl font-medium md:text-2xl text-gain">{formatMoney(t.owed, currency)}</p></div>
         <div className="rounded-2xl bg-surface-2 px-4 py-3"><p className="text-[13px] text-ink-2">You owe</p><p className="amount font-display text-xl font-medium md:text-2xl text-loss">{formatMoney(t.owe, currency)}</p></div>

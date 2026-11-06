@@ -34,6 +34,7 @@ export function imageBanner(d: Summary, part: Part): Banner {
     const buyIn = d.live.buyInAmount ? `${formatMoney(d.live.buyInAmount, d.currency)} buy-in` : null;
     return { label: d.live.final ? 'Game · Final results' : 'Game · In progress', title: d.title, details: [d.when, place, buyIn].filter(Boolean) as string[] };
   }
+  if (d.friends) return { label: 'Friends · Balances', title: d.title, details: [d.when] };
   return { label: part === 'settle' ? 'Group · Settle up' : 'Group · Balances', title: d.title, details: [d.when] };
 }
 
@@ -194,21 +195,24 @@ function drawLiveTable(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Sum
  *  fewest payments to clear it all. */
 function drawBalances(c: HTMLCanvasElement, x: CanvasRenderingContext2D, d: Summary, open: Summary['rows'], settled: Summary['rows'],
   names: (id: string) => string, top: number, W: number, PAD: number, ROWH: number, part: Part) {
-  const money = (v: number) => formatMoney(v, d.currency);
+  const money = (v: number, currency = d.currency) => formatMoney(v, currency);
   const band = (i: number, y: number) => { if (i % 2 === 0) { x.fillStyle = ZEBRA; x.fillRect(PAD - 12, y, W - 2 * PAD + 24, ROWH); } };
   let y = top;
 
   if (part === 'stands') {
-  if (open.length === 0) { x.fillStyle = GAIN; x.font = `600 17px ${FONT}`; x.fillText('Everyone is settled up', PAD, y + 28); y += ROWH; }
+  if (open.length === 0) { x.fillStyle = GAIN; x.font = `600 17px ${FONT}`; x.fillText(d.friends ? "You're settled up with everyone" : 'Everyone is settled up', PAD, y + 28); y += ROWH; }
   open.forEach((r, i) => {
     band(i, y);
     const mid = y + ROWH / 2 + 6, tone = r.cents > 0 ? GAIN : LOSS;
     x.fillStyle = tone; x.beginPath(); x.arc(PAD + 4, y + ROWH / 2, 5.5, 0, Math.PI * 2); x.fill();
     x.fillStyle = INK; x.font = `600 17px ${FONT}`; x.textAlign = 'left'; x.fillText(fit(x, r.name, W - 2 * PAD - 190), PAD + 20, mid);
     x.textAlign = 'right';
-    x.fillStyle = tone; x.font = `700 18px ${FONT}`; x.fillText(money(Math.abs(r.cents)), W - PAD, mid);
-    const amountW = x.measureText(money(Math.abs(r.cents))).width;
-    x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText(r.cents > 0 ? 'gets back' : 'owes', W - PAD - amountW - 10, mid);
+    const amount = money(Math.abs(r.cents), r.currency);
+    x.fillStyle = tone; x.font = `700 18px ${FONT}`; x.fillText(amount, W - PAD, mid);
+    const amountW = x.measureText(amount).width;
+    // Friends are from your side (owes you / you owe); a group's members from their own.
+    const phrase = d.friends ? (r.cents > 0 ? 'owes you' : 'you owe') : r.cents > 0 ? 'gets back' : 'owes';
+    x.fillStyle = INK_2; x.font = `500 14px ${FONT}`; x.fillText(phrase, W - PAD - amountW - 10, mid);
     y += ROWH;
   });
   if (settled.length) {
