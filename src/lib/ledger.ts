@@ -335,16 +335,17 @@ export function moneyPhrase(m: Money, perspective: 'friend' | 'overall'): string
  *  any other currency are reported separately in `others` as a net per currency -- never converted. */
 export function totals(data: AppData) {
   const currency = data.me.default_currency || 'USD';
-  let owed = 0, owe = 0;
+  let owed = 0, owe = 0, owedBy = 0, oweTo = 0;
   const others: Money[] = [];
   for (const f of friendBalances(data)) {
     for (const b of [{ currency: f.currency, cents: f.net }, ...f.others]) {
       if (b.currency !== currency) others.push(b);
-      else if (b.cents > 0) owed += b.cents;
-      else owe -= b.cents;
+      else if (b.cents > 0) { owed += b.cents; owedBy++; }
+      else if (b.cents < 0) { owe -= b.cents; oweTo++; }
     }
   }
-  return { currency, owed, owe, net: owed - owe, others: sumByCurrency(others) };
+  // owedBy / oweTo: how many friends owe you / you owe, in your currency (SPEC FRIEND-14).
+  return { currency, owed, owe, net: owed - owe, owedBy, oweTo, others: sumByCurrency(others) };
 }
 
 export interface ActivityItem {

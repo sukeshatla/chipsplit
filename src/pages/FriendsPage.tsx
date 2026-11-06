@@ -1,11 +1,14 @@
 import { useState } from 'react';
+import { clsx } from 'clsx';
 import { Link } from 'react-router-dom';
 import { Search, HeartHandshake, UserPlus } from 'lucide-react';
 import { useData } from '../app/data';
 import { friendsList, isTuckedAway, moneyPhrase, sharedSummary, totals, STATUS_LABEL } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
-import { Avatar, BalanceText, Button, Card, EmptyState, Input, PageHeader, useShowMore } from '../components/ui';
+import { Amount, Avatar, BalanceText, Button, Card, EmptyState, Input, PageHeader, useShowMore } from '../components/ui';
 import { AddFriendDialog } from '../components/dialogs/AddFriendDialog';
+
+const friendCount = (dir: 'from' | 'to', n: number) => (n === 0 ? 'nobody' : `${dir} ${n} friend${n === 1 ? '' : 's'}`);
 
 export function FriendsPage() {
   const data = useData();
@@ -27,9 +30,19 @@ export function FriendsPage() {
     <>
       <PageHeader title="Friends" subtitle="Everyone you split with, in groups or one-on-one."
         actions={<Button variant="primary" onClick={() => setAdding(true)}><UserPlus size={16} aria-hidden="true" />Add friend</Button>} />
-      <div className="mb-4 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-surface-2 px-4 py-3"><p className="text-[13px] text-ink-2">Owed to you</p><p className="amount font-display text-xl font-medium md:text-2xl text-gain">{formatMoney(t.owed, currency)}</p></div>
-        <div className="rounded-2xl bg-surface-2 px-4 py-3"><p className="text-[13px] text-ink-2">You owe</p><p className="amount font-display text-xl font-medium md:text-2xl text-loss">{formatMoney(t.owe, currency)}</p></div>
+      {/* Stat tiles like the Poker page (SPEC FRIEND-14): the total on top, then each way. */}
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+        {[
+          { label: 'Total balance', value: <Amount cents={t.net} currency={currency} sign className="text-xl md:text-2xl" />, note: t.net > 0 ? "you're up" : t.net < 0 ? 'you owe overall' : 'all square', wide: true },
+          { label: 'Owed to you', value: <p className="amount font-display text-xl font-medium text-gain md:text-2xl">{formatMoney(t.owed, currency)}</p>, note: friendCount('from', t.owedBy) },
+          { label: 'You owe', value: <p className="amount font-display text-xl font-medium text-loss md:text-2xl">{formatMoney(t.owe, currency)}</p>, note: friendCount('to', t.oweTo) },
+        ].map((x) => (
+          <div key={x.label} className={clsx('rounded-2xl bg-surface-2 p-3 md:p-4', x.wide && 'col-span-2 md:col-span-1')}>
+            <p className="text-[13px] text-ink-2">{x.label}</p>
+            <div className="mt-1">{x.value}</div>
+            <p className="mt-0.5 text-[12px] text-ink-2">{x.note}</p>
+          </div>
+        ))}
       </div>
       {t.others.length > 0 && (
         <p className="-mt-2 mb-4 text-[13px] text-ink-2">

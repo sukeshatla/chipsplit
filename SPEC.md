@@ -152,6 +152,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | FRIEND-11 | Adding someone to a group doesn't add them to your friends. Anyone signed up has **Add as friend** on their card (tap their picture: name and email), unless they're you or already a friend. | test | demo `addMember`, 0034 `add_member`, `MemberCardDialog` |
 | FRIEND-12 | The Friends page hides friends you've settled up with (you share a group and are even in every currency, whether or not money ever moved) behind **Show N settled up** / **Hide settled up** at the bottom of the list; a friend you added with nothing shared yet isn't "settled": they always show, with no balance. Searching shows every match. The Dashboard's Friends card leaves settled friends out entirely (*You're settled up with everyone.* when that's all of them). | test | `isTuckedAway`, `FriendsPage`, `DashboardPage` |
 | ~~FRIEND-13~~ | ~~Every one-on-one expense and payment on a friend's page shows the balance right after it.~~ Retired: not wanted; the page shows only the current Balance rows. | — | — |
+| FRIEND-14 | The top of the Friends page has stat tiles like Poker's: **Total balance** (owed to you minus you owe, signed), **Owed to you** (*from N friends*), and **You owe** (*to N friends*), in your own currency; other currencies are listed below them, never converted. | test | `totals`, `FriendsPage` |
 
 ## ROLE — who can do what
 
