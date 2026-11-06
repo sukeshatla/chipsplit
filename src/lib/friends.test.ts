@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { friendKey, friendsList, hasActivity, isSettledFriend, isTuckedAway, peopleList, sharedSummary, transactedWith } from './ledger';
+import { friendKey, friendsList, runningBalances, hasActivity, isSettledFriend, isTuckedAway, peopleList, sharedSummary, transactedWith } from './ledger';
 import { data, expense, game, group, meMember, member, payment } from '../test/fixtures';
 
 const ravi = (id = 'm-ravi') => member(id, { name: 'Ravi', email: 'ravi@example.com' });
@@ -75,6 +75,30 @@ describe('one-on-one balance rows on a friend page', () => {
     const { directBalanceRows } = await import('./ledger');
     const empty = group({ id: 'empty', is_direct: true, members: [meMember('me-e'), ravi('r-e')] });
     expect(directBalanceRows(raviRow(data([pair('a', 'USD', 1000), empty])), 'me-user')).toHaveLength(1);
+  });
+});
+
+describe('running balance on a friend page', () => {
+  const at = (date: string, n: number) => ({ spent_on: date, created_at: `${date}T00:0${n}:00Z` });
+  it('[FRIEND-13] shows the balance right after each expense and payment, oldest first', () => {
+    // Ravi's one-on-one, entered out of order: the replay goes by date.
+    const g = group({ id: 'd', is_direct: true, members: [meMember('a'), ravi('r')],
+      expenses: [expense('dinner', 'r', 2000, { a: 1000, r: 1000 }, at('2026-03-05', 1)), expense('rent', 'a', 6000, { r: 6000 }, at('2026-03-01', 1))],
+      settlements: [payment('paid', 'r', 'a', 2000, { settled_on: '2026-03-03', created_at: '2026-03-03T00:00:00Z' })] });
+    const run = runningBalances(raviRow(data([g])));
+    expect(Object.fromEntries(run)).toEqual({ rent: 6000, paid: 4000, dinner: 3000 });
+  });
+
+  it('[FRIEND-13] adds one-on-ones in a currency together; another currency and a third-person one keep their own', () => {
+    const pair = (id: string, currency: string, e: ReturnType<typeof expense>) =>
+      group({ id, is_direct: true, currency, members: [meMember('a'), ravi('r')], expenses: [e] });
+    const usd1 = pair('u1', 'USD', expense('u1x', 'a', 1000, { r: 1000 }, at('2026-01-01', 1)));
+    const usd2 = pair('u2', 'USD', expense('u2x', 'r', 300, { a: 300 }, at('2026-01-02', 1)));
+    const inr = pair('i', 'INR', expense('ix', 'a', 5000, { r: 5000 }, at('2026-01-03', 1)));
+    const three = group({ id: 't', is_direct: true, members: [meMember('a'), ravi('r'), member('k', { name: 'Kiran' })],
+      expenses: [expense('tx', 'a', 900, { a: 300, r: 300, k: 300 }, at('2026-01-04', 1))] });
+    const run = runningBalances(raviRow(data([usd1, usd2, inr, three])));
+    expect(Object.fromEntries(run)).toEqual({ u1x: 1000, u2x: 700, ix: 5000, tx: 300 });
   });
 });
 
