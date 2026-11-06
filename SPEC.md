@@ -133,6 +133,7 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 | EXP-3 | One-on-one expenses live in hidden direct groups that never appear in Groups lists. | test | `listedGroups`, 0017 |
 | EXP-4 | One-on-one activity links to the friend's page, not a group page. | test | `directFriendKey`, `activity` |
 | EXP-5 | Spreadsheet import shows a preview that flags bad rows before anything is saved. | manual | `ImportDialog` — import a sheet with a blank amount; the row is flagged and nothing saves |
+| EXP-6 | Editing a one-on-one expense can change its currency (USD / INR / GBP under **More options**, like adding one): it moves, same expense, to the one-on-one for the same people in that currency, with everyone mapped across. Group expenses stay in the group's currency. | test | `ExpenseDialog` `onPickCurrency`, demo `saveExpense`, 0025 update policy (member of both groups) |
 
 ## FRIEND — friends list
 

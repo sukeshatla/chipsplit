@@ -47,9 +47,10 @@ function SplitRow({ name, avatarUrl, on, toggle, children }: { name: string; ava
 export const EXPENSE_CURRENCIES = ['USD', 'INR', 'GBP'];
 
 /**
- * `onPickCurrency` (new one-on-one expenses only) offers USD / INR / GBP under More options.
+ * `onPickCurrency` (one-on-one expenses only) offers USD / INR / GBP under More options.
  * A direct group has one currency, so saving in another one goes to the direct group for the
- * same people in that currency (found or created by the caller), with everyone mapped across.
+ * same people in that currency (found or created by the caller), with everyone mapped across;
+ * an edited expense moves there, keeping its id.
  */
 export function ExpenseDialog({ group, expense, open, onClose, onPickCurrency }: {
   group: Group; expense: Expense | null; open: boolean; onClose(): void; onPickCurrency?: (currency: string) => Promise<Group | null>;
@@ -97,7 +98,7 @@ export function ExpenseDialog({ group, expense, open, onClose, onPickCurrency }:
     setMode(isEqual ? 'equal' : 'exact');
     setIncluded(expense.shares.map((s) => s.member_id));
     setValues(Object.fromEntries(expense.shares.map((s) => [s.member_id, centsToInput(s.amount_cents)])));
-    setEditingDate(false);
+    setEditingDate(false); setCurrency(group.currency);
     // Reopen in the simple view only if the expense is one of its shapes; otherwise the full editor.
     const shape = quickShape(expense);
     setAdvanced(shape === null);

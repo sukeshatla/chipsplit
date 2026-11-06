@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, HandCoins, Trash2, UserX } from 'lucide-react';
 import { useData, useAction } from '../app/data';
-import { directBalanceRows, peopleList, hasActivity, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
+import { directBalanceRows, friendKey, peopleList, hasActivity, isSettledFriend, memberShort, moneyPhrase, myMemberId, STATUS_LABEL, type FriendGroupBalance } from '../lib/ledger';
 import { formatMoney } from '../lib/money';
 import { AddExpenseButton, Amount, Avatar, BackLink, BalanceText, Button, byMonth, Card, CardHeader, DateTile, EmptyState, LIST_STEP, MonthHeader, Row, ShowMore } from '../components/ui';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -54,6 +54,13 @@ export function FriendDetailPage() {
   if (openIndex >= shown) setShown(openIndex + 1);
   const open = directExpenses.find((x) => x.e.id === openId) ?? null;
   const setOpen = (id: string | null) => setParams(id ? { expense: id } : {}, { replace: true });
+
+  // Everyone else in a one-on-one (it can include a third person), so a currency change on edit
+  // lands in the one-on-one for exactly the same people.
+  const directPeople = (g: Group) => {
+    const keys = new Set(g.members.filter((m) => m.user_id !== data.me.id).map(friendKey));
+    return peopleList(data).filter((p) => keys.has(p.key));
+  };
 
   const addExpense = async () => {
     const g = await direct.find([f]);
@@ -182,7 +189,7 @@ export function FriendDetailPage() {
         onEdit={(e) => { setOpen(null); setEditing({ group: open.g, expense: e }); }} />}
       {editing && (
         <ExpenseDialog group={editing.group} expense={editing.expense} open onClose={() => setEditing(null)}
-          onPickCurrency={editing.expense ? undefined : (c) => direct.find([f], c)} />
+          onPickCurrency={(c) => direct.find(directPeople(editing.group), c)} />
       )}
     </>
   );

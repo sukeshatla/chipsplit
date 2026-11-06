@@ -120,6 +120,25 @@ describe('[PLAT-4] expenses', () => {
     expect(g.expenses[0]).toEqual({ ...before, deleted_at: null });
     expect(groupBalances(g).get(raviId)).toBe(-3000);
   });
+
+  it('[EXP-6] editing an expense into another group moves it there, same id', async () => {
+    const usd = await api.createGroup({ name: 'Ravi', kind: 'expenses', currency: 'USD', direct: true });
+    const inr = await api.createGroup({ name: 'Ravi', kind: 'expenses', currency: 'INR', direct: true });
+    await api.addMember(usd, 'Ravi', 'ravi@example.com');
+    await api.addMember(inr, 'Ravi', 'ravi@example.com');
+    const meId = (await load()).me.id;
+    const [a, b] = [await byId(usd), await byId(inr)];
+    const ravi = (g: Group) => g.members.find((m) => m.user_id !== meId)!.id;
+    await api.saveExpense({ group_id: usd, description: 'Rent', category: 'general', amount_cents: 3000, spent_on: '2026-01-01',
+      payers: [{ member_id: mine(a, meId).id, amount_cents: 3000 }], shares: [{ member_id: ravi(a), amount_cents: 3000 }] });
+    const e = (await byId(usd)).expenses[0]!;
+    await api.saveExpense({ group_id: inr, description: 'Rent', category: 'general', amount_cents: 3000, spent_on: '2026-01-01',
+      payers: [{ member_id: mine(b, meId).id, amount_cents: 3000 }], shares: [{ member_id: ravi(b), amount_cents: 3000 }] }, e.id);
+    expect((await byId(usd)).expenses).toEqual([]);
+    const moved = (await byId(inr)).expenses;
+    expect(moved.map((x) => [x.id, x.group_id, x.created_at])).toEqual([[e.id, inr, e.created_at]]);
+    expect(groupBalances(await byId(inr)).get(ravi(b))).toBe(-3000);
+  });
 });
 
 describe('[PLAT-4] games', () => {

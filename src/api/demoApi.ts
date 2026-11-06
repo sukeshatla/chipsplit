@@ -275,9 +275,13 @@ export const demoApi: DataApi = {
     const g = group(d, e.group_id);
     assertMember(d, g, 'You are not in this group');
     if (id) {
-      const i = g.expenses.findIndex((x) => x.id === id);
-      if (i < 0) throw new Error('That expense no longer exists');
-      g.expenses[i] = { ...g.expenses[i], ...e };
+      // A new group_id moves it (a one-on-one changing currency); like the update policy, you
+      // must be in both groups.
+      const from = groupOf(d, (x) => x.expenses.some((y) => y.id === id));
+      assertMember(d, from, 'You are not in this group');
+      const old = from.expenses.find((x) => x.id === id)!;
+      from.expenses = from.expenses.filter((x) => x.id !== id);
+      g.expenses.push({ ...old, ...e });
       log(d, g.id, 'expense', id, `Updated expense "${e.description}"`);
     } else {
       const newId = uid();
