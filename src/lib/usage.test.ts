@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatBytes, usageMeters } from './usage';
+import { byLastSeen, formatBytes, usageMeters } from './usage';
 
 const MB = 1024 * 1024;
 
@@ -24,5 +24,19 @@ describe('admin usage', () => {
   it('[ADMIN-1] formats sizes in binary units', () => {
     expect([formatBytes(0), formatBytes(512), formatBytes(1536), formatBytes(27.72 * MB), formatBytes(1024 * MB)])
       .toEqual(['0 B', '512 B', '1.5 KB', '27.7 MB', '1 GB']);
+  });
+});
+
+describe('recent signups', () => {
+  it('[ADMIN-3] latest seen first; never seen last, newest signup first', () => {
+    const p = (id: string, created_at: string, last_seen_at: string | null) => ({ id, created_at, last_seen_at });
+    const sorted = byLastSeen([
+      p('old-but-active', '2026-01-01T00:00:00Z', '2026-11-08T09:00:00Z'),
+      p('never-new', '2026-11-07T00:00:00Z', null),
+      p('new-seen-earlier', '2026-11-01T00:00:00Z', '2026-11-02T00:00:00Z'),
+      p('never-old', '2026-02-01T00:00:00Z', null),
+      p('seen-yesterday', '2026-03-01T00:00:00Z', '2026-11-07T20:00:00Z'),
+    ]);
+    expect(sorted.map((x) => x.id)).toEqual(['old-but-active', 'seen-yesterday', 'new-seen-earlier', 'never-new', 'never-old']);
   });
 });

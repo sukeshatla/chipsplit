@@ -214,3 +214,4 @@ contains `[ID]`, and every `[ID]` in a test must exist here.
 |---|---|---|---|
 | ADMIN-1 | The Admin page shows Supabase free-plan usage against its limits, with the percent used: database size (of 500 MB, every database on the server, as Supabase counts it), file storage (of 1 GB), and people active in the last 30 days (of 50,000), plus the biggest tables. A meter turns amber from 80% and red at 100%. Egress and logs can't be read from the database, so the card links to Supabase's Usage page for them. | test | `usageMeters`, `AdminPage` |
 | ADMIN-2 | Usage figures come only from `admin_usage()`, which returns nothing unless the caller is the app admin. | db | 0032 / 0035 `admin_usage` |
+| ADMIN-3 | The Admin page's **Recent signups** lists the 20 people who opened the app most recently, latest first by when they were last seen; anyone who has never opened it comes last, newest signup first. | test | `byLastSeen`, 0036 `admin_recent_signups` |

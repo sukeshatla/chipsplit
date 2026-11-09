@@ -6,7 +6,7 @@ import { isAppAdmin } from '../lib/admin';
 import { formatDate } from '../lib/money';
 import { Avatar, Card, CardHeader, PageHeader, Row, Spinner } from '../components/ui';
 import type { AdminDailyActivity } from '../api/types';
-import { formatBytes, usageMeters, type AdminUsage, type UsageMeter } from '../lib/usage';
+import { byLastSeen, formatBytes, usageMeters, type AdminUsage, type UsageMeter } from '../lib/usage';
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
@@ -137,7 +137,7 @@ export function AdminPage() {
           <Card>
             <CardHeader title="Recent signups" />
             <div className="mt-2">
-              {signups.data && signups.data.length > 0 ? signups.data.map((s) => (
+              {signups.data && signups.data.length > 0 ? byLastSeen(signups.data).map((s) => (
                 <Row key={s.id}>
                   <Avatar name={s.display_name || s.email} size={32} />
                   <div className="min-w-0 flex-1">

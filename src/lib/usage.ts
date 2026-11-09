@@ -48,3 +48,12 @@ export function usageMeters(u: AdminUsage): UsageMeter[] {
     meter('Active in 30 days', u.active_30d, FREE_PLAN.monthlyActiveUsers, count),
   ];
 }
+
+/** Recent signups, latest seen first (SPEC ADMIN-3); never opened the app last, newest signup
+ *  first. The database sorts the same way (0036); this keeps the page right if it hasn't run. */
+export function byLastSeen<T extends { created_at: string; last_seen_at: string | null }>(people: T[]): T[] {
+  return [...people].sort((a, b) =>
+    Number(a.last_seen_at === null) - Number(b.last_seen_at === null)
+    || (b.last_seen_at ?? '').localeCompare(a.last_seen_at ?? '')
+    || b.created_at.localeCompare(a.created_at));
+}
